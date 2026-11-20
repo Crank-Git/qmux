@@ -468,8 +468,11 @@ body.rv-open .layout { padding-right:21rem; }
 </ul>
 <p>as received.</p>
 <ul>
-<li>A zone matches a QNAME that equals the zone or ends with <code>.</code> plus the zone.
+<li>A zone matches a QNAME when the last labels of the QNAME equal the labels of the zone.
 </li>
+</ul>
+<p>An escaped dot (<code>\.</code>) is part of its label and is not a label boundary.</p>
+<ul>
 <li>When several zones match, the longest zone is the <code>Request.Zone</code>.
 </li>
 <li>With empty <code>Zones</code>, <code>Request.Zone</code> is <code>.</code> and <code>Request.Labels</code> holds every QNAME label.

@@ -219,6 +219,39 @@ func TestServeQueryRefusesAQNameThatOnlyEndsWithTheZoneText(t *testing.T) {
 	checkRCode(t, answer(s, q), transport.RCodeRefused)
 }
 
+func TestServeQueryRefusesAQNameWhoseEscapedDotLooksLikeTheZone(t *testing.T) {
+	// The labels of a\.b.example. are a.b and example, so the name is outside b.example.
+	s := newTestServer(t, ServerConfig{Zones: []string{"b.example."}}, payloadHandler(nil))
+	q := validQuery()
+	q.Name = `a\.b.example.`
+	checkRCode(t, answer(s, q), transport.RCodeRefused)
+}
+
+func TestServeQueryMatchesAZoneByItsLabels(t *testing.T) {
+	tests := []struct {
+		name  string
+		zones []string
+		qname string
+		zone  string
+	}{
+		{"a name below the zone", []string{"b.example."}, "x.b.example.", "b.example."},
+		{"an uppercase name below the zone", []string{"b.example."}, "X.B.EXAMPLE.", "b.example."},
+		{"the zone itself", []string{"b.example."}, "b.example.", "b.example."},
+		{"the zone with the most labels", []string{"example.", "b.example."}, "x.b.example.", "b.example."},
+		{"a zone with an escaped dot", []string{`a\.b.example.`}, `x.a\.b.example.`, `a\.b.example.`},
+		{"the shorter zone past an escaped dot", []string{"example.", "b.example."}, `a\.b.example.`, "example."},
+		{"a zone with no final dot", []string{"b.example"}, "x.b.example.", "b.example"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := requestFor(t, ServerConfig{Zones: tt.zones}, tt.qname)
+			if req.Zone != tt.zone {
+				t.Fatalf("Zone = %q, want %q", req.Zone, tt.zone)
+			}
+		})
+	}
+}
+
 func TestServeQueryMatchesZonesWithoutRegardToCase(t *testing.T) {
 	var reqs []*protocol.Request
 	s := newTestServer(t, ServerConfig{Zones: []string{"Fleet.Example."}}, recordingHandler(&reqs))

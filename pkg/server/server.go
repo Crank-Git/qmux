@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -244,22 +245,24 @@ func (s *Server) checkHeader(q *transport.Query) (transport.RCode, bool) {
 	return transport.RCodeNoError, true
 }
 
-// matchZone returns the longest zone in cfg.Zones that matches name, and true. A zone
-// matches a name that equals the zone or ends with "." and the zone. matchZone returns
-// false when no zone matches. When cfg.Zones is empty, it returns the root zone and
-// true.
+// matchZone returns the zone in cfg.Zones with the most labels that matches name, and
+// true. A zone matches a name when the last labels of the name equal the labels of the
+// zone. matchZone returns false when no zone matches. When cfg.Zones is empty, it
+// returns the root zone and true.
 func (s *Server) matchZone(name string) (string, bool) {
 	if len(s.cfg.Zones) == 0 {
 		return rootZone, true
 	}
-	name = strings.ToLower(name)
-	best, found := "", false
+	labels := splitLabels(strings.ToLower(name))
+	best, bestLabels := "", -1
 	for _, z := range s.cfg.Zones {
-		if (name == z || strings.HasSuffix(name, "."+z)) && len(z) > len(best) {
-			best, found = z, true
+		zl := splitLabels(z)
+		n := len(labels) - len(zl)
+		if n >= 0 && len(zl) > bestLabels && slices.Equal(labels[n:], zl) {
+			best, bestLabels = z, len(zl)
 		}
 	}
-	return best, found
+	return best, bestLabels >= 0
 }
 
 // write sends a through w as the response to q, and logs one info record for q. A write
