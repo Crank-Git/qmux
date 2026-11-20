@@ -1,3 +1,5 @@
-// Package server implements the QMux DNS server that listens for queries,
-// resolves service names through the registry, and returns answers.
+// Package server is the QMux authoritative server.
+//
+// It holds the listeners, request validation, dispatch to handlers, envelopes,
+// signing, rate limits, logging and shutdown.
 package server

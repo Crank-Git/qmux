@@ -1,3 +1,4 @@
-// Package registry implements the service discovery registry that maps
-// service names to available endpoints and health status.
+// Package registry holds the registrations of one server. It is safe for
+// concurrent use. It checks registrations for conflicts, and it can remap and list
+// them.
 package registry
