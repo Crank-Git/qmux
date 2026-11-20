@@ -233,8 +233,9 @@ Usage error (exit 64): the usage text for `qmuxctl query`.
   context time and `AttemptTimeout`, whichever ends first.
 - The TCP fallback counts as one extra attempt beyond `Attempts`.
 - `Result.TTL` is informational. Nothing in the client uses it as an expiry.
-- `DNSError.Error()` names the kind, the QNAME, the protocol key and, for the kind
-  `rcode`, the RCODE text.
+- `DNSError.Error()` names the kind, the QNAME and the protocol key. For the kind
+  `rcode`, it also names the RCODE text. For the kind `timeout`, it names the attempt
+  count and the resolver address in place of the QNAME and the protocol key.
 - Every error wraps a cause, so callers test it with `errors.As` and `errors.Is`.
 - In Epic 3 the client never returns `AppError` or `VerifyError`. Epics 4 and 6 return
   them.
