@@ -29,7 +29,7 @@ func (s *Server) dispatch(ctx context.Context, q *transport.Query, zone string, 
 		ReceivedAt: q.ReceivedAt,
 	})
 	if !ok {
-		s.write(w, transport.Answer{RCode: transport.RCodeServFail})
+		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail})
 		return
 	}
 	if schema := reg.Info.Schema; schema != nil {
@@ -39,7 +39,7 @@ func (s *Server) dispatch(ctx context.Context, q *transport.Query, zone string, 
 			v = reg.Info.Versions[len(reg.Info.Versions)-1]
 		}
 		if err := schema.Validate(v, resp.Payload); err != nil {
-			s.write(w, transport.Answer{RCode: transport.RCodeServFail})
+			s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail})
 			return
 		}
 	}
@@ -47,7 +47,7 @@ func (s *Server) dispatch(ctx context.Context, q *transport.Query, zone string, 
 	if ttl == 0 {
 		ttl = s.cfg.TTL
 	}
-	s.write(w, transport.Answer{RCode: transport.RCodeNoError, TTL: ttl, Payload: resp.Payload})
+	s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeNoError, TTL: ttl, Payload: resp.Payload})
 }
 
 // handlerResult is the result of one handler call.
