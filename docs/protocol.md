@@ -1,8 +1,11 @@
 # QMux protocol
 
 This document describes the bytes that QMux puts on the wire. It is for protocol
-developers and for the authors of other implementations. The design source is
-`docs/specs/spec.md` § Data model and `docs/specs/features/04-envelope-codec.md`.
+developers and for the authors of other implementations. The design sources are:
+
+- `docs/specs/spec.md` § Data model.
+- `docs/specs/features/04-envelope-codec.md`.
+- `docs/specs/features/05-discovery.md`.
 
 ## Wire format
 
@@ -194,3 +197,157 @@ The demonstration uses these defaults:
 | `org.qmux.bootstrap` | 65280 | 65280 |
 | `org.qmux.configuration` | 65281 | 65280 |
 | `org.qmux.firmware` | 65282 | 65280 |
+
+## Protocol dispatch
+
+The authoritative server selects the handler from the protocol key of the question. The
+QNAME names the resource and never selects the protocol. The server applies these checks
+to each query in this order. The first check that fails decides the response.
+
+1. If the QR bit is set, the server sends no response.
+2. If the opcode is not QUERY, the server returns `NOTIMP`.
+3. If the packet does not parse or the question count is not 1, the server returns
+   `FORMERR`.
+4. If the query is larger than the size limit, the server returns `FORMERR`.
+5. If the EDNS version is above 0, the server returns `BADVERS`.
+6. If the QNAME is outside every configured zone, the server returns `REFUSED`.
+7. If no registration holds the `(QCLASS, QTYPE)` pair, the server returns `REFUSED`.
+8. The server reads the version label. See [Version negotiation](#version-negotiation).
+9. The server calls the handler of the registration.
+
+The comparison of the QNAME with the zones ignores letter case. The handler receives a
+`protocol.Request` with these fields:
+
+| Field | Value |
+|---|---|
+| `QName` | The QNAME of the question, in lowercase. |
+| `Name` | The QNAME without the version label, in lowercase, for example `device42.fleet.example.` |
+| `Key` | The protocol key of the question. |
+| `Version` | The protocol version that the server selected from the version label. |
+| `Labels` | The labels below the zone, without the version label. |
+
+The registry holds one protocol key for each protocol ID. The operator can remap a
+protocol ID to a different protocol key while the server runs. After the remap, a query at
+the old protocol key gets `REFUSED`, and the handler answers at the new protocol key.
+
+## Discovery
+
+Discovery tells a client the protocol keys of one server. The client needs to know only
+the discovery key and the zone.
+
+### Discovery name and discovery key
+
+- The discovery name is `_qmux.` followed by the zone, in lowercase, for example
+  `_qmux.fleet.example.`
+- The discovery protocol has the protocol ID `org.qmux.discovery` and version 1.
+- The default discovery key is `(65280, 65534)`.
+- With the IN option (`discovery.Options.InClass`), the server registers discovery at
+  `(1, 65534)` only. The default discovery key then holds no registration.
+
+A client that queries a discovery key that holds no registration gets `REFUSED`.
+
+### Manifest
+
+The discovery handler answers the discovery name with an envelope of message type `2`
+(manifest). The envelope payload is the manifest, a CBOR map encoded with `codec.Marshal`.
+
+| Key | Field | CBOR type | Value |
+|---|---|---|---|
+| 1 | framework version | uint | `1`. |
+| 2 | zone | text | The zone, in lowercase and fully qualified. |
+| 3 | protocols | array | One entry for each registration of the server. |
+
+Each entry in the protocols array is a CBOR map:
+
+| Key | Field | CBOR type | Value |
+|---|---|---|---|
+| 1 | protocol ID | text | The protocol ID of the registration. |
+| 2 | versions | array of uint | The supported versions, in strictly ascending order. |
+| 3 | class | uint | The QCLASS of the protocol key. |
+| 4 | type | uint | The QTYPE of the protocol key. |
+
+The discovery handler builds the manifest from the registry at each request. A
+registration or a remap after the start appears in the next manifest. The manifest
+includes the discovery registration. The entries are in order of class, then of type.
+
+The discovery handler returns the application status `not-found` for every QNAME other
+than the discovery name. `MaxEnvelope` limits the size of the manifest envelope. If the
+manifest does not fit, the server returns `SERVFAIL`.
+
+### How the client reads the manifest
+
+`discovery.Client.Discover` sends one query for the discovery name at the discovery key.
+Then it applies these checks in this order:
+
+1. If the envelope protocol ID is not `org.qmux.discovery`, it returns a
+   `*client.DNSError` of kind `mismatch`.
+2. If the message type is not `2`, it returns an error that wraps `ErrInvalidManifest`.
+3. If the payload does not decode with `codec.Unmarshal`, it returns an error that wraps
+   `ErrInvalidManifest`.
+4. It validates the manifest.
+
+Manifest validation returns an error that wraps `ErrInvalidManifest` in these cases:
+
+- The framework version is not 1.
+- The zone differs from the queried zone. The comparison ignores letter case.
+- Two entries have the same protocol ID.
+- Two entries have the same protocol key.
+- An entry has an empty version list, the version 0, or a version list that is not in
+  strictly ascending order.
+
+The protocol keys in a manifest are local to the server that sent it. A client never
+uses a protocol key from the manifest of a different server.
+
+In Epic 5, the client cannot verify the signature of a manifest. `Discover` returns
+`ErrInsecure` and sends no query when `InsecureSkipVerify` is false. Epic 6 adds the
+signature verification.
+
+A device with a preconfigured mapping can skip discovery. `discovery.Static` returns a
+manifest from a list of entries, and applies the same manifest validation.
+
+## Version negotiation
+
+### Version label
+
+The version label is an optional leftmost QNAME label `_v<N>` below the zone. `<N>` is a
+decimal number from 1 to 65535 with no leading zero. For example, `_v2.device42.fleet.example.`
+asks for version 2 of the resource `device42.fleet.example.`
+
+### How the server reads the version label
+
+The server checks the version label before it calls the handler:
+
+| Leftmost label below the zone | Result |
+|---|---|
+| Does not start with `_v` | `Request.Version` is the highest version of the registration. The server calls the handler. |
+| `_v<N>`, and the registration supports `N` | `Request.Version` is `N`. The server calls the handler. |
+| `_v<N>`, and the registration does not support `N` | An envelope with status `version-unsupported`. Its protocol version is the highest version of the registration. The server does not call the handler. |
+| Starts with `_v` but does not parse, for example `_v01` or `_vx` | An envelope with status `bad-request`. The server does not call the handler. |
+
+These status envelopes have the RCODE `NOERROR`. A handler never parses the version label,
+because `Request.Name` never contains it.
+
+### How the client negotiates
+
+`discovery.Negotiate` selects the protocol key and the version for one protocol ID:
+
+1. If the manifest has no entry for the protocol ID, it returns `ErrProtocolNotFound`.
+2. It selects the highest version that is in both the client list and the manifest entry.
+3. If no common version exists, it returns `ErrVersionUnsupported`.
+
+The negotiation never selects a version that the client did not list. For example, a
+client with `[2, 3]` and a manifest entry with `[1, 2]` negotiate version 2.
+
+`discovery.Client.QueryProtocol` negotiates first. If the negotiation fails, it sends no
+query. Otherwise it sends the query for `_v<N>.<name>` at the negotiated protocol key,
+with the version label on every query. The client then requires these envelope fields:
+
+- The protocol ID equals the negotiated protocol ID.
+- The protocol version equals `N`.
+
+If a field differs, the client returns a `*client.DNSError` of kind `mismatch`. A
+`version-unsupported` envelope carries the highest version of the registration, not `N`.
+The client therefore returns a `mismatch` error for it, and not a `*client.AppError`.
+
+If the operator remaps or unregisters the protocol after the discovery, the query gets
+`REFUSED`. The client then discovers again and uses the new manifest.
