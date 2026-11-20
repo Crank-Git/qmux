@@ -206,7 +206,8 @@ level=INFO msg=query qname=device42.fleet.example. qclass=65280 qtype=65280 tran
 
 - The server compares QNAMEs and zones in lowercase. The answer RR keeps the QNAME case
   as received.
-- A zone matches a QNAME that equals the zone or ends with `.` plus the zone.
+- A zone matches a QNAME when the last labels of the QNAME equal the labels of the zone.
+  An escaped dot (`\.`) is part of its label and is not a label boundary.
 - When several zones match, the longest zone is the `Request.Zone`.
 - With empty `Zones`, `Request.Zone` is `.` and `Request.Labels` holds every QNAME label.
 - A version label is a leftmost label `_v` followed by a decimal number from 1 to 65535
