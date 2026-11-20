@@ -326,6 +326,11 @@ func TestServeLetsAnInFlightHandlerFinishWithinShutdownGrace(t *testing.T) {
 	cfg := testConfig
 	cfg.ShutdownGrace = time.Minute
 	addr, cancel, done := startServe(t, h, cfg)
+	var once sync.Once
+	releaseHandler := func() { once.Do(func() { close(release) }) }
+	// Cleanup runs in reverse order, so a failed test releases the handler before the
+	// cleanup of startServe waits for Serve.
+	t.Cleanup(releaseHandler)
 
 	c, err := net.Dial(transport.UDP, addr)
 	if err != nil {
@@ -349,7 +354,7 @@ func TestServeLetsAnInFlightHandlerFinishWithinShutdownGrace(t *testing.T) {
 	default:
 	}
 
-	close(release)
+	releaseHandler()
 	if err := c.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		t.Fatalf("set deadline: %v", err)
 	}
