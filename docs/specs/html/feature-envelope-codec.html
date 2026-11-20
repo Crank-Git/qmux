@@ -363,7 +363,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li><strong>FR-codec-34</strong> — When the registration <code>Info</code> has a <code>Schema</code>, the server calls
 </li>
 </ul>
-<p><code>Schema.Validate(version, payload)</code> before it encodes the envelope.</p>
+<p><code>Schema.Validate(version, payload)</code> before it encodes the envelope. From Epic 7, #147 limits this call to a response with the status <code>ok</code>. An answer with any other status has no schema check.</p>
 <ul>
 <li><strong>FR-codec-35</strong> — The server returns <code>SERVFAIL</code> and logs the error at level <code>error</code> when
 </li>

@@ -122,7 +122,9 @@ the encoding must give the same bytes for the same values on every platform.
   of the registration.
 - **FR-codec-33** — The server uses message type `record` when `Response.MessageType` is 0.
 - **FR-codec-34** — When the registration `Info` has a `Schema`, the server calls
-  `Schema.Validate(version, payload)` before it encodes the envelope.
+  `Schema.Validate(version, payload)` before it encodes the envelope. From Epic 7, #147
+  limits this call to a response with the status `ok`. An answer with any other status has
+  no schema check.
 - **FR-codec-35** — The server returns `SERVFAIL` and logs the error at level `error` when
   `Schema.Validate` returns an error.
 - **FR-codec-36** — The server returns `SERVFAIL` when `codec.Encode` returns an error,
