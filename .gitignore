@@ -6,6 +6,9 @@ CLAUDE.local.md
 .claude.local.md
 .issue-flow.local.json
 
+# Qwen Code
+.qwen/
+
 # QMux
 bin/
 *.key
