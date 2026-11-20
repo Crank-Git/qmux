@@ -2,6 +2,7 @@ package discovery_test
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/ed25519"
 	"errors"
@@ -36,6 +37,8 @@ type fakeServer struct {
 	envelope codec.Envelope
 	// signer signs the envelope for the question of each query when it is not nil.
 	signer *security.Signer
+	// ttl is the TTL of the answer RR. 0 means 60.
+	ttl uint32
 
 	mu      sync.Mutex
 	queries []transporttest.RR
@@ -65,7 +68,7 @@ func (s *fakeServer) respond(_ string, wire []byte) [][]byte {
 	}
 	resp, err := transporttest.Pack(transporttest.Message{
 		ID: q.ID, Response: true, Authoritative: true, Question: q.Question,
-		Answer: []transporttest.RR{{Name: q.Question[0].Name, Key: q.Question[0].Key, TTL: 60, Data: rdata}},
+		Answer: []transporttest.RR{{Name: q.Question[0].Name, Key: q.Question[0].Key, TTL: cmp.Or(s.ttl, 60), Data: rdata}},
 	})
 	if err != nil {
 		s.errs = append(s.errs, err)
