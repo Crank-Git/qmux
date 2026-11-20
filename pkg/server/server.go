@@ -52,7 +52,8 @@ type ServerConfig struct {
 	TTL uint32
 	// UDPSize is the UDP size limit for a query with EDNS(0). The default is 1232.
 	UDPSize uint16
-	// HandlerTimeout limits each handler call. The default is 2s.
+	// HandlerTimeout limits each handler call. The default is 2s. At the timeout, the
+	// server answers SERVFAIL, also when the handler ignores its context.
 	HandlerTimeout time.Duration
 	// ReadTimeout limits the wait for each message on a TCP connection. The default
 	// is 2s.
@@ -196,8 +197,6 @@ func (s *Server) Addr() net.Addr {
 // serveQuery answers q with the handler of the registration of q.Key. It applies the
 // checks in the spec order, so a query that fails two checks gets the RCODE of the
 // first check.
-//
-// TODO(#23): Build the full Request, and limit the handler call to HandlerTimeout.
 func (s *Server) serveQuery(ctx context.Context, q *transport.Query, w transport.Writer) {
 	// An answer to a response can start a loop between two servers.
 	if q.QR {
@@ -217,25 +216,7 @@ func (s *Server) serveQuery(ctx context.Context, q *transport.Query, w transport
 		s.write(w, transport.Answer{RCode: transport.RCodeRefused})
 		return
 	}
-	resp, err := reg.Handler.Handle(ctx, &protocol.Request{
-		QName:      q.Name,
-		Key:        q.Key,
-		Zone:       zone,
-		Source:     q.Source,
-		Transport:  q.Transport,
-		UDPSize:    q.UDPSize,
-		ID:         q.ID,
-		ReceivedAt: q.ReceivedAt,
-	})
-	if err != nil || resp == nil {
-		s.write(w, transport.Answer{RCode: transport.RCodeServFail})
-		return
-	}
-	ttl := resp.TTL
-	if ttl == 0 {
-		ttl = s.cfg.TTL
-	}
-	s.write(w, transport.Answer{RCode: transport.RCodeNoError, TTL: ttl, Payload: resp.Payload})
+	s.dispatch(ctx, q, zone, reg, w)
 }
 
 // checkHeader returns the RCODE of the first check that q fails, and false. It checks
