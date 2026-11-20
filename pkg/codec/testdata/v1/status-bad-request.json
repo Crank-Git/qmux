@@ -1,0 +1,11 @@
+{
+  "description": "A record envelope with status 2 (bad-request).",
+  "envelope": {
+    "format": 1,
+    "protocol_id": "org.qmux.test",
+    "version": 1,
+    "message_type": 1,
+    "status": 2,
+    "payload_hex": ""
+  }
+}

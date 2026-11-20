@@ -312,7 +312,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li>FR-server-31 — The answer RR carries <code>Response.Payload</code> as opaque RDATA in a
 </li>
 </ul>
-<p><code>*dns.RFC3597</code> RR.</p>
+<p><code>*dns.RFC3597</code> RR. From Epic 4, FR-codec-29 replaces the raw payload: the RDATA is the envelope that holds <code>Response.Payload</code>.</p>
 <ul>
 <li>FR-server-32 — The answer RR TTL is <code>Response.TTL</code>, or <code>cfg.TTL</code> when <code>Response.TTL</code> is
 </li>
@@ -701,8 +701,11 @@ type Response struct {
 </ul>
 <p>class 65281 and type 65280. (FR-server-30)</p>
 <ul>
-<li>The answer RDATA bytes equal the handler's payload bytes. (FR-server-31)
+<li>The answer RDATA bytes equal the handler's payload bytes, and from Epic 4 the payload of
 </li>
+</ul>
+<p>the decoded envelope. (FR-server-31, FR-codec-29)</p>
+<ul>
 <li>A response with TTL 0 gives an RR TTL of 60. A response with TTL 5 gives 5.
 </li>
 </ul>

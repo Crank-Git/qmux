@@ -104,7 +104,7 @@ func TestServeLogsOneQueryRecordWithTheTenFieldsOfTheSpec(t *testing.T) {
 		"transport": slog.StringValue("udp"),
 		"source":    slog.StringValue("127.0.0.1:53211"),
 		"rcode":     slog.StringValue("NOERROR"),
-		"status":    slog.StringValue(""),
+		"status":    slog.StringValue("0"),
 		"bytes_in":  slog.Int64Value(int64(len(wire))),
 		"bytes_out": slog.Int64Value(int64(len(resp))),
 	}

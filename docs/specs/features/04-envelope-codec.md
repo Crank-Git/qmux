@@ -217,18 +217,23 @@ flowchart TD
 
 ## Screens & states
 
-No screens: library only. `qmuxctl query` output gains these lines:
+No screens: library only. `qmuxctl query` output gains these `key: value` lines after
+the `verified:` line and before the `payload:` line:
 
 ```
-protocol   org.qmux.firmware
-version    1
-type       record
-status     ok
-payload    74 bytes
+protocol_id: org.qmux.firmware
+version: 1
+message_type: record
+status: ok
+payload_bytes: 74
 ```
 
-When the status is not `ok`, the `status` line shows the status name, and `qmuxctl`
-exits with code 2.
+- `message_type` shows `record` or `manifest`, or the decimal number for 256 and above.
+- `status` shows the status name (`ok`, `not-found`, `bad-request`,
+  `version-unsupported`, `unavailable`), or the decimal number for 5 and above.
+- `qmuxctl query --json` has the same names as keys.
+- When the status is not `ok`, `qmuxctl` prints the full result to stdout. Then it
+  prints `error: …` to stderr and exits with code 2.
 
 ## Behaviour rules
 
@@ -280,7 +285,7 @@ func Marshal(v any) ([]byte, error)
 func Unmarshal(b []byte, v any) error
 
 var ErrTooLarge, ErrNotDeterministic, ErrFormat, ErrInvalidProtocolID,
-    ErrInvalidVersion, ErrInvalidMessageType error
+    ErrInvalidVersion, ErrInvalidMessageType, ErrInvalidStatus error
 ```
 
 `SignatureBlock` is declared in this epic with the keys of the signature block table, so

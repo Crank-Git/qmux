@@ -1,0 +1,11 @@
+{
+  "description": "A manifest envelope with a 3-byte payload.",
+  "envelope": {
+    "format": 1,
+    "protocol_id": "org.qmux.discovery",
+    "version": 1,
+    "message_type": 2,
+    "status": 0,
+    "payload_hex": "a10102"
+  }
+}

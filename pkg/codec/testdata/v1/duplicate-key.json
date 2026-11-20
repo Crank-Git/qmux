@@ -1,0 +1,4 @@
+{
+  "description": "Key 4 appears two times.",
+  "error": "cbor.DupMapKeyError"
+}

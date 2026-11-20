@@ -286,8 +286,11 @@ body.rv-open .layout { padding-right:21rem; }
 </ul>
 <h4 id="client-sdk-result">Result</h4>
 <ul>
-<li>FR-client-26 — <code>Result.Payload</code> holds the opaque RDATA bytes of the answer RR.
+<li>FR-client-26 — <code>Result.Payload</code> holds the payload of the envelope in the answer RR
 </li>
+</ul>
+<p>(FR-codec-38).</p>
+<ul>
 <li>FR-client-27 — <code>Result</code> holds the QNAME, protocol key, RCODE and TTL of the answer.
 </li>
 <li>FR-client-28 — <code>Result.Transport</code> is <code>udp</code> or <code>tcp</code>, the transport of the final
@@ -434,8 +437,11 @@ body.rv-open .layout { padding-right:21rem; }
 </li>
 <li>If the client returns a <code>DNSError</code>, <code>qmuxctl</code> prints it and exits 1.
 </li>
-<li>If the client returns an <code>AppError</code>, <code>qmuxctl</code> prints it and exits 2.
+<li>If the client returns an <code>AppError</code>, <code>qmuxctl</code> prints the result to stdout, prints the
 </li>
+</ol>
+<p>error to stderr and exits 2.</p>
+<ol>
 <li>If the client returns a <code>VerifyError</code>, <code>qmuxctl</code> prints it and exits 3.
 </li>
 </ol>
@@ -712,8 +718,11 @@ func NewClient(cfg ClientConfig) *client.Client</code></pre>
 </ul>
 <p>(FR-client-25)</p>
 <ul>
-<li><code>Result.Payload</code> equals the handler's payload bytes. (FR-client-26)
+<li><code>Result.Payload</code> equals the payload of the envelope, which is the handler's payload.
 </li>
+</ul>
+<p>(FR-client-26)</p>
+<ul>
 <li><code>Result</code> holds the QNAME, protocol key, <code>NOERROR</code> and the RR TTL. (FR-client-27)
 </li>
 <li><code>Result.Transport</code> is <code>tcp</code> after a fallback and <code>udp</code> otherwise. (FR-client-28)

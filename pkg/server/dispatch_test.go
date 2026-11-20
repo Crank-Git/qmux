@@ -303,8 +303,8 @@ func TestServeAnswersNoErrorWithAAAndOneOpaqueRR(t *testing.T) {
 				t.Fatalf("answer RR has name %q and key %v, want %q and %v",
 					rr.Name, rr.Key, "Device42.fleet.example.", key)
 			}
-			if !bytes.Equal(rr.Data, payload) {
-				t.Fatalf("RDATA = %x, want %x", rr.Data, payload)
+			if got := envelopePayload(t, rr.Data); !bytes.Equal(got, payload) {
+				t.Fatalf("envelope payload = %x, want %x", got, payload)
 			}
 		})
 	}

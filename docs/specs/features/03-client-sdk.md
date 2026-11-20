@@ -83,7 +83,8 @@ this epic: two protocols answer through two private classes.
 
 ### Result
 
-- FR-client-26 — `Result.Payload` holds the opaque RDATA bytes of the answer RR.
+- FR-client-26 — `Result.Payload` holds the payload of the envelope in the answer RR
+  (FR-codec-38).
 - FR-client-27 — `Result` holds the QNAME, protocol key, RCODE and TTL of the answer.
 - FR-client-28 — `Result.Transport` is `udp` or `tcp`, the transport of the final
   attempt.
@@ -182,7 +183,8 @@ flowchart TD
 3. The client sends the query.
 4. If the client returns a result, `qmuxctl` prints it and exits 0.
 5. If the client returns a `DNSError`, `qmuxctl` prints it and exits 1.
-6. If the client returns an `AppError`, `qmuxctl` prints it and exits 2.
+6. If the client returns an `AppError`, `qmuxctl` prints the result to stdout, prints the
+   error to stderr and exits 2.
 7. If the client returns a `VerifyError`, `qmuxctl` prints it and exits 3.
 
 ## Screens & states
@@ -390,7 +392,8 @@ miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73)
   `Error()` names the status. (FR-client-24)
 - `VerifyError{Reason: "expired"}` compiles and its `Error()` names the reason.
   (FR-client-25)
-- `Result.Payload` equals the handler's payload bytes. (FR-client-26)
+- `Result.Payload` equals the payload of the envelope, which is the handler's payload.
+  (FR-client-26)
 - `Result` holds the QNAME, protocol key, `NOERROR` and the RR TTL. (FR-client-27)
 - `Result.Transport` is `tcp` after a fallback and `udp` otherwise. (FR-client-28)
 - `Result.FellBack` is false for a small answer. (FR-client-29)

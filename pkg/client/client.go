@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Crank-Git/qmux/pkg/codec"
 	"github.com/Crank-Git/qmux/pkg/protocol"
 	"github.com/Crank-Git/qmux/pkg/transport"
 )
@@ -53,8 +54,12 @@ type Query struct {
 	Name  string
 	Class uint16
 	Type  uint16
-	// Version adds the label "_v<Version>" before Name when it is not 0.
+	// Version adds the label "_v<Version>" before Name when it is not 0. The envelope
+	// version must then equal Version.
 	Version uint16
+	// ExpectedProtocolID is optional. When it is set, the envelope protocol ID must
+	// equal it.
+	ExpectedProtocolID string
 }
 
 // Result is the answer to a query.
@@ -63,8 +68,13 @@ type Result struct {
 	Name  string
 	Key   protocol.ProtocolKey
 	RCode int
-	// Payload holds the RDATA bytes of the answer RR, or nil without an answer RR.
-	Payload []byte
+	// ProtocolID, Version, MessageType, Status and Payload come from the envelope in the
+	// RDATA of the answer RR.
+	ProtocolID  string
+	Version     uint16
+	MessageType protocol.MessageType
+	Status      protocol.Status
+	Payload     []byte
 	// TTL is the TTL of the answer RR. It is informational and never a security expiry.
 	TTL uint32
 	// Transport is "udp" or "tcp", the transport of the final attempt.
@@ -121,10 +131,15 @@ func NewClient(cfg ClientConfig) *Client {
 //   - KindTimeout when every attempt times out, or when ctx expires.
 //   - KindTruncation when the UDP response has the TC bit and DisableTCPFallback is
 //     true.
-//   - KindMismatch when the response does not answer q.
-//   - KindMalformed when the response does not parse, or when a TCP response has the TC
-//     bit.
+//   - KindMismatch when the response does not answer q, when the envelope protocol ID
+//     differs from q.ExpectedProtocolID, or when the envelope version differs from
+//     q.Version.
+//   - KindMalformed when the response does not parse, when a TCP response has the TC
+//     bit, or when codec.Decode rejects the RDATA of the answer RR.
 //   - KindRCode when the RCODE is not NOERROR.
+//
+// When the envelope has an application status other than protocol.StatusOK, Query
+// returns the result and a *AppError together.
 //
 // When ctx is cancelled, the error wraps context.Canceled and is not a DNSError.
 func (c *Client) Query(ctx context.Context, q Query) (*Result, error) {
@@ -153,11 +168,11 @@ func (c *Client) Query(ctx context.Context, q Query) (*Result, error) {
 		if err != nil {
 			return nil, fmt.Errorf("client: %w", err)
 		}
-		res, err := c.attempt(ctx, network, server, p)
+		res, err := c.attempt(ctx, q, network, server, p)
 		// Only a UDP attempt can return a truncation error, because a TCP response with
 		// the TC bit is malformed.
 		if errors.As(err, &last) && last.Kind == KindTruncation && !c.cfg.DisableTCPFallback {
-			return c.fallback(ctx, server, p, i+2)
+			return c.fallback(ctx, q, server, p, i+2)
 		}
 		// Only the end of the attempt timeout starts a new attempt. A result, the end of
 		// ctx and every other error stop the query.
@@ -171,13 +186,13 @@ func (c *Client) Query(ctx context.Context, q Query) (*Result, error) {
 // fallback repeats p once over TCP after a UDP response with the TC bit. This TCP
 // attempt is one extra attempt beyond Attempts, so n counts the UDP attempts and the
 // TCP attempt.
-func (c *Client) fallback(ctx context.Context, server netip.AddrPort, p transport.Packet, n int) (*Result, error) {
-	res, err := c.attempt(ctx, transport.TCP, server, p)
-	if err != nil {
-		return nil, counted(err, n, server)
+func (c *Client) fallback(ctx context.Context, q Query, server netip.AddrPort, p transport.Packet, n int) (*Result, error) {
+	res, err := c.attempt(ctx, q, transport.TCP, server, p)
+	// An AppError comes with a result, so the result can be non-nil with an error.
+	if res != nil {
+		res.FellBack = true
 	}
-	res.FellBack = true
-	return res, nil
+	return res, counted(err, n, server)
 }
 
 // counted returns err with n attempts and server recorded, when err is a timeout
@@ -195,8 +210,8 @@ func counted(err error, n int, server netip.AddrPort) error {
 // the deadline of the socket to the past when its context ends.
 //
 // attempt returns a *DNSError for every error, except an error that wraps
-// context.Canceled.
-func (c *Client) attempt(ctx context.Context, network string, server netip.AddrPort, p transport.Packet) (*Result, error) {
+// context.Canceled and the *AppError that comes with a result.
+func (c *Client) attempt(ctx context.Context, q Query, network string, server netip.AddrPort, p transport.Packet) (*Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.cfg.AttemptTimeout)
 	defer cancel()
 
@@ -204,12 +219,11 @@ func (c *Client) attempt(ctx context.Context, network string, server netip.AddrP
 	got, err := exchange(ctx, network, server, p)
 	rtt := time.Since(start)
 	if err == nil {
-		res, err := result(p, got)
-		if err != nil {
-			return nil, err
+		res, err := result(q, p, got)
+		if res != nil {
+			res.Transport, res.RTT = network, rtt
 		}
-		res.Transport, res.RTT = network, rtt
-		return res, nil
+		return res, err
 	}
 	var kind ErrorKind
 	switch {
@@ -247,20 +261,45 @@ func exchange(ctx context.Context, network string, server netip.AddrPort, p tran
 	return got, nil
 }
 
-// result returns the result for the matched response got. It returns a DNSError for
-// the TC bit and for an RCODE other than NOERROR. The TC bit comes first, because a
-// truncated response holds no answer RR whatever its RCODE.
-func result(p transport.Packet, got transport.Received) (*Result, error) {
+// result returns the result for the matched response got to q. It returns a DNSError
+// for the TC bit, for an RCODE other than NOERROR, and for an envelope that fails to
+// decode or does not match q. The TC bit comes first, because a truncated response
+// holds no answer RR whatever its RCODE.
+//
+// result returns the result and a *AppError when the application status is not
+// protocol.StatusOK.
+func result(q Query, p transport.Packet, got transport.Received) (*Result, error) {
 	if got.Truncated {
 		return nil, &DNSError{Kind: KindTruncation, Name: p.Name, Key: p.Key, Err: errTruncated}
 	}
 	if got.RCode != transport.RCodeNoError {
 		return nil, &DNSError{Kind: KindRCode, RCode: int(got.RCode), Name: p.Name, Key: p.Key}
 	}
-	return &Result{
-		Name: p.Name, Key: p.Key, RCode: int(got.RCode), Payload: got.Payload, TTL: got.TTL,
+	e, err := codec.Decode(got.Payload, codec.Limits{})
+	if err != nil {
+		return nil, &DNSError{Kind: KindMalformed, Name: p.Name, Key: p.Key,
+			Err: fmt.Errorf("%w: %w", transport.ErrMalformed, err)}
+	}
+	if q.ExpectedProtocolID != "" && e.ProtocolID != q.ExpectedProtocolID {
+		return nil, &DNSError{Kind: KindMismatch, Name: p.Name, Key: p.Key,
+			Err: fmt.Errorf("%w: envelope protocol ID %q, want %q", transport.ErrMismatch, e.ProtocolID, q.ExpectedProtocolID)}
+	}
+	if q.Version != 0 && e.Version != uint64(q.Version) {
+		return nil, &DNSError{Kind: KindMismatch, Name: p.Name, Key: p.Key,
+			Err: fmt.Errorf("%w: envelope version %d, want %d", transport.ErrMismatch, e.Version, q.Version)}
+	}
+	// codec.Decode rejects a version, a message type and a status above 65535, so the
+	// conversions keep every value.
+	res := &Result{
+		Name: p.Name, Key: p.Key, RCode: int(got.RCode), TTL: got.TTL,
+		ProtocolID: e.ProtocolID, Version: uint16(e.Version), MessageType: protocol.MessageType(e.MessageType),
+		Status: protocol.Status(e.Status), Payload: e.Payload,
 		QueryBytes: len(p.Wire), ResponseBytes: got.WireSize,
-	}, nil
+	}
+	if res.Status != protocol.StatusOK {
+		return res, &AppError{Status: res.Status, ProtocolID: res.ProtocolID, Version: res.Version}
+	}
+	return res, nil
 }
 
 // errTruncated is the cause of a truncation DNSError, because the transport reports the

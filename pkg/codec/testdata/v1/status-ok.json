@@ -1,0 +1,11 @@
+{
+  "description": "A record envelope with status 0 (ok) and the payload \"hello\".",
+  "envelope": {
+    "format": 1,
+    "protocol_id": "org.qmux.test",
+    "version": 1,
+    "message_type": 1,
+    "status": 0,
+    "payload_hex": "68656c6c6f"
+  }
+}

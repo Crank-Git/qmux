@@ -1,0 +1,4 @@
+{
+  "description": "The protocol ID has tag 32.",
+  "error": "cbor.TagsMdError"
+}

@@ -30,12 +30,19 @@ var (
 // the test ends. It returns the server address.
 func startServer(t *testing.T) string {
 	t.Helper()
+	return startServerWith(t, protocol.Response{Payload: testPayload, TTL: 60})
+}
+
+// startServerWith runs a server that answers testKey with resp on 127.0.0.1:0 until the
+// test ends. It returns the server address.
+func startServerWith(t *testing.T, resp protocol.Response) string {
+	t.Helper()
 	s := server.NewServer(server.ServerConfig{
 		Address: "127.0.0.1:0",
 		Logger:  slog.New(slog.DiscardHandler),
 	})
 	h := protocol.HandlerFunc(func(context.Context, *protocol.Request) (*protocol.Response, error) {
-		return &protocol.Response{Payload: testPayload, TTL: 60}, nil
+		return &resp, nil
 	})
 	if err := s.RegisterProtocol(testKey, testInfo, h); err != nil {
 		t.Fatalf("RegisterProtocol: %v", err)
@@ -100,7 +107,8 @@ func TestQueryPrintsOneKeyValueLinePerResultFieldWithTheHexPayloadAndExitsZero(t
 	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
 	want := []string{
 		"name", "class", "type", "rcode", "ttl", "transport", "fell_back", "rtt_ms",
-		"query_bytes", "response_bytes", "verified", "payload",
+		"query_bytes", "response_bytes", "verified", "protocol_id", "version", "message_type",
+		"status", "payload_bytes", "payload",
 	}
 	if len(lines) != len(want) {
 		t.Fatalf("stdout has %d lines, want %d:\n%s", len(lines), len(want), stdout)
@@ -112,7 +120,8 @@ func TestQueryPrintsOneKeyValueLinePerResultFieldWithTheHexPayloadAndExitsZero(t
 	}
 	for _, l := range []string{
 		"name: " + testName, "class: 65280", "type: 65280", "rcode: NOERROR", "ttl: 60",
-		"transport: udp", "fell_back: false", "verified: false", "payload: a1016bff",
+		"transport: udp", "fell_back: false", "verified: false", "protocol_id: test.device",
+		"version: 2", "message_type: record", "status: ok", "payload_bytes: 4", "payload: a1016bff",
 	} {
 		if !strings.Contains(stdout, l+"\n") {
 			t.Errorf("stdout has no line %q:\n%s", l, stdout)
@@ -136,6 +145,52 @@ func TestQueryJSONPrintsTheResultAsOneJSONObject(t *testing.T) {
 	}
 	if got["payload"] != "a1016bff" || got["name"] != testName || got["class"] != 65280.0 {
 		t.Errorf("JSON = %v, want payload a1016bff, name %s, class 65280", got, testName)
+	}
+	if got["protocol_id"] != "test.device" || got["version"] != 2.0 || got["message_type"] != "record" ||
+		got["status"] != "ok" || got["payload_bytes"] != 4.0 {
+		t.Errorf("JSON = %v, want protocol_id test.device, version 2, message_type record, status ok, payload_bytes 4", got)
+	}
+}
+
+func TestQueryPrintsTheResultAndTheAppErrorAndExitsTwoForANotFoundStatus(t *testing.T) { // FR-codec-42
+	addr := startServerWith(t, protocol.Response{Status: protocol.StatusNotFound})
+	code, stdout, stderr := queryCmd(keyArgs(addr)...)
+	if code != 2 {
+		t.Fatalf("exit code = %d, want 2; stderr = %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "name: "+testName+"\n") || !strings.Contains(stdout, "status: not-found\n") {
+		t.Errorf("stdout = %q, want the full result with the line %q", stdout, "status: not-found")
+	}
+	want := "error: client: application status 1 from test.device version 2\n"
+	if stderr != want {
+		t.Errorf("stderr = %q, want %q", stderr, want)
+	}
+}
+
+func TestQueryPrintsAProtocolSpecificMessageTypeAndStatusAsDecimalNumbers(t *testing.T) { // FR-codec-42
+	addr := startServerWith(t, protocol.Response{MessageType: 256, Status: 300})
+	code, stdout, stderr := queryCmd(keyArgs(addr)...)
+	if code != 2 || !strings.Contains(stdout, "message_type: 256\n") || !strings.Contains(stdout, "status: 300\n") {
+		t.Errorf("exit code = %d, stdout = %q, stderr = %q; want 2, message_type 256 and status 300", code, stdout, stderr)
+	}
+}
+
+func TestStatusNameNamesEachFrameworkStatusAndPrintsOthersInDecimal(t *testing.T) { // FR-codec-42
+	for status, want := range map[protocol.Status]string{
+		0: "ok", 1: "not-found", 2: "bad-request", 3: "version-unsupported", 4: "unavailable",
+		5: "5", 255: "255", 256: "256",
+	} {
+		if got := statusName(status); got != want {
+			t.Errorf("statusName(%d) = %q, want %q", status, got, want)
+		}
+	}
+}
+
+func TestMessageTypeNameNamesRecordAndManifestAndPrintsOthersInDecimal(t *testing.T) { // FR-codec-42
+	for mt, want := range map[protocol.MessageType]string{1: "record", 2: "manifest", 256: "256", 65535: "65535"} {
+		if got := messageTypeName(mt); got != want {
+			t.Errorf("messageTypeName(%d) = %q, want %q", mt, got, want)
+		}
 	}
 }
 
@@ -241,8 +296,8 @@ func TestExitCodeMapsEachOutcomeToItsExitCode(t *testing.T) {
 	}{
 		"a result":            {nil, 0},
 		"a DNSError":          {&client.DNSError{Kind: client.KindTimeout}, 1},
-		"an AppError":         {client.AppError{Status: protocol.StatusNotFound}, 2},
-		"a wrapped AppError":  {fmt.Errorf("query: %w", client.AppError{}), 2},
+		"an AppError":         {&client.AppError{Status: protocol.StatusNotFound}, 2},
+		"a wrapped AppError":  {fmt.Errorf("query: %w", &client.AppError{}), 2},
 		"a VerifyError":       {client.VerifyError{Reason: "expired"}, 3},
 		"a plain query error": {errors.New("client: transport: pack query"), 64},
 	}

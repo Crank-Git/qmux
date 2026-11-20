@@ -2,10 +2,14 @@ package server
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/Crank-Git/qmux/pkg/codec"
 	"github.com/Crank-Git/qmux/pkg/protocol"
 	"github.com/Crank-Git/qmux/pkg/registry"
 	"github.com/Crank-Git/qmux/pkg/transport"
@@ -29,26 +33,61 @@ func (s *Server) dispatch(ctx context.Context, q *transport.Query, zone string, 
 		ReceivedAt: q.ReceivedAt,
 	})
 	if !ok {
-		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail})
+		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail}, "")
 		return
 	}
-	if schema := reg.Info.Schema; schema != nil {
-		v := resp.Version
-		if v == 0 {
-			// The registry keeps the versions in ascending order.
-			v = reg.Info.Versions[len(reg.Info.Versions)-1]
-		}
-		if err := schema.Validate(v, resp.Payload); err != nil {
-			s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail})
-			return
-		}
+	rdata, err := s.envelope(reg, resp)
+	if err != nil {
+		s.cfg.Logger.Error("server: build envelope", "key", q.Key.String(), "error", err)
+		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail}, "")
+		return
 	}
 	ttl := resp.TTL
 	if ttl == 0 {
 		ttl = s.cfg.TTL
 	}
-	s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeNoError, TTL: ttl, Payload: resp.Payload})
+	s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeNoError, TTL: ttl, Payload: rdata},
+		strconv.FormatUint(uint64(resp.Status), 10))
 }
+
+// envelope returns the encoded envelope of resp for the registration reg.
+//
+// It returns errVersion when resp.Version is not a version of reg, the error of
+// reg.Info.Schema when the schema rejects the payload, and the error of codec.Encode.
+func (s *Server) envelope(reg registry.Registration, resp *protocol.Response) ([]byte, error) {
+	version := resp.Version
+	if version == 0 {
+		// The registry keeps the versions in ascending order.
+		version = reg.Info.Versions[len(reg.Info.Versions)-1]
+	} else if !slices.Contains(reg.Info.Versions, version) {
+		return nil, fmt.Errorf("%w: %d", errVersion, version)
+	}
+	if schema := reg.Info.Schema; schema != nil {
+		if err := schema.Validate(version, resp.Payload); err != nil {
+			return nil, fmt.Errorf("schema rejects the payload of version %d: %w", version, err)
+		}
+	}
+	messageType := resp.MessageType
+	if messageType == 0 {
+		messageType = protocol.MessageRecord
+	}
+	b, err := codec.Encode(codec.Envelope{
+		Format:      1,
+		ProtocolID:  reg.Info.ID,
+		Version:     uint64(version),
+		MessageType: uint64(messageType),
+		Status:      uint64(resp.Status),
+		Payload:     resp.Payload,
+	}, codec.Limits{})
+	if err != nil {
+		return nil, fmt.Errorf("encode: %w", err)
+	}
+	return b, nil
+}
+
+// errVersion means that the handler returned a protocol version that its
+// registration does not have.
+var errVersion = errors.New("response version is not a version of the registration")
 
 // handlerResult is the result of one handler call.
 type handlerResult struct {

@@ -792,3 +792,6 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   questions returns its RCODE (ADR 0005, Exchange rule 4).
 - 2026-11-20 — Client SDK is `built` (#110, #118). `DNSError` text matches the qmuxctl
   screens (#115). An invalid `--name` exits 64.
+- 2026-11-20 — The user ruled that `qmuxctl query` shows the envelope fields as `key: value`
+  lines and prints the result before an `AppError` (#36). The envelope rejects a message
+  type or status above 65535 (`ErrInvalidStatus`, #33).
