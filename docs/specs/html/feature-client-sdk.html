@@ -565,7 +565,7 @@ type AppError struct {
 }
 
 type VerifyError struct {
-    Reason string
+    Reason error // the security sentinel, or the codec error; a string before Epic 6
     Err    error
 }
 
@@ -713,10 +713,10 @@ func NewClient(cfg ClientConfig) *client.Client</code></pre>
 </ul>
 <p><code>Error()</code> names the status. (FR-client-24)</p>
 <ul>
-<li><code>VerifyError{Reason: "expired"}</code> compiles and its <code>Error()</code> names the reason.
+<li><code>VerifyError{Reason: "expired"}</code> compiles and its <code>Error()</code> names the reason. From
 </li>
 </ul>
-<p>(FR-client-25)</p>
+<p>Epic 6, FR-security-36 replaces the string: <code>Reason</code> holds the sentinel error. (FR-client-25)</p>
 <ul>
 <li><code>Result.Payload</code> equals the payload of the envelope, which is the handler's payload.
 </li>

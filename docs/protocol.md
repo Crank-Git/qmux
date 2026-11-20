@@ -27,7 +27,7 @@ deterministic encoding of RFC 8949 § 4.2.1 (`cbor.CoreDetEncOptions()` of
 | 3 | message type | uint | `1` = record, `2` = manifest. 256–65535 are protocol-specific. 0 and 3–255 are invalid. |
 | 4 | application status | uint | 0–65535. See [Application status](#application-status). |
 | 5 | payload | bytes | Length 0 to the envelope limit. An empty payload is the empty byte string `0x40`, never CBOR null. |
-| 6 | signature block | map | Optional. An envelope without a signature block has no key 6. Epic 6 defines its content. |
+| 6 | signature block | map | Optional. An envelope without a signature block has no key 6. `docs/security.md` defines its content. |
 
 Keys 0–5 are always present. No other key is valid in format 1. A change to the
 envelope keys or their types is a new format value, so format 1 never changes.

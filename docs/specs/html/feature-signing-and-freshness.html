@@ -595,7 +595,7 @@ body.rv-open .layout { padding-right:21rem; }
 wrote keys/qmuxd.key (mode 0600)
 wrote keys/qmuxd.anchor.json
 key_id 3f9a1c0b7d2e4a65</code></pre>
-<p><code>qmuxctl query</code> with <code>--trust-anchors</code> adds the line <code>verified   yes</code>. A failure prints:</p>
+<p><code>qmuxctl query</code> with <code>--trust-anchors</code> prints the line <code>verified: true</code>. A failure prints:</p>
 <pre class="code"><code>error: verify: ErrExpired: org.qmux.firmware device42.fleet.example.</code></pre>
 <p>and exits with code 3.</p>
 <h3 id="signing-and-freshness-behaviour-rules">Behaviour rules</h3>
@@ -630,7 +630,7 @@ key_id 3f9a1c0b7d2e4a65</code></pre>
 <li><code>server.ServerConfig.Signer</code>, <code>client.ClientConfig.TrustAnchors</code>, <code>client.Result.Verified</code>,
 </li>
 </ul>
-<p><code>client.VerifyError</code>, <code>discovery.Client.CacheDir</code>.</p>
+<p><code>client.VerifyError</code>, <code>discovery.Client.CacheDir</code>, <code>client.Result.Raw</code> (the verified envelope bytes, which the manifest cache stores and verifies again on load).</p>
 <ul>
 <li>Files: signing key (PKCS#8 PEM), trust anchor file (JSON), freshness store file (JSON),
 </li>

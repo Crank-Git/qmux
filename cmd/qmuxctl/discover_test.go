@@ -14,6 +14,7 @@ import (
 	"github.com/Crank-Git/qmux/pkg/codec"
 	"github.com/Crank-Git/qmux/pkg/discovery"
 	"github.com/Crank-Git/qmux/pkg/protocol"
+	"github.com/Crank-Git/qmux/pkg/security"
 	"github.com/Crank-Git/qmux/pkg/server"
 )
 
@@ -53,6 +54,13 @@ func testManifest(t *testing.T, key protocol.ProtocolKey) *discovery.Manifest {
 // the test ends. A nil resp means the manifest envelope of testManifest.
 func startDiscoveryServer(t *testing.T, key protocol.ProtocolKey, resp *protocol.Response) *discoveryServer {
 	t.Helper()
+	return startSignedDiscoveryServer(t, nil, key, resp)
+}
+
+// startSignedDiscoveryServer is startDiscoveryServer with a server that signs with
+// signer. A nil signer means no signature.
+func startSignedDiscoveryServer(t *testing.T, signer *security.Signer, key protocol.ProtocolKey, resp *protocol.Response) *discoveryServer {
+	t.Helper()
 	if resp == nil {
 		payload, err := codec.Marshal(testManifest(t, key))
 		if err != nil {
@@ -61,7 +69,7 @@ func startDiscoveryServer(t *testing.T, key protocol.ProtocolKey, resp *protocol
 		resp = &protocol.Response{Payload: payload, MessageType: protocol.MessageManifest}
 	}
 	d := &discoveryServer{}
-	s := server.NewServer(server.ServerConfig{Address: "127.0.0.1:0", Logger: slog.New(slog.DiscardHandler)})
+	s := server.NewServer(server.ServerConfig{Address: "127.0.0.1:0", Logger: slog.New(slog.DiscardHandler), Signer: signer})
 	h := protocol.HandlerFunc(func(_ context.Context, req *protocol.Request) (*protocol.Response, error) {
 		d.mu.Lock()
 		d.qnames = append(d.qnames, req.QName)
@@ -84,12 +92,12 @@ func discoverCmd(args ...string) (int, string, string) {
 	return code, stdout.String(), stderr.String()
 }
 
-func TestDiscoverHelpListsTheSevenFlags(t *testing.T) { // FR-discovery-33
+func TestDiscoverHelpListsTheEightFlags(t *testing.T) { // FR-discovery-33, FR-security-50
 	code, stdout, _ := discoverCmd("--help")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
-	for _, f := range []string{"--server", "--name", "--class", "--type", "--in", "--insecure", "--json"} {
+	for _, f := range []string{"--server", "--name", "--class", "--type", "--in", "--insecure", "--json", "--trust-anchors"} {
 		if !strings.Contains(stdout, f+" ") {
 			t.Errorf("help text has no %s:\n%s", f, stdout)
 		}

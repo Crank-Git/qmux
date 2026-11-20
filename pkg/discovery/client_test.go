@@ -1,7 +1,10 @@
 package discovery_test
 
 import (
+	"bytes"
+	"cmp"
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"sync"
 	"testing"
@@ -11,6 +14,7 @@ import (
 	"github.com/Crank-Git/qmux/pkg/codec"
 	"github.com/Crank-Git/qmux/pkg/discovery"
 	"github.com/Crank-Git/qmux/pkg/protocol"
+	"github.com/Crank-Git/qmux/pkg/security"
 	"github.com/Crank-Git/qmux/pkg/transport/transporttest"
 )
 
@@ -31,6 +35,10 @@ func testEntries() []discovery.Entry {
 // fakeServer is a DNS server that records each query and answers it with one envelope.
 type fakeServer struct {
 	envelope codec.Envelope
+	// signer signs the envelope for the question of each query when it is not nil.
+	signer *security.Signer
+	// ttl is the TTL of the answer RR. 0 means 60.
+	ttl uint32
 
 	mu      sync.Mutex
 	queries []transporttest.RR
@@ -46,14 +54,21 @@ func (s *fakeServer) respond(_ string, wire []byte) [][]byte {
 		return nil
 	}
 	s.queries = append(s.queries, q.Question[0])
-	rdata, err := codec.Encode(s.envelope, codec.Limits{})
+	e := s.envelope
+	if s.signer != nil {
+		if err := s.signer.Sign(&e, q.Question[0].Name, q.Question[0].Key); err != nil {
+			s.errs = append(s.errs, err)
+			return nil
+		}
+	}
+	rdata, err := codec.Encode(e, codec.Limits{})
 	if err != nil {
 		s.errs = append(s.errs, err)
 		return nil
 	}
 	resp, err := transporttest.Pack(transporttest.Message{
 		ID: q.ID, Response: true, Authoritative: true, Question: q.Question,
-		Answer: []transporttest.RR{{Name: q.Question[0].Name, Key: q.Question[0].Key, TTL: 60, Data: rdata}},
+		Answer: []transporttest.RR{{Name: q.Question[0].Name, Key: q.Question[0].Key, TTL: cmp.Or(s.ttl, 60), Data: rdata}},
 	})
 	if err != nil {
 		s.errs = append(s.errs, err)
@@ -209,7 +224,7 @@ func TestDiscoverReturnsTheAppErrorForAStatusOtherThanOK(t *testing.T) { // FR-d
 	}
 }
 
-func TestDiscoverWithoutInsecureSkipVerifyReturnsErrInsecureAndSendsNoQuery(t *testing.T) { // FR-discovery-26
+func TestDiscoverWithoutTrustAnchorsOrInsecureSkipVerifyReturnsErrInsecureAndSendsNoQuery(t *testing.T) { // FR-security-40
 	s := manifestServer(t, testManifest())
 	c := s.start(t, false)
 
@@ -218,6 +233,53 @@ func TestDiscoverWithoutInsecureSkipVerifyReturnsErrInsecureAndSendsNoQuery(t *t
 	}
 	if got := s.received(t); len(got) != 0 {
 		t.Fatalf("server received %d queries, want 0", len(got))
+	}
+}
+
+// signTime is the clock of the test signer and of the test verifier.
+var signTime = time.Unix(1_800_000_000, 0)
+
+// signingKey is the test key. A fixed seed makes each run sign the same bytes.
+var signingKey = ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x40}, ed25519.SeedSize))
+
+// startVerified starts s and returns a discovery client with InsecureSkipVerify false,
+// whose client trusts signingKey.
+func (s *fakeServer) startVerified(t *testing.T) *discovery.Client {
+	t.Helper()
+	pub := signingKey.Public().(ed25519.PublicKey)
+	v := &security.Verifier{
+		Anchors: []security.TrustAnchor{{KeyID: security.KeyID(pub), PublicKey: pub}},
+		Now:     func() time.Time { return signTime },
+	}
+	addr := transporttest.StartServer(t, s.respond)
+	return &discovery.Client{Client: client.NewClient(client.ClientConfig{Resolver: addr, TrustAnchors: v})}
+}
+
+func TestDiscoverWithTrustAnchorsReturnsASignedManifestWithoutInsecureSkipVerify(t *testing.T) { // FR-security-40
+	s := manifestServer(t, testManifest())
+	s.signer = &security.Signer{Key: signingKey, Now: func() time.Time { return signTime }}
+	c := s.startVerified(t)
+
+	m, err := c.Discover(testContext(t), testZone)
+	if err != nil {
+		t.Fatalf("Discover() error = %v", err)
+	}
+	if _, ok := m.Lookup("org.qmux.firmware"); !ok {
+		t.Fatalf("manifest = %+v, want the firmware entry", m)
+	}
+}
+
+func TestDiscoverWithTrustAnchorsReturnsAVerifyErrorForAnUnsignedManifest(t *testing.T) { // FR-security-36, FR-security-40
+	for _, insecure := range []bool{false, true} {
+		s := manifestServer(t, testManifest())
+		c := s.startVerified(t)
+		c.InsecureSkipVerify = insecure
+
+		m, err := c.Discover(testContext(t), testZone)
+		var ve *client.VerifyError
+		if !errors.As(err, &ve) || !errors.Is(err, security.ErrUnsigned) || m != nil {
+			t.Fatalf("InsecureSkipVerify %t: Discover() = %+v, %v, want nil and a *client.VerifyError for ErrUnsigned", insecure, m, err)
+		}
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/Crank-Git/qmux/pkg/client"
 	"github.com/Crank-Git/qmux/pkg/codec"
@@ -22,9 +23,9 @@ var DefaultKey = protocol.ProtocolKey{Class: 65280, Type: 65534}
 var INKey = protocol.ProtocolKey{Class: 1, Type: 65534}
 
 var (
-	// ErrInsecure is the error that Client.Discover returns when InsecureSkipVerify is
-	// false. The client cannot verify a manifest before Epic 6.
-	ErrInsecure = errors.New("discovery: manifest verification is not available, set InsecureSkipVerify")
+	// ErrInsecure is the error that Client.Discover returns when the client has no
+	// TrustAnchors and InsecureSkipVerify is false.
+	ErrInsecure = errors.New("discovery: the client has no trust anchors and InsecureSkipVerify is false")
 	// ErrProtocolNotFound is the error that Negotiate returns when the manifest has no
 	// entry for the protocol ID.
 	ErrProtocolNotFound = errors.New("discovery: protocol not found in the manifest")
@@ -34,28 +35,51 @@ var (
 )
 
 // Client discovers the manifest of a server and sends queries at the negotiated
-// protocol keys.
+// protocol keys. Do not copy a Client after its first Discover, because it holds the
+// manifest cache.
 type Client struct {
 	// Client sends every query.
 	Client *client.Client
 	// Key is the discovery key. The zero value means DefaultKey.
 	Key protocol.ProtocolKey
-	// InsecureSkipVerify lets Discover return a manifest that it did not verify. In
-	// Epic 5, Discover returns ErrInsecure when it is false.
+	// InsecureSkipVerify lets Discover return a manifest that it did not verify, when
+	// Client has no TrustAnchors. A Client with TrustAnchors verifies the manifest
+	// whatever the value of InsecureSkipVerify.
 	InsecureSkipVerify bool
+	// CacheDir is the directory of the cache files. The empty string means that Discover
+	// keeps verified manifests in memory only. The directory must exist.
+	CacheDir string
+
+	// mu guards cache.
+	mu    sync.Mutex
+	cache map[string]cached
 }
 
 // Discover returns the validated manifest of zone. It sends one query for the
 // discovery name "_qmux.<zone>" at c.Key.
 //
+// When c.Client has TrustAnchors, Discover uses the manifest cache:
+//   - It returns the manifest from memory, with no query, before its expires_at. The
+//     TTL never ends a cached manifest.
+//   - When memory holds no manifest, it loads "<CacheDir>/<zone>.qmuxcache" and
+//     verifies the file again. It ignores a file that fails verification.
+//   - After a query, it keeps the manifest in memory and in the cache file. A manifest
+//     replaces the cached manifest only when its issued_at is newer.
+//
+// Without TrustAnchors, Discover never reads or writes the cache.
+//
 // Discover returns:
-//   - ErrInsecure, with no query, when c.InsecureSkipVerify is false.
-//   - The error of client.Client.Query, for example a *client.DNSError or a
-//     *client.AppError.
+//   - ErrInsecure, with no query, when c.Client has no TrustAnchors and
+//     c.InsecureSkipVerify is false.
+//   - The error of client.Client.Query, for example a *client.DNSError, a
+//     *client.AppError or a *client.VerifyError.
 //   - An error that wraps ErrInvalidManifest when the envelope is not a manifest of
 //     ProtocolID, or when the manifest fails manifest validation.
+//   - The verified manifest and an error together, when the write of the cache file
+//     fails.
 func (c *Client) Discover(ctx context.Context, zone string) (*Manifest, error) {
-	if !c.InsecureSkipVerify {
+	v := c.Client.TrustAnchors()
+	if v == nil && !c.InsecureSkipVerify {
 		return nil, ErrInsecure
 	}
 	zone = strings.ToLower(zone)
@@ -66,18 +90,43 @@ func (c *Client) Discover(ctx context.Context, zone string) (*Manifest, error) {
 	if key == (protocol.ProtocolKey{}) {
 		key = DefaultKey
 	}
+	f := cacheFile{QName: "_qmux." + zone, Class: key.Class, Type: key.Type}
+	// Only a client with trust anchors uses the cache, so the cache holds only verified
+	// manifests (FR-security-47).
+	if v != nil {
+		if m, ok := c.lookup(v, zone, f); ok {
+			return m, nil
+		}
+	}
 	res, err := c.Client.Query(ctx, client.Query{
-		Name: "_qmux." + zone, Class: key.Class, Type: key.Type, ExpectedProtocolID: ProtocolID,
+		Name: f.QName, Class: key.Class, Type: key.Type, ExpectedProtocolID: ProtocolID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("discovery: discover %s: %w", zone, err)
 	}
-	if res.MessageType != protocol.MessageManifest {
+	m, err := decodeManifest(res.MessageType, res.Payload, zone)
+	if err != nil {
+		return nil, err
+	}
+	if v != nil {
+		f.Envelope = res.Raw
+		if err := c.store(v, zone, m, f); err != nil {
+			return m, err
+		}
+	}
+	return m, nil
+}
+
+// decodeManifest returns the validated manifest of an envelope with the message type
+// t and the payload for zone. It returns an error that wraps ErrInvalidManifest when
+// t is not protocol.MessageManifest, or when the payload is not a valid manifest.
+func decodeManifest(t protocol.MessageType, payload []byte, zone string) (*Manifest, error) {
+	if t != protocol.MessageManifest {
 		return nil, fmt.Errorf("%w: envelope message type %d, want %d",
-			ErrInvalidManifest, res.MessageType, protocol.MessageManifest)
+			ErrInvalidManifest, t, protocol.MessageManifest)
 	}
 	var m Manifest
-	if err := codec.Unmarshal(res.Payload, &m); err != nil {
+	if err := codec.Unmarshal(payload, &m); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidManifest, err)
 	}
 	if err := m.validate(zone); err != nil {

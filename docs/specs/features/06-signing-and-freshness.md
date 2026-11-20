@@ -277,7 +277,7 @@ wrote keys/qmuxd.anchor.json
 key_id 3f9a1c0b7d2e4a65
 ```
 
-`qmuxctl query` with `--trust-anchors` adds the line `verified   yes`. A failure prints:
+`qmuxctl query` with `--trust-anchors` prints the line `verified: true`. A failure prints:
 
 ```
 error: verify: ErrExpired: org.qmux.firmware device42.fleet.example.
@@ -302,7 +302,8 @@ and exits with code 3.
 - New package `pkg/security`.
 - `codec.SignatureBlock` fields are filled.
 - `server.ServerConfig.Signer`, `client.ClientConfig.TrustAnchors`, `client.Result.Verified`,
-  `client.VerifyError`, `discovery.Client.CacheDir`.
+  `client.VerifyError`, `discovery.Client.CacheDir`, `client.Result.Raw` (the verified
+  envelope bytes, which the manifest cache stores and verifies again on load).
 - Files: signing key (PKCS#8 PEM), trust anchor file (JSON), freshness store file (JSON),
   manifest cache file.
 - `docs/security.md`.

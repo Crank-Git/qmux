@@ -1018,7 +1018,14 @@ golangci-lint run</code></pre>
 <li>2026-11-20 — Discovery decisions (#6): the user ruled that <code>InClass</code> registers discovery
 </li>
 </ul>
-<p>only at <code>(1, 65534)</code> (FR-discovery-12). A <code>version-unsupported</code> envelope reaches the caller as an <code>AppError</code> (#130). The Epic 2 version label rules are marked as replaced (#125).</p><nav class="pager">
+<p>only at <code>(1, 65534)</code> (FR-discovery-12). A <code>version-unsupported</code> envelope reaches the caller as an <code>AppError</code> (#130). The Epic 2 version label rules are marked as replaced (#125).</p>
+<ul>
+<li>2026-11-20 — Discovery is <code>built</code> (#132).
+</li>
+<li>2026-11-20 — Signing decisions (#7): <code>VerifyError.Reason</code> holds the sentinel error
+</li>
+</ul>
+<p>(#137). A client with trust anchors returns a <code>VerifyError</code> and no result for any failed check, including bytes that do not decode. Only <code>expires_at</code> ends a manifest cache entry. <code>client.Result.Raw</code> holds the verified envelope bytes.</p><nav class="pager">
 <span></span>
 <a href="html/feature-foundation.html">Feature: Foundation &rarr;</a>
 </nav>

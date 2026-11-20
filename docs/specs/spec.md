@@ -801,3 +801,7 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   caller as an `AppError` (#130). The Epic 2 version label rules are marked as replaced
   (#125).
 - 2026-11-20 — Discovery is `built` (#132).
+- 2026-11-20 — Signing decisions (#7): `VerifyError.Reason` holds the sentinel error
+  (#137). A client with trust anchors returns a `VerifyError` and no result for any failed
+  check, including bytes that do not decode. Only `expires_at` ends a manifest cache
+  entry. `client.Result.Raw` holds the verified envelope bytes.
