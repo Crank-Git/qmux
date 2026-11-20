@@ -240,34 +240,58 @@ func TestQmuxdServesTheExampleConfigurationAfterKeygen(t *testing.T) { // FR-qmu
 		t.Errorf("the example has %d protocols, want %d", len(protocols), len(exampleDecoders))
 	}
 	for _, p := range protocols {
-		decode, ok := exampleDecoders[p.ID]
-		if !ok {
-			t.Errorf("protocol %s is not a demonstration protocol", p.ID)
-			continue
-		}
-		code, out, stderr := qmuxctlQuery(t, bins, addr, anchors, p, "device42.fleet.example.")
-		if code != 0 {
-			t.Errorf("%s: exit code = %d, want 0: %s", p.ID, code, stderr)
-			continue
-		}
-		var res queryResult
-		if err := json.Unmarshal(out, &res); err != nil {
-			t.Fatalf("%s: Unmarshal %s: %v", p.ID, out, err)
-		}
-		if !res.Verified || res.ProtocolID != p.ID || res.Status != "ok" {
-			t.Errorf("%s: verified, protocol_id, status = %t, %s, %s; want true, %s, ok",
-				p.ID, res.Verified, res.ProtocolID, res.Status, p.ID)
-		}
-		payload, err := hex.DecodeString(res.Payload)
-		if err != nil {
-			t.Fatalf("%s: payload %q: %v", p.ID, res.Payload, err)
-		}
-		if err := decode(payload); err != nil {
-			t.Errorf("%s: the payload does not decode with the schema type: %v", p.ID, err)
-		}
+		verifyExampleRecord(t, bins, addr, anchors, p)
 	}
 
 	// The discovery manifest must verify too, and list every configured protocol.
+	ids := discoveredIDs(t, bins, addr, anchors)
+	want := []string{discovery.ProtocolID}
+	for _, p := range protocols {
+		want = append(want, p.ID)
+	}
+	for _, want := range want {
+		if !slices.Contains(ids, want) {
+			t.Errorf("manifest protocols %v have no %s", ids, want)
+		}
+	}
+}
+
+// verifyExampleRecord queries the device42 record of p through qmuxctl. It fails the
+// test when the answer does not verify or the payload does not decode with the
+// schema type of p.
+func verifyExampleRecord(t *testing.T, bins tools, addr, anchors string, p exampleProtocol) {
+	t.Helper()
+	decode, ok := exampleDecoders[p.ID]
+	if !ok {
+		t.Errorf("protocol %s is not a demonstration protocol", p.ID)
+		return
+	}
+	code, out, stderr := qmuxctlQuery(t, bins, addr, anchors, p, "device42.fleet.example.")
+	if code != 0 {
+		t.Errorf("%s: exit code = %d, want 0: %s", p.ID, code, stderr)
+		return
+	}
+	var res queryResult
+	if err := json.Unmarshal(out, &res); err != nil {
+		t.Fatalf("%s: Unmarshal %s: %v", p.ID, out, err)
+	}
+	if !res.Verified || res.ProtocolID != p.ID || res.Status != "ok" {
+		t.Errorf("%s: verified, protocol_id, status = %t, %s, %s; want true, %s, ok",
+			p.ID, res.Verified, res.ProtocolID, res.Status, p.ID)
+	}
+	payload, err := hex.DecodeString(res.Payload)
+	if err != nil {
+		t.Fatalf("%s: payload %q: %v", p.ID, res.Payload, err)
+	}
+	if err := decode(payload); err != nil {
+		t.Errorf("%s: the payload does not decode with the schema type: %v", p.ID, err)
+	}
+}
+
+// discoveredIDs runs "qmuxctl discover" for fleet.example. with the trust anchor file,
+// and returns the protocol IDs of the verified manifest.
+func discoveredIDs(t *testing.T, bins tools, addr, anchors string) []string {
+	t.Helper()
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command(bins.qmuxctl, "discover", "--json", "--server", addr,
 		"--name", "fleet.example.", "--trust-anchors", anchors)
@@ -287,15 +311,7 @@ func TestQmuxdServesTheExampleConfigurationAfterKeygen(t *testing.T) { // FR-qmu
 	for _, e := range manifest.Protocols {
 		ids = append(ids, e.ID)
 	}
-	want := []string{discovery.ProtocolID}
-	for _, p := range protocols {
-		want = append(want, p.ID)
-	}
-	for _, want := range want {
-		if !slices.Contains(ids, want) {
-			t.Errorf("manifest protocols %v have no %s", ids, want)
-		}
-	}
+	return ids
 }
 
 func TestQmuxdRefusesQueriesAboveTheRateLimitAndLogsEveryQuery(t *testing.T) { // FR-qmuxd-43, FR-qmuxd-44
