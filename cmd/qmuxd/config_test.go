@@ -125,6 +125,7 @@ func TestServeExitsTwoBeforeItListensForAnInvalidConfigFile(t *testing.T) {
 		{"signature_validity above 24h", func(c map[string]any) { c["signature_validity"] = "24h1s" }, "signature_validity"},
 		{"signature_validity that does not parse", func(c map[string]any) { c["signature_validity"] = "one hour" }, "signature_validity"},
 		{"ttl above 86400", func(c map[string]any) { c["ttl"] = 86401 }, "ttl"},
+		{"#155 ttl 0", func(c map[string]any) { c["ttl"] = 0 }, "ttl: 0 is outside 1 to 86400"},
 		{"udp_size below 512", func(c map[string]any) { c["udp_size"] = 511 }, "udp_size"},
 		{"udp_size above 4096", func(c map[string]any) { c["udp_size"] = 4097 }, "udp_size"},
 		{"handler_timeout below 10ms", func(c map[string]any) { c["handler_timeout"] = "9ms" }, "handler_timeout"},
@@ -142,6 +143,12 @@ func TestServeExitsTwoBeforeItListensForAnInvalidConfigFile(t *testing.T) {
 		{"record version not in the versions", func(c map[string]any) { firstRecord(c)["version"] = 2 }, `protocols[0].records["device42.fleet.example."].version`},
 		{"unknown status name", func(c map[string]any) { firstRecord(c)["status"] = "gone" }, `protocols[0].records["device42.fleet.example."].status`},
 		{"status integer below 256", func(c map[string]any) { firstRecord(c)["status"] = 4 }, `protocols[0].records["device42.fleet.example."].status`},
+		{"FR-qmuxd-19 record with payload and payload_hex", func(c map[string]any) { firstRecord(c)["payload_hex"] = "0a" }, `protocols[0].records["device42.fleet.example."]: `},
+		{"FR-qmuxd-19 record without payload and payload_hex", func(c map[string]any) { delete(firstRecord(c), "payload") }, `protocols[0].records["device42.fleet.example."]: `},
+		{"FR-qmuxd-20 payload_hex that is not hex", func(c map[string]any) {
+			firstProtocol(c)["records"] = map[string]any{testRecord: map[string]any{"payload_hex": "0g"}}
+		}, `protocols[0].records["device42.fleet.example."].payload_hex`},
+		{"FR-qmuxd-21 null in the payload", func(c map[string]any) { firstRecord(c)["payload"] = map[string]any{"1": nil} }, `protocols[0].records["device42.fleet.example."].payload["1"]: null`},
 		{"status integer above 65535", func(c map[string]any) { firstRecord(c)["status"] = 65536 }, `protocols[0].records["device42.fleet.example."].status`},
 	}
 	for _, tc := range cases {
@@ -209,7 +216,7 @@ func TestLoadConfigDecodesEveryFieldOfTheSchemaTable(t *testing.T) { // FR-qmuxd
 	c := baseConfig("127.0.0.1:0")
 	c["zones"] = []any{"Fleet.Example.", "lab.example."}
 	c["signature_validity"] = "10m"
-	c["ttl"] = 0
+	c["ttl"] = 1
 	c["udp_size"] = 4096
 	c["handler_timeout"] = "500ms"
 	c["rate_limit"] = map[string]any{"qps": 0, "burst": 0}
@@ -231,13 +238,12 @@ func TestLoadConfigDecodesEveryFieldOfTheSchemaTable(t *testing.T) { // FR-qmuxd
 		t.Fatalf("loadConfig: %v", err)
 	}
 	dir := filepath.Dir(path)
-	payloadHex := "0a0b"
 	want := config{
 		Listen:            "127.0.0.1:0",
 		Zones:             []string{"fleet.example.", "lab.example."},
 		SigningKey:        filepath.Join(dir, "qmuxd.key"),
 		SignatureValidity: 10 * time.Minute,
-		TTL:               0,
+		TTL:               1,
 		UDPSize:           4096,
 		HandlerTimeout:    500 * time.Millisecond,
 		RateLimit:         server.RateLimit{},
@@ -250,8 +256,8 @@ func TestLoadConfigDecodesEveryFieldOfTheSchemaTable(t *testing.T) { // FR-qmuxd
 			Key:  protocol.ProtocolKey{Class: 65280, Type: 65280},
 			Info: protocol.Info{ID: "org.qmux.bootstrap", Versions: []uint16{1, 2}},
 			Records: map[string]record{
-				"device42.fleet.example.": {PayloadHex: &payloadHex, Status: protocol.StatusVersionUnsupported, Version: 2},
-				"x.lab.example.":          {Payload: json.RawMessage("true"), Status: 300},
+				"device42.fleet.example.": {Payload: []byte{0x0a, 0x0b}, Status: protocol.StatusVersionUnsupported, Version: 2},
+				"x.lab.example.":          {Payload: []byte{0xf5}, Status: 300},
 			},
 		}},
 	}

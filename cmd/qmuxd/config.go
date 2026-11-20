@@ -25,6 +25,7 @@ import (
 const (
 	minSignatureValidity = time.Minute
 	maxSignatureValidity = 24 * time.Hour
+	minTTL               = 1
 	maxTTL               = 86400
 	minUDPSize           = 512
 	maxUDPSize           = 4096
@@ -91,12 +92,10 @@ type protocolConfig struct {
 
 // record is one record of a protocol after validation.
 type record struct {
-	// Payload is the JSON value of the payload field. It is nil when the field is
-	// absent.
-	Payload json.RawMessage
-	// PayloadHex is the payload_hex field. It is nil when the field is absent.
-	PayloadHex *string
-	Status     protocol.Status
+	// Payload holds the payload bytes: the CBOR encoding of the payload field, or the
+	// decoded payload_hex field.
+	Payload []byte
+	Status  protocol.Status
 	// Version is the one version that the record answers. 0 means every version.
 	Version uint16
 }
@@ -207,8 +206,9 @@ func (f *fileConfig) serverFields(cfg *config, dir string) error {
 	if cfg.HandlerTimeout, err = durationIn("handler_timeout", f.HandlerTimeout, minHandlerTimeout, maxHandlerTimeout); err != nil {
 		return err
 	}
-	if f.TTL > maxTTL {
-		return fmt.Errorf("ttl: %d is above %d", f.TTL, maxTTL)
+	// The server replaces TTL 0 with its default TTL, so 0 cannot give TTL 0 answers.
+	if f.TTL < minTTL || f.TTL > maxTTL {
+		return fmt.Errorf("ttl: %d is outside %d to %d", f.TTL, minTTL, maxTTL)
 	}
 	if f.UDPSize < minUDPSize || f.UDPSize > maxUDPSize {
 		return fmt.Errorf("udp_size: %d is outside %d to %d", f.UDPSize, minUDPSize, maxUDPSize)
@@ -346,12 +346,11 @@ func validRecord(raw json.RawMessage, path string, versions []uint16) (record, e
 	if err := decodeStrict(raw, &fr, path); err != nil {
 		return record{}, err
 	}
-	// TODO(#56): Convert the payload with the JSON-to-CBOR rule, decode payload_hex
-	// and require exactly one of the two fields.
-	if string(fr.Payload) == "null" {
-		return record{}, fmt.Errorf("%s.payload: null is not a valid payload", path)
+	payload, err := recordPayload(fr, path)
+	if err != nil {
+		return record{}, err
 	}
-	r := record{Payload: fr.Payload, PayloadHex: fr.PayloadHex}
+	r := record{Payload: payload}
 	if fr.Version != nil {
 		if !slices.Contains(versions, *fr.Version) {
 			return record{}, fmt.Errorf("%s.version: %d is not a version of the protocol", path, *fr.Version)

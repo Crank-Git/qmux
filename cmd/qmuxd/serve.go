@@ -15,7 +15,6 @@ import (
 	"syscall"
 
 	"github.com/Crank-Git/qmux/pkg/discovery"
-	"github.com/Crank-Git/qmux/pkg/protocol"
 	"github.com/Crank-Git/qmux/pkg/security"
 	"github.com/Crank-Git/qmux/pkg/server"
 )
@@ -101,26 +100,26 @@ func newDaemon(path, listen string, stderr io.Writer) (*daemon, error) {
 	if warning != "" {
 		logger.Warn(string(warning), "path", cfg.SigningKey)
 	}
+	signer := &security.Signer{Key: key, Validity: cfg.SignatureValidity}
 	srv := server.NewServer(server.ServerConfig{
-		Address: cfg.Listen,
-		Zones:   cfg.Zones,
-		// TODO(#155): ServerConfig applies the default 60 to TTL 0, so "ttl": 0
-		// gives answers with TTL 60.
+		Address:        cfg.Listen,
+		Zones:          cfg.Zones,
 		TTL:            cfg.TTL,
 		UDPSize:        cfg.UDPSize,
 		HandlerTimeout: cfg.HandlerTimeout,
 		Logger:         logger,
 		Registry:       cfg.Registry,
-		Signer:         &security.Signer{Key: key, Validity: cfg.SignatureValidity},
+		Signer:         signer,
 		RateLimit:      cfg.RateLimit,
 	})
-	// TODO(#56): Answer the records of each protocol with the static-record handler.
-	notFound := protocol.HandlerFunc(func(context.Context, *protocol.Request) (*protocol.Response, error) {
-		return &protocol.Response{Status: protocol.StatusNotFound}, nil
-	})
 	for i, p := range cfg.Protocols {
-		if err := srv.RegisterProtocol(p.Key, p.Info, notFound); err != nil {
-			return nil, fmt.Errorf("protocols[%d]: %w", i, err)
+		path := fmt.Sprintf("protocols[%d]", i)
+		if err := srv.RegisterProtocol(p.Key, p.Info, recordHandler(p.Records)); err != nil {
+			return nil, fmt.Errorf("%s: %w", path, err)
+		}
+		// The registration comes first, so a bad protocol ID gives the registry error.
+		if err := checkEnvelopeSizes(p, path, signer); err != nil {
+			return nil, err
 		}
 	}
 	if cfg.Discovery.Enabled {
