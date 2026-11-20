@@ -55,6 +55,8 @@ type ServerConfig struct {
 	UDPSize uint16
 	// HandlerTimeout limits each handler call. The default is 2s. At the timeout, the
 	// server answers SERVFAIL, also when the handler ignores its context.
+	// The server cannot stop a handler goroutine. A handler that never returns keeps
+	// its goroutine until the process ends, so a handler must observe its context.
 	HandlerTimeout time.Duration
 	// ReadTimeout limits the wait for each message on a TCP connection. The default
 	// is 2s.
