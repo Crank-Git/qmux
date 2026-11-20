@@ -390,3 +390,43 @@ func TestStartRefusesAFirmwareVersionThatDoesNotParse(t *testing.T) { // FR-demo
 		t.Fatalf("got %v, want ErrFirmwareVersionSyntax", err)
 	}
 }
+
+func TestTamperDNSMakesTheConfigurationFailWithABadSignature(t *testing.T) { // FR-demo-40
+	r, _ := start(t, "--tamper-dns")
+	c, m := device(t, r.Addr, r.TrustAnchor)
+	_, err := c.QueryProtocol(ctxT(t), m, fleet.ConfigurationID, fleet.DeviceName, []uint16{1})
+	var ve *client.VerifyError
+	if !errors.As(err, &ve) || !errors.Is(ve.Reason, security.ErrBadSignature) {
+		t.Fatalf("got %v, want a VerifyError with ErrBadSignature", err)
+	}
+}
+
+func TestTamperDNSLeavesTheOtherProtocolsVerified(t *testing.T) { // FR-demo-40
+	r, _ := start(t, "--tamper-dns")
+	queryDevice42(t, r, fleet.BootstrapID)
+	queryDevice42(t, r, fleet.FirmwareID)
+}
+
+func TestTamperHTTPSServesABundleThatDiffersFromTheSignedDigest(t *testing.T) { // FR-demo-42
+	r, _ := start(t, "--tamper-https")
+	p := configuration(t, r)
+	if sum := sha256.Sum256(get(t, r, p.URL)); bytes.Equal(sum[:], p.Digest) {
+		t.Fatal("bundle digest equals the signed digest, want a difference")
+	}
+	f := firmware(t, r)
+	if sum := sha256.Sum256(get(t, r, f.URL)); !bytes.Equal(sum[:], f.Digest) {
+		t.Fatal("firmware image digest differs from the signed digest, want the same")
+	}
+}
+
+func TestTamperFlagsDefaultToFalse(t *testing.T) { // FR-demo-40, FR-demo-42
+	var opts fleet.Options
+	fs := flag.NewFlagSet("demo", flag.ContinueOnError)
+	opts.BindFlags(fs)
+	if err := fs.Parse(nil); err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if opts.TamperDNS || opts.TamperHTTPS {
+		t.Fatalf("defaults = %v, %v, want false, false", opts.TamperDNS, opts.TamperHTTPS)
+	}
+}
