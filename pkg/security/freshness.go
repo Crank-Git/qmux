@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/Crank-Git/qmux/pkg/protocol"
 )
 
 // FreshnessStore holds the newest issued_at that a Verifier accepted for each
@@ -29,7 +31,7 @@ type freshnessKey struct {
 }
 
 func newFreshnessKey(protocolID, qname string) freshnessKey {
-	qname = lowerASCII(qname)
+	qname = protocol.FoldName(qname)
 	if label, rest, ok := strings.Cut(qname, "."); ok && isVersionLabel(label) {
 		qname = rest
 	}

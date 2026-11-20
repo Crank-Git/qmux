@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
@@ -116,7 +115,7 @@ func NewServer(cfg ServerConfig) *Server {
 	// The copy keeps a later change to the caller's slice out of the server.
 	zones := make([]string, len(cfg.Zones))
 	for i, z := range cfg.Zones {
-		zones[i] = strings.ToLower(z)
+		zones[i] = protocol.FoldName(z)
 	}
 	cfg.Zones = zones
 	return &Server{cfg: cfg, reg: registry.New(cfg.Registry)}
@@ -261,7 +260,7 @@ func (s *Server) matchZone(name string) (string, bool) {
 	if len(s.cfg.Zones) == 0 {
 		return rootZone, true
 	}
-	labels := splitLabels(strings.ToLower(name))
+	labels := splitLabels(protocol.FoldName(name))
 	best, bestLabels := "", -1
 	for _, z := range s.cfg.Zones {
 		zl := splitLabels(z)
