@@ -790,3 +790,5 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   until it returns.
 - 2026-11-20 — Client SDK first batch shipped (#110). An error response with zero
   questions returns its RCODE (ADR 0005, Exchange rule 4).
+- 2026-11-20 — Client SDK is `built` (#110, #118). `DNSError` text matches the qmuxctl
+  screens (#115). An invalid `--name` exits 64.

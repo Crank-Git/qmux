@@ -2,7 +2,7 @@
 id: client-sdk
 feature: Client SDK
 epic: "Epic 3: Client SDK"
-status: issued
+status: built
 issues: [4, 26, 27, 28, 29, 30, 31]
 mockups: []
 ---
