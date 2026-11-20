@@ -86,58 +86,110 @@ func NewClient(cfg ClientConfig) *Client {
 // Query sends q to the resolver over UDP and returns the matching response.
 //
 // Each attempt uses a new query with a new random ID. If an attempt gets no response
-// within AttemptTimeout, Query makes a new attempt, up to Attempts attempts. Query
-// returns an error when the resolver is not an IP address and port, when ctx ends, and
-// when every attempt times out. A response that does not match q also returns an
-// error.
+// within AttemptTimeout, Query makes a new attempt, up to Attempts attempts.
+//
+// Query returns a *DNSError for each DNS outcome without a result:
+//   - KindNetwork when the resolver is not an IP address and port, or when the dial,
+//     the write or the read fails.
+//   - KindTimeout when every attempt times out, or when ctx expires.
+//   - KindTruncation when the UDP response has the TC bit.
+//   - KindMismatch when the response does not answer q.
+//   - KindMalformed when the response does not parse.
+//   - KindRCode when the RCODE is not NOERROR.
+//
+// When ctx is cancelled, the error wraps context.Canceled and is not a DNSError.
 func (c *Client) Query(ctx context.Context, q Query) (*Result, error) {
-	server, err := netip.ParseAddrPort(c.cfg.Resolver)
-	if err != nil {
-		return nil, fmt.Errorf("client: resolver %q is not an IP address and port: %w", c.cfg.Resolver, err)
-	}
 	name := qname(q)
 	key := protocol.ProtocolKey{Class: q.Class, Type: q.Type}
+	server, err := netip.ParseAddrPort(c.cfg.Resolver)
+	if err != nil {
+		return nil, &DNSError{Kind: KindNetwork, Name: name, Key: key,
+			Err: fmt.Errorf("resolver %q is not an IP address and port: %w", c.cfg.Resolver, err)}
+	}
 
-	var lastErr error
+	var last *DNSError
 	for range c.cfg.Attempts {
 		p, err := transport.NewQuery(name, key, c.cfg.UDPSize, c.cfg.Recursion)
 		if err != nil {
 			return nil, fmt.Errorf("client: %w", err)
 		}
-		got, err := c.attempt(ctx, server, p)
-		if err == nil {
-			return &Result{Name: p.Name, Key: key, RCode: int(got.RCode), Payload: got.Payload, TTL: got.TTL}, nil
+		res, err := c.attempt(ctx, transport.UDP, server, p)
+		// Only the end of the attempt timeout starts a new attempt. A result, the end of
+		// ctx and every other error stop the query.
+		if !errors.As(err, &last) || last.Kind != KindTimeout || ctx.Err() != nil {
+			return res, err
 		}
-		// Only the end of the attempt timeout starts a new attempt. The end of ctx and
-		// every other error stop the query.
-		if ctx.Err() != nil || !errors.Is(err, context.DeadlineExceeded) {
-			return nil, err
-		}
-		lastErr = err
 	}
-	return nil, fmt.Errorf("client: no response after %d attempts to %s: %w", c.cfg.Attempts, server, lastErr)
+	last.Err = fmt.Errorf("no response after %d attempts to %s: %w", c.cfg.Attempts, server, last.Err)
+	return nil, last
 }
 
-// attempt sends p to server once over a new UDP socket. A new socket for each attempt
-// is necessary, because ExchangeUDP sets the deadline of the socket to the past when
-// its context ends.
-func (c *Client) attempt(ctx context.Context, server netip.AddrPort, p transport.Packet) (transport.Received, error) {
+// attempt sends p to server once over a new socket. network is transport.UDP or
+// transport.TCP. A new socket for each attempt is necessary, because the exchange sets
+// the deadline of the socket to the past when its context ends.
+//
+// attempt returns a *DNSError for every error, except an error that wraps
+// context.Canceled.
+func (c *Client) attempt(ctx context.Context, network string, server netip.AddrPort, p transport.Packet) (*Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.cfg.AttemptTimeout)
 	defer cancel()
 
+	got, err := exchange(ctx, network, server, p)
+	if err == nil {
+		return result(p, got)
+	}
+	var kind ErrorKind
+	switch {
+	case errors.Is(err, context.Canceled):
+		return nil, fmt.Errorf("client: %w", err)
+	case errors.Is(err, context.DeadlineExceeded):
+		kind = KindTimeout
+	case errors.Is(err, transport.ErrMismatch):
+		kind = KindMismatch
+	case errors.Is(err, transport.ErrMalformed):
+		kind = KindMalformed
+	default:
+		kind = KindNetwork
+	}
+	return nil, &DNSError{Kind: kind, Name: p.Name, Key: p.Key, Err: err}
+}
+
+// exchange dials server over network and sends p once.
+func exchange(ctx context.Context, network string, server netip.AddrPort, p transport.Packet) (transport.Received, error) {
 	var d net.Dialer
-	conn, err := d.DialContext(ctx, transport.UDP, server.String())
+	conn, err := d.DialContext(ctx, network, server.String())
 	if err != nil {
-		return transport.Received{}, fmt.Errorf("client: dial udp %s: %w", server, err)
+		return transport.Received{}, fmt.Errorf("dial %s %s: %w", network, server, err)
 	}
 	defer conn.Close() //nolint:errcheck // The exchange is complete, so a close error changes no result.
 
-	got, err := transport.ExchangeUDP(ctx, conn, p)
+	send := transport.ExchangeUDP
+	if network == transport.TCP {
+		send = transport.ExchangeTCP
+	}
+	got, err := send(ctx, conn, p)
 	if err != nil {
-		return transport.Received{}, fmt.Errorf("client: query %s %d/%d to %s: %w", p.Name, p.Key.Class, p.Key.Type, server, err)
+		return transport.Received{}, fmt.Errorf("%s %s: %w", network, server, err)
 	}
 	return got, nil
 }
+
+// result returns the result for the matched response got. It returns a DNSError for
+// the TC bit and for an RCODE other than NOERROR. The TC bit comes first, because a
+// truncated response holds no answer RR whatever its RCODE.
+func result(p transport.Packet, got transport.Received) (*Result, error) {
+	if got.Truncated {
+		return nil, &DNSError{Kind: KindTruncation, Name: p.Name, Key: p.Key, Err: errTruncated}
+	}
+	if got.RCode != transport.RCodeNoError {
+		return nil, &DNSError{Kind: KindRCode, RCode: int(got.RCode), Name: p.Name, Key: p.Key}
+	}
+	return &Result{Name: p.Name, Key: p.Key, RCode: int(got.RCode), Payload: got.Payload, TTL: got.TTL}, nil
+}
+
+// errTruncated is the cause of a truncation DNSError, because the transport reports the
+// TC bit as a field and not as an error.
+var errTruncated = errors.New("udp response has the TC bit")
 
 // qname returns the fully qualified QNAME of q, with the version label when q.Version
 // is not 0.
