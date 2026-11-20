@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -375,6 +377,18 @@ func (h *serverHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		transport = "tcp"
 	}
 
+	// FR-server-23: QNAME in lowercase fully qualified form.
+	qname := strings.ToLower(q.Name)
+
+	// FR-server-24/25: Parse version label and extract labels below the zone.
+	version, labels := parseVersionAndLabels(qname, zone)
+
+	// FR-server-26: UDPSize from EDNS(0).
+	udpSize := uint16(0)
+	if edns != nil {
+		udpSize = edns.UDPSize()
+	}
+
 	// Create a cancellable handler context. The timeout is derived from the
 	// server context so that server shutdown propagates to in-flight handlers.
 	s.srvCtxMu.RLock()
@@ -398,14 +412,14 @@ func (h *serverHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	}()
 
 	request := &protocol.Request{
-		QName:      q.Name,
+		QName:      qname,
 		Key:        key,
-		Version:    0,
-		Labels:     dns.SplitDomainName(q.Name),
+		Version:    version,
+		Labels:     labels,
 		Zone:       zone,
 		Source:     netip.MustParseAddrPort(w.RemoteAddr().String()),
 		Transport:  transport,
-		UDPSize:    0,
+		UDPSize:    udpSize,
 		ID:         req.Id,
 		ReceivedAt: time.Now(),
 	}
@@ -425,7 +439,11 @@ func (h *serverHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	}()
 
 	if err != nil {
-		// SERVFAIL for handler error.
+		// FR-server-34: SERVFAIL on handler timeout.
+		if errors.Is(err, context.DeadlineExceeded) {
+			s.cfg.Logger.Warn("handler timeout", "qname", qname, "duration_ms", time.Since(request.ReceivedAt).Milliseconds())
+		}
+		// FR-server-33: SERVFAIL for handler error.
 		resp := new(dns.Msg)
 		resp.SetReply(req)
 		resp.Rcode = dns.RcodeServerFailure
@@ -441,6 +459,18 @@ func (h *serverHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		resp.Rcode = dns.RcodeServerFailure
 		_ = w.WriteMsg(resp)
 		return
+	}
+
+	// FR-server-28/36: Schema validation.
+	if reg.Info.Schema != nil {
+		if validateErr := reg.Info.Schema.Validate(version, response.Payload); validateErr != nil {
+			s.cfg.Logger.Warn("schema validation failed", "qname", qname, "error", validateErr)
+			resp := new(dns.Msg)
+			resp.SetReply(req)
+			resp.Rcode = dns.RcodeServerFailure
+			_ = w.WriteMsg(resp)
+			return
+		}
 	}
 
 	// Build the DNS response with opaque RDATA.
@@ -472,13 +502,15 @@ func (h *serverHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 
 // zoneMatch returns the longest matching zone for a QNAME, or an empty string
 // when no zone matches. A zone matches when the QNAME equals the zone or ends
-// with "." plus the zone.
+// with "." plus the zone. Comparison is case-insensitive per the spec.
 func zoneMatch(zones []string, qname string) string {
 	if len(zones) == 0 {
 		return "."
 	}
+	qname = strings.ToLower(qname)
 	var best string
 	for _, z := range zones {
+		z = strings.ToLower(z)
 		if qname == z || len(qname) >= len(z)+1 && qname[len(qname)-len(z)-1:] == "."+z {
 			if len(z) > len(best) {
 				best = z
@@ -486,6 +518,51 @@ func zoneMatch(zones []string, qname string) string {
 		}
 	}
 	return best
+}
+
+// parseVersionAndLabels parses the version label and extracts labels below the zone.
+//
+// FR-server-24: The version label is a leftmost label _v followed by a decimal number
+// from 1 to 65535 with no leading zero. Any other leftmost label that starts with _v
+// is an ordinary label.
+//
+// FR-server-25: Returns labels below the zone, with the version label removed.
+//
+// With empty zones, labels hold every QNAME label and zone is ".".
+func parseVersionAndLabels(qname, zone string) (uint16, []string) {
+	labels := dns.SplitDomainName(qname)
+	zoneLabels := dns.SplitDomainName(zone)
+
+	// Empty zones: zone is "." and labels hold every QNAME label.
+	if zone == "." {
+		return 0, labels
+	}
+
+	belowZoneCount := len(labels) - len(zoneLabels)
+	if belowZoneCount < 0 {
+		belowZoneCount = 0
+	}
+
+	// Check for version label (_v<N>) as leftmost label.
+	var version uint16
+	if belowZoneCount > 0 && len(labels) > 0 && strings.HasPrefix(labels[0], "_v") {
+		numStr := labels[0][2:]
+		if numStr != "" {
+			if n, err := strconv.ParseUint(numStr, 10, 16); err == nil && n >= 1 && n <= 65535 {
+				// Reject leading zeros (e.g., _v01).
+				if len(numStr) > 1 && numStr[0] == '0' {
+					// Has leading zero, not a valid version label.
+				} else {
+					version = uint16(n)
+				}
+			}
+		}
+	}
+
+	if version > 0 {
+		return version, labels[1:1+belowZoneCount-1]
+	}
+	return 0, labels[:belowZoneCount]
 }
 
 // msgAcceptFunc returns a dns.MsgAcceptFunc that rejects NOTIFY and multiple

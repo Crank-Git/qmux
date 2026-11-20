@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1202,4 +1203,468 @@ func TestRefusedUnregisteredKey(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("ListenAndServe did not return")
 	}
+}
+
+// TestLowercaseQNAME verifies FR-server-23: QNAME is lowercased before passing to handler.
+func TestLowercaseQNAME(t *testing.T) {
+	var captured atomic.Value
+	captured.Store("")
+	s := NewServer(ServerConfig{
+		Address: "127.0.0.1:0",
+		Zones:   []string{"example."},
+	})
+	h := &describerHandler{
+		info: testInfo,
+		fn: func(ctx context.Context, req *protocol.Request) (*protocol.Response, error) {
+			captured.Store(req.QName)
+			return &protocol.Response{Status: protocol.StatusOK}, nil
+		},
+	}
+	_ = s.Register(testKey, h)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- s.ListenAndServe(ctx)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	udpAddr := s.Addr().(*net.UDPAddr)
+
+	q := new(dns.Msg)
+	q.SetQuestion("Device42.Example.", 65280)
+	q.Question[0].Qclass = 65280
+
+	wire := sendUDPQuery(t, udpAddr, q)
+	resp := parseResponse(t, wire)
+	if resp.Rcode != dns.RcodeSuccess {
+		t.Fatalf("rcode = %d, want %d", resp.Rcode, dns.RcodeSuccess)
+	}
+
+	if captured.Load().(string) != "device42.example." {
+		t.Errorf("QName = %q, want device42.example.", captured.Load().(string))
+	}
+}
+
+// TestVersionLabelParsing verifies FR-server-24: _v<N> leftmost label parsed as version.
+func TestVersionLabelParsing(t *testing.T) {
+	tests := []struct {
+		name    string
+		qname   string
+		wantVer uint16
+	}{
+		{"_v2 prefix", "_v2.device.example.", 2},
+		{"_v1 prefix", "_v1.device.example.", 1},
+		{"_v65535 prefix", "_v65535.device.example.", 65535},
+		{"no version", "device.example.", 0},
+		{"_v0 (invalid, zero)", "_v0.device.example.", 0},
+		{"_v01 (invalid, leading zero)", "_v01.device.example.", 0},
+		{"_v65536 (invalid, out of range)", "_v65536.device.example.", 0},
+		{"_v not followed by number", "_vabc.device.example.", 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var captured atomic.Value
+			captured.Store(uint16(0))
+			s := NewServer(ServerConfig{
+				Address: "127.0.0.1:0",
+				Zones:   []string{"example."},
+			})
+			h := &describerHandler{
+				info: testInfo,
+				fn: func(ctx context.Context, req *protocol.Request) (*protocol.Response, error) {
+					captured.Store(req.Version)
+					return &protocol.Response{Status: protocol.StatusOK}, nil
+				},
+			}
+			_ = s.Register(testKey, h)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			errCh := make(chan error, 1)
+			go func() {
+				errCh <- s.ListenAndServe(ctx)
+			}()
+
+			time.Sleep(50 * time.Millisecond)
+			udpAddr := s.Addr().(*net.UDPAddr)
+
+			q := new(dns.Msg)
+			q.SetQuestion(tt.qname, 65280)
+			q.Question[0].Qclass = 65280
+
+			wire := sendUDPQuery(t, udpAddr, q)
+			resp := parseResponse(t, wire)
+			if resp.Rcode != dns.RcodeSuccess {
+				t.Fatalf("rcode = %d, want %d", resp.Rcode, dns.RcodeSuccess)
+			}
+
+			if captured.Load().(uint16) != tt.wantVer {
+				t.Errorf("Version = %d, want %d", captured.Load().(uint16), tt.wantVer)
+			}
+
+			cancel()
+			select {
+			case <-errCh:
+			case <-time.After(5 * time.Second):
+				t.Fatal("ListenAndServe did not return")
+			}
+		})
+	}
+}
+
+// TestLabelsExtraction verifies FR-server-25: labels below zone with version removed.
+func TestLabelsExtraction(t *testing.T) {
+	tests := []struct {
+		name    string
+		qname   string
+		zone    string
+		wantLbl []string
+	}{
+		{"_v2 with labels below", "_v2.device.example.", "example.", []string{"device"}},
+		{"no version", "device.example.", "example.", []string{"device"}},
+		{"_v2 with no labels below", "_v2.example.", "example.", nil},
+		{"multiple labels below", "_v2.a.b.c.example.", "example.", []string{"a", "b", "c"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var captured atomic.Value
+			captured.Store(([]string)(nil))
+			s := NewServer(ServerConfig{
+				Address: "127.0.0.1:0",
+				Zones:   []string{tt.zone},
+			})
+			h := &describerHandler{
+				info: testInfo,
+				fn: func(ctx context.Context, req *protocol.Request) (*protocol.Response, error) {
+					captured.Store(req.Labels)
+					return &protocol.Response{Status: protocol.StatusOK}, nil
+				},
+			}
+			_ = s.Register(testKey, h)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			errCh := make(chan error, 1)
+			go func() {
+				errCh <- s.ListenAndServe(ctx)
+			}()
+
+			time.Sleep(50 * time.Millisecond)
+			udpAddr := s.Addr().(*net.UDPAddr)
+
+			q := new(dns.Msg)
+			q.SetQuestion(tt.qname, 65280)
+			q.Question[0].Qclass = 65280
+
+			wire := sendUDPQuery(t, udpAddr, q)
+			resp := parseResponse(t, wire)
+			if resp.Rcode != dns.RcodeSuccess {
+				t.Fatalf("rcode = %d, want %d", resp.Rcode, dns.RcodeSuccess)
+			}
+
+			if !equalStrings(captured.Load().([]string), tt.wantLbl) {
+				t.Errorf("Labels = %v, want %v", captured.Load().([]string), tt.wantLbl)
+			}
+
+			cancel()
+			select {
+			case <-errCh:
+			case <-time.After(5 * time.Second):
+				t.Fatal("ListenAndServe did not return")
+			}
+		})
+	}
+}
+
+// TestUDPSizeFromEDNS verifies FR-server-26: UDPSize from EDNS(0).
+func TestUDPSizeFromEDNS(t *testing.T) {
+	var captured atomic.Value
+	captured.Store(uint16(0))
+	s := NewServer(ServerConfig{
+		Address: "127.0.0.1:0",
+		Zones:   []string{"example."},
+	})
+	h := &describerHandler{
+		info: testInfo,
+		fn: func(ctx context.Context, req *protocol.Request) (*protocol.Response, error) {
+			captured.Store(req.UDPSize)
+			return &protocol.Response{Status: protocol.StatusOK}, nil
+		},
+	}
+	_ = s.Register(testKey, h)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- s.ListenAndServe(ctx)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	udpAddr := s.Addr().(*net.UDPAddr)
+
+	q := new(dns.Msg)
+	q.SetQuestion("test.example.", 65280)
+	q.Question[0].Qclass = 65280
+	q.SetEdns0(4096, false)
+
+	conn, err := net.DialUDP("udp", nil, udpAddr)
+	if err != nil {
+		t.Fatalf("DialUDP: %v", err)
+	}
+	defer conn.Close()
+
+	wire, _ := q.Pack()
+	conn.Write(wire)
+
+	buf := make([]byte, 512)
+	n, _, _ := conn.ReadFromUDP(buf)
+
+	resp := new(dns.Msg)
+	resp.Unpack(buf[:n])
+	if resp.Rcode != dns.RcodeSuccess {
+		t.Fatalf("rcode = %d, want %d", resp.Rcode, dns.RcodeSuccess)
+	}
+
+	if captured.Load().(uint16) != 4096 {
+		t.Errorf("UDPSize = %d, want 4096", captured.Load().(uint16))
+	}
+}
+
+// TestSchemaValidationRejects verifies FR-server-28/36: schema rejection gives SERVFAIL.
+func TestSchemaValidationRejects(t *testing.T) {
+	s := NewServer(ServerConfig{
+		Address: "127.0.0.1:0",
+		Zones:   []string{"example."},
+	})
+
+	rejectingSchema := &rejectingSchema{}
+	info := protocol.Info{ID: "org.qmux.test", Versions: []uint16{1}, Schema: rejectingSchema}
+	h := &describerHandler{
+		info: info,
+		fn: func(ctx context.Context, req *protocol.Request) (*protocol.Response, error) {
+			return &protocol.Response{Payload: []byte{0x01}, Status: protocol.StatusOK}, nil
+		},
+	}
+	_ = s.Register(testKey, h)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- s.ListenAndServe(ctx)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	udpAddr := s.Addr().(*net.UDPAddr)
+
+	q := new(dns.Msg)
+	q.SetQuestion("test.example.", 65280)
+	q.Question[0].Qclass = 65280
+
+	wire := sendUDPQuery(t, udpAddr, q)
+	resp := parseResponse(t, wire)
+	if resp.Rcode != dns.RcodeServerFailure {
+		t.Errorf("rcode = %d, want %d (SERVFAIL)", resp.Rcode, dns.RcodeServerFailure)
+	}
+}
+
+// syncBuffer is a bytes.Buffer protected by a sync.Mutex for use with slog.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// TestHandlerTimeout verifies FR-server-34: handler timeout gives SERVFAIL and logs warning.
+func TestHandlerTimeout(t *testing.T) {
+	buf := &syncBuffer{}
+	logger := slog.New(slog.NewTextHandler(buf, nil))
+
+	s := NewServer(ServerConfig{
+		Address:        "127.0.0.1:0",
+		Zones:          []string{"example."},
+		HandlerTimeout: 100 * time.Millisecond,
+		Logger:         logger,
+	})
+
+	h := &describerHandler{
+		info: testInfo,
+		fn: func(ctx context.Context, req *protocol.Request) (*protocol.Response, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+	_ = s.Register(testKey, h)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- s.ListenAndServe(ctx)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	udpAddr := s.Addr().(*net.UDPAddr)
+
+	q := new(dns.Msg)
+	q.SetQuestion("test.example.", 65280)
+	q.Question[0].Qclass = 65280
+
+	wire := sendUDPQuery(t, udpAddr, q)
+	resp := parseResponse(t, wire)
+	if resp.Rcode != dns.RcodeServerFailure {
+		t.Errorf("rcode = %d, want %d (SERVFAIL)", resp.Rcode, dns.RcodeServerFailure)
+	}
+
+	// Wait for the handler timeout log to appear.
+	for i := 0; i < 20; i++ {
+		time.Sleep(50 * time.Millisecond)
+		if strings.Contains(buf.String(), "handler timeout") {
+			break
+		}
+	}
+
+	if !strings.Contains(buf.String(), "handler timeout") {
+		t.Errorf("log = %q, want handler timeout warning", buf.String())
+	}
+}
+
+// TestParseVersionAndLabels tests the parseVersionAndLabels helper directly.
+func TestParseVersionAndLabels(t *testing.T) {
+	tests := []struct {
+		name    string
+		qname   string
+		zone    string
+		wantVer uint16
+		wantLbl []string
+	}{
+		{
+			name:    "version label with labels below zone",
+			qname:   "_v2.device.example.",
+			zone:    "example.",
+			wantVer: 2,
+			wantLbl: []string{"device"},
+		},
+		{
+			name:    "no version label",
+			qname:   "device.example.",
+			zone:    "example.",
+			wantVer: 0,
+			wantLbl: []string{"device"},
+		},
+		{
+			name:    "version label with no labels below zone",
+			qname:   "_v2.example.",
+			zone:    "example.",
+			wantVer: 2,
+			wantLbl: nil,
+		},
+		{
+			name:    "empty zone — all labels",
+			qname:   "device.example.",
+			zone:    ".",
+			wantVer: 0,
+			wantLbl: []string{"device", "example"},
+		},
+		{
+			name:    "_v0 not valid (zero)",
+			qname:   "_v0.device.example.",
+			zone:    "example.",
+			wantVer: 0,
+			wantLbl: []string{"_v0", "device"},
+		},
+		{
+			name:    "_v01 not valid (leading zero)",
+			qname:   "_v01.device.example.",
+			zone:    "example.",
+			wantVer: 0,
+			wantLbl: []string{"_v01", "device"},
+		},
+		{
+			name:    "_v65536 not valid (out of range)",
+			qname:   "_v65536.device.example.",
+			zone:    "example.",
+			wantVer: 0,
+			wantLbl: []string{"_v65536", "device"},
+		},
+		{
+			name:    "multiple labels below zone",
+			qname:   "_v1.a.b.c.example.",
+			zone:    "example.",
+			wantVer: 1,
+			wantLbl: []string{"a", "b", "c"},
+		},
+		{
+			name:    "qname equals zone",
+			qname:   "example.",
+			zone:    "example.",
+			wantVer: 0,
+			wantLbl: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ver, lbl := parseVersionAndLabels(tt.qname, tt.zone)
+			if ver != tt.wantVer {
+				t.Errorf("version = %d, want %d", ver, tt.wantVer)
+			}
+			if !equalStrings(lbl, tt.wantLbl) {
+				t.Errorf("labels = %v, want %v", lbl, tt.wantLbl)
+			}
+		})
+	}
+}
+
+// TestEmptyZonesLabelsWithVersion tests parseVersionAndLabels with empty zones and version label.
+func TestEmptyZonesLabelsWithVersion(t *testing.T) {
+	ver, lbl := parseVersionAndLabels("_v2.device.example.", ".")
+	if ver != 0 {
+		t.Errorf("version = %d, want 0 (empty zones ignore version)", ver)
+	}
+	wantLbl := []string{"_v2", "device", "example"}
+	if !equalStrings(lbl, wantLbl) {
+		t.Errorf("labels = %v, want %v", lbl, wantLbl)
+	}
+}
+
+// rejectingSchema is a Schema that always rejects.
+type rejectingSchema struct{}
+
+func (s *rejectingSchema) Validate(uint16, []byte) error {
+	return errors.New("rejected")
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
