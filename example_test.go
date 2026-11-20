@@ -14,9 +14,10 @@ import (
 // firmwareHandler answers the firmware metadata of a device.
 type firmwareHandler struct{}
 
-// Handle returns the firmware metadata for the device that req.Labels names.
+// Handle returns the firmware metadata for the device that req.QName names.
+// It uses QName and not Labels, because a query for the zone itself has no labels.
 func (firmwareHandler) Handle(ctx context.Context, req *protocol.Request) (*protocol.Response, error) {
-	return &protocol.Response{Payload: []byte("firmware 1.4.2 for " + req.Labels[0])}, nil
+	return &protocol.Response{Payload: []byte("firmware 1.4.2 for " + req.QName)}, nil
 }
 
 // Info returns the protocol ID and the protocol versions of the firmware protocol.
