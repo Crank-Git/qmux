@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -161,6 +162,26 @@ func TestQueryExitsOneForAnUnregisteredProtocolKey(t *testing.T) {
 		t.Fatalf("exit code = %d, want 1; stderr = %q", code, stderr)
 	}
 	want := "error: dns: rcode REFUSED for device42.fleet.example. 65283/65280\n"
+	if stdout != "" || stderr != want {
+		t.Errorf("stdout = %q, stderr = %q; want only the error line %q on stderr", stdout, stderr, want)
+	}
+}
+
+func TestQueryPrintsTheTimeoutScreenAndExitsOneWhenNoResponseArrives(t *testing.T) {
+	// The socket reads nothing and answers nothing, so every attempt times out.
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("ListenPacket: %v", err)
+	}
+	t.Cleanup(func() { _ = pc.Close() })
+	addr := pc.LocalAddr().String()
+
+	code, stdout, stderr := queryCmd(append(keyArgs(addr), "--timeout", "50ms")...)
+
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1; stderr = %q", code, stderr)
+	}
+	want := "error: dns: timeout after 3 attempts to " + addr + "\n"
 	if stdout != "" || stderr != want {
 		t.Errorf("stdout = %q, stderr = %q; want only the error line %q on stderr", stdout, stderr, want)
 	}
