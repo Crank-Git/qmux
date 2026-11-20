@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -15,7 +16,7 @@ func TestVersionPrintsOneVersionLineAndExitsZero(t *testing.T) {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
 	// A test binary has no module version, so the fallback applies.
-	if got, want := stdout.String(), "qmuxd v0.0.0-dev\n"; got != want {
+	if got, want := stdout.String(), "qmuxd v0.0.0-dev "+runtime.Version()+"\n"; got != want {
 		t.Errorf("stdout = %q, want %q", got, want)
 	}
 	if stderr.Len() != 0 {
@@ -26,8 +27,16 @@ func TestVersionPrintsOneVersionLineAndExitsZero(t *testing.T) {
 func TestVersionNamesTheBinaryWithoutItsDirectory(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	run([]string{"bin/qmuxd", "version"}, &stdout, &stderr)
-	if got, want := stdout.String(), "qmuxd v0.0.0-dev\n"; got != want {
+	if got, want := stdout.String(), "qmuxd v0.0.0-dev "+runtime.Version()+"\n"; got != want {
 		t.Errorf("stdout = %q, want %q", got, want)
+	}
+}
+
+func TestVersionPrintsTheGoVersion(t *testing.T) { // FR-qmuxd-6
+	var stdout, stderr bytes.Buffer
+	run([]string{"qmuxd", "version"}, &stdout, &stderr)
+	if !strings.Contains(stdout.String(), "go1.") {
+		t.Errorf("stdout = %q, want a line that contains %q", stdout.String(), "go1.")
 	}
 }
 

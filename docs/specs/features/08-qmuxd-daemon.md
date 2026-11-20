@@ -59,8 +59,8 @@ server.
 - **FR-qmuxd-13** — `qmuxd` registers each protocol through the registry, so the registry
   rules apply. A registry error exits with code 2.
 - **FR-qmuxd-14** — Each QNAME in `records` must be at or below one of the configured zones.
-- **FR-qmuxd-15** — When `discovery.enabled` is true, `qmuxd` calls `discovery.Register` for
-  each zone. `discovery.in_class` sets `InClass`.
+- **FR-qmuxd-15** — When `discovery.enabled` is true, `qmuxd` calls
+  `discovery.RegisterZones` one time with every zone. `discovery.in_class` sets `InClass`.
 
 ### Static records and JSON-to-CBOR rule
 
@@ -220,7 +220,7 @@ One observation log line:
 | `zones` | array of string | — | Required. At least one fully qualified name. |
 | `signing_key` | string | — | Required. Path to a PKCS#8 PEM Ed25519 key. Relative to the configuration file directory. |
 | `signature_validity` | string | `1h` | Go duration, 1 min to 24 h. |
-| `ttl` | integer | 60 | 0–86400 seconds. |
+| `ttl` | integer | 60 | 1–86400 seconds. |
 | `udp_size` | integer | 1232 | 512–4096. |
 | `handler_timeout` | string | `2s` | Go duration, 10 ms to 30 s. |
 | `rate_limit` | object `{qps, burst}` | `{50, 100}` | `qps` 0 disables. `burst` ≥ `qps` when `qps` > 0. |

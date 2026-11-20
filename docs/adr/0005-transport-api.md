@@ -62,7 +62,7 @@ type ServeConfig struct {
     ShutdownGrace             time.Duration
     Logger                    *slog.Logger
 }
-func Listen(addr string) (net.PacketConn, net.Listener, error) // TCP on the UDP port
+func Listen(addr string) (net.PacketConn, net.Listener, error) // TCP on the UDP port; port 0 tries 10 ports
 func Serve(ctx context.Context, pc net.PacketConn, l net.Listener, h Handler, cfg ServeConfig) error
 func ServeMessage(ctx context.Context, wire []byte, src netip.AddrPort, transport string,
     h Handler, cfg ServeConfig) ([]byte, error) // one message, no socket

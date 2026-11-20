@@ -813,3 +813,8 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   download, the rollback case included, prints `result: up to date (0 downloads)`.
   `protocol.FoldName` is the one ASCII fold for DNS names (#142).
 - 2026-11-20 — Embedded recovery demonstration is `built` (#151).
+- 2026-11-20 — qmuxd decisions (#9): one discovery registration serves every zone
+  (`discovery.RegisterZones`). The `ttl` range is 1–86400, and 0 exits 2 (#155). A parsed
+  query whose response write fails still writes an observation line. `qmuxd` checks each
+  payload against the codec decode limits at load time (#159). `qmuxd` binds with
+  `transport.Listen` (#158).

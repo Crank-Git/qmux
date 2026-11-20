@@ -262,3 +262,46 @@ func TestOtherQNameAtDiscoveryKeyReturnsNotFound(t *testing.T) {
 		t.Fatalf("envelope = status %d, ID %q; want %d, %q", res.Status, res.ProtocolID, protocol.StatusNotFound, ProtocolID)
 	}
 }
+
+// twoZones are the zones of the RegisterZones tests. The second zone is not in
+// lowercase, so the tests also check the case fold.
+var twoZones = []string{testZone, "Lab.Example."}
+
+func TestRegisterZonesAnswersTheDiscoveryNameOfEachZoneWithTheManifestOfThatZone(t *testing.T) {
+	srv := server.NewServer(server.ServerConfig{Zones: twoZones, Logger: slog.New(slog.DiscardHandler)})
+	if err := RegisterZones(srv, twoZones, Options{}); err != nil {
+		t.Fatalf("RegisterZones: %v", err)
+	}
+	if regs := srv.Registry().List(); len(regs) != 1 {
+		t.Fatalf("registry lists %d registrations, want 1", len(regs))
+	}
+	c := serve(t, srv)
+	for _, zone := range []string{testZone, "lab.example."} {
+		res, err := query(t, c, "_qmux."+zone)
+		if err != nil {
+			t.Fatalf("Query for _qmux.%s: %v", zone, err)
+		}
+		var m Manifest
+		if err := codec.Unmarshal(res.Payload, &m); err != nil {
+			t.Fatalf("Unmarshal: %v", err)
+		}
+		if m.Zone != zone {
+			t.Errorf("manifest zone for _qmux.%s = %q, want %q", zone, m.Zone, zone)
+		}
+	}
+}
+
+func TestRegisterZonesReturnsNotFoundForAnotherQNameAtTheDiscoveryKey(t *testing.T) {
+	srv := server.NewServer(server.ServerConfig{Zones: twoZones, Logger: slog.New(slog.DiscardHandler)})
+	if err := RegisterZones(srv, twoZones, Options{}); err != nil {
+		t.Fatalf("RegisterZones: %v", err)
+	}
+	res, err := query(t, serve(t, srv), "x.lab.example.")
+	var appErr *client.AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("Query: got %v, want an AppError", err)
+	}
+	if res.Status != protocol.StatusNotFound {
+		t.Fatalf("status = %d, want %d", res.Status, protocol.StatusNotFound)
+	}
+}

@@ -241,10 +241,10 @@ body.rv-open .layout { padding-right:21rem; }
 <ul>
 <li><strong>FR-qmuxd-14</strong> — Each QNAME in <code>records</code> must be at or below one of the configured zones.
 </li>
-<li><strong>FR-qmuxd-15</strong> — When <code>discovery.enabled</code> is true, <code>qmuxd</code> calls <code>discovery.Register</code> for
+<li><strong>FR-qmuxd-15</strong> — When <code>discovery.enabled</code> is true, <code>qmuxd</code> calls
 </li>
 </ul>
-<p>each zone. <code>discovery.in_class</code> sets <code>InClass</code>.</p>
+<p><code>discovery.RegisterZones</code> one time with every zone. <code>discovery.in_class</code> sets <code>InClass</code>.</p>
 <h4 id="qmuxd-daemon-static-records-and-json-to-cbor-rule">Static records and JSON-to-CBOR rule</h4>
 <ul>
 <li><strong>FR-qmuxd-16</strong> — A static-record handler answers a QNAME listed in <code>records</code>, with a
@@ -472,7 +472,7 @@ body.rv-open .layout { padding-right:21rem; }
 <tr><td><code>zones</code></td><td>array of string</td><td>—</td><td>Required. At least one fully qualified name.</td></tr>
 <tr><td><code>signing_key</code></td><td>string</td><td>—</td><td>Required. Path to a PKCS#8 PEM Ed25519 key. Relative to the configuration file directory.</td></tr>
 <tr><td><code>signature_validity</code></td><td>string</td><td><code>1h</code></td><td>Go duration, 1 min to 24 h.</td></tr>
-<tr><td><code>ttl</code></td><td>integer</td><td>60</td><td>0–86400 seconds.</td></tr>
+<tr><td><code>ttl</code></td><td>integer</td><td>60</td><td>1–86400 seconds.</td></tr>
 <tr><td><code>udp_size</code></td><td>integer</td><td>1232</td><td>512–4096.</td></tr>
 <tr><td><code>handler_timeout</code></td><td>string</td><td><code>2s</code></td><td>Go duration, 10 ms to 30 s.</td></tr>
 <tr><td><code>rate_limit</code></td><td>object <code>{qps, burst}</code></td><td><code>{50, 100}</code></td><td><code>qps</code> 0 disables. <code>burst</code> ≥ <code>qps</code> when <code>qps</code> &gt; 0.</td></tr>
