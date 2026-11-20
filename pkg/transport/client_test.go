@@ -227,6 +227,51 @@ func TestExchangeReturnsErrMismatchForADifferentQuestion(t *testing.T) {
 	}
 }
 
+func TestExchangeReturnsTheRCodeOfAnErrorResponseWithoutAQuestion(t *testing.T) {
+	for _, network := range []string{transport.UDP, transport.TCP} {
+		for _, rcode := range []transport.RCode{transport.RCodeFormErr, transport.RCodeNotImp} {
+			t.Run(network+"/"+rcode.String(), func(t *testing.T) {
+				r := respond(t, func(_, ok transporttest.Message) []transporttest.Message {
+					ok.RCode = rcode
+					ok.Question = nil
+					ok.Answer = nil
+					return []transporttest.Message{ok}
+				})
+				got, err := clientExchange(t, network, r)
+				if err != nil {
+					t.Fatalf("exchange: %v", err)
+				}
+				if got.RCode != rcode || got.Payload != nil {
+					t.Errorf("Received = %+v, want RCode %v and no payload", got, rcode)
+				}
+			})
+		}
+	}
+}
+
+func TestExchangeReturnsErrMismatchForAnErrorResponseWithAnotherQuestion(t *testing.T) {
+	cases := map[string]func(q []transporttest.RR) []transporttest.RR{
+		"two questions": func(q []transporttest.RR) []transporttest.RR { return []transporttest.RR{q[0], q[0]} },
+		"another name": func(q []transporttest.RR) []transporttest.RR {
+			return []transporttest.RR{{Name: "device43.fleet.example.", Key: q[0].Key}}
+		},
+	}
+	for name, question := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := respond(t, func(_, ok transporttest.Message) []transporttest.Message {
+				ok.RCode = transport.RCodeNotImp
+				ok.Question = question(ok.Question)
+				ok.Answer = nil
+				return []transporttest.Message{ok}
+			})
+			_, err := clientExchange(t, transport.UDP, r)
+			if !errors.Is(err, transport.ErrMismatch) {
+				t.Errorf("err = %v, want ErrMismatch", err)
+			}
+		})
+	}
+}
+
 func TestExchangeMatchesANameThatDiffersOnlyInCase(t *testing.T) {
 	r := respond(t, func(_, ok transporttest.Message) []transporttest.Message {
 		ok.Question = []transporttest.RR{{Name: "DEVICE42.Fleet.Example.", Key: testKey}}
