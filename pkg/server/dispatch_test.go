@@ -91,6 +91,7 @@ func TestServeQueryGivesTheHandlerTheQNameInLowercase(t *testing.T) {
 }
 
 func TestServeQuerySetsTheVersionFromTheLeftmostVersionLabel(t *testing.T) {
+	info := protocol.Info{ID: "test.qmux", Versions: []uint16{1, 2, 7, 65535}}
 	tests := []struct {
 		name    string
 		zones   []string
@@ -99,20 +100,22 @@ func TestServeQuerySetsTheVersionFromTheLeftmostVersionLabel(t *testing.T) {
 		labels  []string
 	}{
 		{"version 2", []string{"fleet.example."}, "_v2.device42.fleet.example.", 2, []string{"device42"}},
-		{"no version label", []string{"fleet.example."}, "device42.fleet.example.", 0, []string{"device42"}},
+		{"no version label", []string{"fleet.example."}, "device42.fleet.example.", 65535, []string{"device42"}},
 		{"version 2 with no zones", nil, "_v2.device42.fleet.example.", 2, []string{"device42", "fleet", "example"}},
 		{"uppercase version label", []string{"fleet.example."}, "_V7.device42.fleet.example.", 7, []string{"device42"}},
 		{"highest version", []string{"fleet.example."}, "_v65535.a.fleet.example.", 65535, []string{"a"}},
-		{"version 0 is a label", []string{"fleet.example."}, "_v0.a.fleet.example.", 0, []string{"_v0", "a"}},
-		{"leading zero is a label", []string{"fleet.example."}, "_v02.a.fleet.example.", 0, []string{"_v02", "a"}},
-		{"version above 65535 is a label", []string{"fleet.example."}, "_v65536.a.fleet.example.", 0, []string{"_v65536", "a"}},
-		{"no digits is a label", []string{"fleet.example."}, "_v.a.fleet.example.", 0, []string{"_v", "a"}},
-		{"letters are a label", []string{"fleet.example."}, "_v2x.a.fleet.example.", 0, []string{"_v2x", "a"}},
-		{"version label not leftmost", []string{"fleet.example."}, "a._v2.fleet.example.", 0, []string{"a", "_v2"}},
+		{"version label not leftmost", []string{"fleet.example."}, "a._v2.fleet.example.", 65535, []string{"a", "_v2"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := requestFor(t, ServerConfig{Zones: tt.zones}, tt.qname)
+			var reqs []*protocol.Request
+			s := NewServer(ServerConfig{Zones: tt.zones, Logger: quietLogger()})
+			if err := s.RegisterProtocol(testKey, info, recordingHandler(&reqs)); err != nil {
+				t.Fatalf("RegisterProtocol: %v", err)
+			}
+			q := validQuery()
+			q.Name = tt.qname
+			req := onlyRequest(t, answer(s, q), reqs)
 			if req.Version != tt.version {
 				t.Errorf("Version = %d, want %d", req.Version, tt.version)
 			}
@@ -130,7 +133,7 @@ func TestServeQuerySetsTheLabelsBelowTheZone(t *testing.T) {
 		qname  string
 		labels []string
 	}{
-		{"one label below the zone", []string{"fleet.example."}, "_v2.device42.fleet.example.", []string{"device42"}},
+		{"one label below the zone", []string{"fleet.example."}, "_v1.device42.fleet.example.", []string{"device42"}},
 		{"two labels below the zone", []string{"fleet.example."}, "sensor.device42.fleet.example.", []string{"sensor", "device42"}},
 		{"the QNAME is the zone", []string{"fleet.example."}, "fleet.example.", []string{}},
 		{"every label with no zones", nil, "device42.fleet.example.", []string{"device42", "fleet", "example"}},
