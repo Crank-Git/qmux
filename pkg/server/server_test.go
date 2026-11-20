@@ -1,10 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net"
 	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -878,5 +882,324 @@ func TestResponseFields(t *testing.T) {
 	}
 	if resp.MessageType != protocol.MessageRecord {
 		t.Errorf("MessageType = %v, want %v", resp.MessageType, protocol.MessageRecord)
+	}
+}
+
+// TestFormERRLargeQueryWithoutEDNS verifies FR-server-16: query > 512 bytes without EDNS gets FORMERR.
+func TestFormERRLargeQueryWithoutEDNS(t *testing.T) {
+	s := NewServer(ServerConfig{Address: "127.0.0.1:0"})
+	h := &describerHandler{info: testInfo}
+	_ = s.Register(testKey, h)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- s.ListenAndServe(ctx)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	udpAddr := s.Addr().(*net.UDPAddr)
+
+	// Build a query > 512 bytes by using many unique long labels (avoids DNS compression).
+	// 10 labels x 63 chars = ~665 bytes packed.
+	var longName strings.Builder
+	for i := 0; i < 10; i++ {
+		longName.WriteString(fmt.Sprintf("%063d", i))
+		longName.WriteByte('.')
+	}
+	longName.WriteString("example.")
+	q := new(dns.Msg)
+	q.SetQuestion(longName.String(), 65280)
+	q.Question[0].Qclass = 65280
+
+	conn, err := net.DialUDP("udp", nil, udpAddr)
+	if err != nil {
+		t.Fatalf("DialUDP: %v", err)
+	}
+	defer conn.Close()
+
+	wire, err := q.Pack()
+	if err != nil {
+		t.Fatalf("pack: %v", err)
+	}
+	if _, err := conn.Write(wire); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	buf := make([]byte, 512)
+	n, _, err := conn.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+
+	resp := new(dns.Msg)
+	if err := resp.Unpack(buf[:n]); err != nil {
+		t.Fatalf("unpack: %v", err)
+	}
+	if resp.Rcode != dns.RcodeFormatError {
+		t.Errorf("rcode = %d, want %d (FORMERR)", resp.Rcode, dns.RcodeFormatError)
+	}
+}
+
+// TestFormERRLargeQueryWithEDNS verifies FR-server-17: query > 1232 bytes with EDNS gets FORMERR.
+func TestFormERRLargeQueryWithEDNS(t *testing.T) {
+	s := NewServer(ServerConfig{Address: "127.0.0.1:0"})
+	h := &describerHandler{info: testInfo}
+	_ = s.Register(testKey, h)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- s.ListenAndServe(ctx)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	udpAddr := s.Addr().(*net.UDPAddr)
+
+	// Build a query > 1232 bytes with EDNS by using many unique long labels.
+	// 20 labels x 63 chars = ~1305 bytes packed.
+	var longName strings.Builder
+	for i := 0; i < 20; i++ {
+		longName.WriteString(fmt.Sprintf("%063d", i))
+		longName.WriteByte('.')
+	}
+	longName.WriteString("example.")
+	q := new(dns.Msg)
+	q.SetQuestion(longName.String(), 65280)
+	q.Question[0].Qclass = 65280
+	q.SetEdns0(4096, false)
+
+	conn, err := net.DialUDP("udp", nil, udpAddr)
+	if err != nil {
+		t.Fatalf("DialUDP: %v", err)
+	}
+	defer conn.Close()
+
+	wire, err := q.Pack()
+	if err != nil {
+		t.Fatalf("pack: %v", err)
+	}
+	if _, err := conn.Write(wire); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	buf := make([]byte, 512)
+	n, _, err := conn.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+
+	resp := new(dns.Msg)
+	if err := resp.Unpack(buf[:n]); err != nil {
+		t.Fatalf("unpack: %v", err)
+	}
+	if resp.Rcode != dns.RcodeFormatError {
+		t.Errorf("rcode = %d, want %d (FORMERR)", resp.Rcode, dns.RcodeFormatError)
+	}
+}
+
+// TestBADVERS verifies FR-server-18: EDNS version above 0 gets BADVERS.
+func TestBADVERS(t *testing.T) {
+	s := NewServer(ServerConfig{Address: "127.0.0.1:0"})
+	h := &describerHandler{info: testInfo}
+	_ = s.Register(testKey, h)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- s.ListenAndServe(ctx)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	udpAddr := s.Addr().(*net.UDPAddr)
+
+	q := new(dns.Msg)
+	q.SetQuestion("test.example.", 65280)
+	q.Question[0].Qclass = 65280
+	q.SetEdns0(1232, false)
+	q.Extra[0].(*dns.OPT).SetVersion(1) // EDNS version 1
+
+	conn, err := net.DialUDP("udp", nil, udpAddr)
+	if err != nil {
+		t.Fatalf("DialUDP: %v", err)
+	}
+	defer conn.Close()
+
+	wire, _ := q.Pack()
+	conn.Write(wire)
+
+	buf := make([]byte, 512)
+	n, _, err := conn.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+
+	resp := new(dns.Msg)
+	if err := resp.Unpack(buf[:n]); err != nil {
+		t.Fatalf("unpack: %v", err)
+	}
+	if resp.Rcode != dns.RcodeBadVers {
+		t.Errorf("rcode = %d, want %d (BADVERS)", resp.Rcode, dns.RcodeBadVers)
+	}
+}
+
+// TestZoneMatchingOutsideZone verifies FR-server-19: QNAME outside configured zone gets REFUSED.
+func TestZoneMatchingOutsideZone(t *testing.T) {
+	s := NewServer(ServerConfig{
+		Address: "127.0.0.1:0",
+		Zones:   []string{"example."},
+	})
+	h := &describerHandler{info: testInfo}
+	_ = s.Register(testKey, h)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- s.ListenAndServe(ctx)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	udpAddr := s.Addr().(*net.UDPAddr)
+
+	q := new(dns.Msg)
+	q.SetQuestion("test.other.", 65280)
+	q.Question[0].Qclass = 65280
+
+	wire := sendUDPQuery(t, udpAddr, q)
+	resp := parseResponse(t, wire)
+	if resp.Rcode != dns.RcodeRefused {
+		t.Errorf("rcode = %d, want %d (REFUSED)", resp.Rcode, dns.RcodeRefused)
+	}
+}
+
+// TestZoneMatchingInsideZone verifies that QNAME inside configured zone reaches handler.
+func TestZoneMatchingInsideZone(t *testing.T) {
+	s := NewServer(ServerConfig{
+		Address: "127.0.0.1:0",
+		Zones:   []string{"example."},
+	})
+	h := &describerHandler{info: testInfo}
+	_ = s.Register(testKey, h)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- s.ListenAndServe(ctx)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	udpAddr := s.Addr().(*net.UDPAddr)
+
+	q := new(dns.Msg)
+	q.SetQuestion("test.example.", 65280)
+	q.Question[0].Qclass = 65280
+
+	wire := sendUDPQuery(t, udpAddr, q)
+	resp := parseResponse(t, wire)
+	if resp.Rcode != dns.RcodeSuccess {
+		t.Errorf("rcode = %d, want %d (NOERROR)", resp.Rcode, dns.RcodeSuccess)
+	}
+}
+
+// TestEmptyZonesAcceptsAll verifies FR-server-20: empty Zones accepts every QNAME.
+func TestEmptyZonesAcceptsAll(t *testing.T) {
+	s := NewServer(ServerConfig{
+		Address: "127.0.0.1:0",
+		Zones:   nil, // empty zones
+	})
+	h := &describerHandler{info: testInfo}
+	_ = s.Register(testKey, h)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- s.ListenAndServe(ctx)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	udpAddr := s.Addr().(*net.UDPAddr)
+
+	q := new(dns.Msg)
+	q.SetQuestion("anything.anywhere.", 65280)
+	q.Question[0].Qclass = 65280
+
+	wire := sendUDPQuery(t, udpAddr, q)
+	resp := parseResponse(t, wire)
+	if resp.Rcode != dns.RcodeSuccess {
+		t.Errorf("rcode = %d, want %d (NOERROR)", resp.Rcode, dns.RcodeSuccess)
+	}
+}
+
+// TestWarningLogOnEmptyZones verifies FR-server-21: warning logged when Zones is empty.
+func TestWarningLogOnEmptyZones(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+
+	_ = NewServer(ServerConfig{
+		Address: "127.0.0.1:0",
+		Logger:  logger,
+		Zones:   nil,
+	})
+
+	if !strings.Contains(buf.String(), "no zones configured") {
+		t.Errorf("log = %q, want warning about no zones", buf.String())
+	}
+}
+
+// TestRefusedUnregisteredKey verifies FR-server-22: unregistered protocol key gets REFUSED.
+func TestRefusedUnregisteredKey(t *testing.T) {
+	s := NewServer(ServerConfig{Address: "127.0.0.1:0"})
+	// Do not register any handler.
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- s.ListenAndServe(ctx)
+	}()
+
+	// Wait for listeners to start.
+	time.Sleep(100 * time.Millisecond)
+
+	addr := s.Addr()
+	if addr == nil {
+		t.Fatal("Addr() returned nil")
+	}
+
+	udpAddr, ok := addr.(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("Addr() = %T, want *net.UDPAddr", addr)
+	}
+
+	q := new(dns.Msg)
+	q.SetQuestion("test.example.", 65280)
+	q.Question[0].Qclass = 65280
+
+	wire := sendUDPQuery(t, udpAddr, q)
+	resp := parseResponse(t, wire)
+	if resp.Rcode != dns.RcodeRefused {
+		t.Errorf("rcode = %d, want %d (REFUSED)", resp.Rcode, dns.RcodeRefused)
+	}
+
+	cancel()
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Errorf("ListenAndServe: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("ListenAndServe did not return")
 	}
 }
