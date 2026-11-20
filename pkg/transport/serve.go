@@ -37,9 +37,19 @@ type ServeConfig struct {
 
 // Listen opens a UDP socket on addr and a TCP listener on the same port.
 //
-// When the port in addr is 0, the kernel picks the UDP port. Listen returns the bind
-// error when either socket fails to open, and then leaves no socket open.
+// When the port in addr is 0, the kernel picks the UDP port, and another process can
+// hold the same TCP port. Then Listen closes the UDP socket and tries a new port, at
+// most 10 times. When the port is not 0, Listen tries once.
+//
+// Listen returns the last bind error when no attempt opens both sockets. It then leaves
+// no socket open.
 func Listen(addr string) (net.PacketConn, net.Listener, error) {
+	return listen(addr, net.Listen)
+}
+
+// listen is Listen with the TCP bind as a parameter. A test can only make the TCP port
+// of a port-0 bind busy from inside the TCP bind, because the kernel picks the port.
+func listen(addr string, listenTCP func(network, address string) (net.Listener, error)) (net.PacketConn, net.Listener, error) {
 	_, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("transport: listen on %q: %w", addr, err)
@@ -49,19 +59,19 @@ func Listen(addr string) (net.PacketConn, net.Listener, error) {
 		attempts = listenAttempts
 	}
 
-	var errs []error
+	var last error
 	for range attempts {
 		pc, err := net.ListenPacket(UDP, addr)
 		if err != nil {
 			return nil, nil, fmt.Errorf("transport: listen udp %s: %w", addr, err)
 		}
-		l, err := net.Listen(TCP, pc.LocalAddr().String())
+		l, err := listenTCP(TCP, pc.LocalAddr().String())
 		if err == nil {
 			return pc, l, nil
 		}
-		errs = append(errs, fmt.Errorf("transport: listen tcp %s: %w", pc.LocalAddr(), err), pc.Close())
+		last = errors.Join(fmt.Errorf("transport: listen tcp %s: %w", pc.LocalAddr(), err), pc.Close())
 	}
-	return nil, nil, errors.Join(errs...)
+	return nil, nil, last
 }
 
 // ServeMessage answers one query in wire through h, with no socket. It returns the
