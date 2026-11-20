@@ -148,7 +148,7 @@ func (v *Verifier) checkWindow(sig *codec.SignatureBlock) error {
 	}
 	skew := cmp.Or(v.Skew, defaultSkew)
 	t := now()
-	issued, expires := unixTime(sig.IssuedAt), unixTime(sig.ExpiresAt)
+	issued, expires := UnixTime(sig.IssuedAt), UnixTime(sig.ExpiresAt)
 	if issued.After(t.Add(skew)) {
 		return ErrNotYetValid
 	}
@@ -168,9 +168,9 @@ func (v *Verifier) store() *FreshnessStore {
 	return &v.local
 }
 
-// unixTime returns the time of s Unix seconds. A value above maxUnixSeconds
-// returns the time of maxUnixSeconds, because time.Unix overflows for a value
-// near the maximum int64.
-func unixTime(s uint64) time.Time {
+// UnixTime returns the time of s Unix seconds, for an issued_at or an expires_at
+// of a signature block. A value above 2^40 returns the time of 2^40, because
+// time.Unix overflows for a value near the maximum int64.
+func UnixTime(s uint64) time.Time {
 	return time.Unix(int64(min(s, maxUnixSeconds)), 0)
 }

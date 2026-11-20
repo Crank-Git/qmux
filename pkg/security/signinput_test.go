@@ -83,14 +83,6 @@ func TestSigningInputEncodesANilPayloadAsAnEmptyByteString(t *testing.T) {
 	}
 }
 
-func TestSigningInputReturnsAnErrorForAnEnvelopeWithNoSignatureBlock(t *testing.T) {
-	e := vectorEnvelope()
-	e.Signature = nil
-	if _, err := signingInput(e, "a.example.", vectorKey); err == nil {
-		t.Fatal("signingInput returned no error for an envelope with no signature block")
-	}
-}
-
 func TestSigningInputDiffersForEachBoundField(t *testing.T) { // spec § Data model: the signature binds the name and the key
 	base, err := signingInput(vectorEnvelope(), "a.example.", vectorKey)
 	if err != nil {

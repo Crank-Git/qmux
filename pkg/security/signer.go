@@ -28,8 +28,8 @@ type Signer struct {
 //
 // The signature block holds the key ID of s.Key, the algorithm -8, issued_at = now
 // and expires_at = now + s.Validity, in Unix seconds. The signature is the Ed25519
-// signature over the signing input of e, with qname in lowercase. qname is the full
-// QNAME of the question, with the version label.
+// signature over the signing input of e, with the ASCII letters of qname in
+// lowercase. qname is the full QNAME of the question, with the version label.
 //
 // Sign returns an error, and does not change e, when:
 //   - s.Key is not an Ed25519 private key of 64 bytes

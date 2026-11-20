@@ -70,7 +70,8 @@ The signing input is the deterministic CBOR encoding of this array:
  message_type, status, payload, key_id, alg, issued_at, expires_at]
 ```
 
-The `qname` is the lowercase QNAME of the question, with the version label. The
+The `qname` is the QNAME of the question, with the version label and with ASCII letters
+in lowercase. No other byte changes, because DNS case folding is ASCII only (RFC 4343). The
 signature binds the resource name, the protocol key and the protocol ID. A valid
 envelope copied to another QNAME or another protocol key fails with `ErrBadSignature`.
 
@@ -84,7 +85,7 @@ failure:
 
 | Order | Check | Error |
 |---|---|---|
-| 1 | The envelope encodes back to the same bytes. | `ErrNotDeterministic` |
+| 1 | The envelope decodes, and it encodes back to the same bytes. | `ErrNotDeterministic`. A duplicate key, an indefinite length or a tag fails in decode first, and gives the codec error. |
 | 2 | The envelope has a signature block. | `ErrUnsigned` |
 | 3 | The algorithm is `-8`. | `ErrAlgorithm` |
 | 4 | A trust anchor has the key ID. | `ErrUnknownKey` |
@@ -100,7 +101,7 @@ The default `MaxWindow` is 24 hours. A server with a 48-hour validity window giv
 `ErrWindowTooLong` on a client with the default `MaxWindow`.
 
 The freshness store holds the newest accepted `issued_at` for each pair of protocol ID
-and QNAME. The QNAME is in lowercase and has no version label, so a version change does
+and QNAME. The QNAME has ASCII letters in lowercase and has no version label, so a version change does
 not reset freshness. An envelope with an equal `issued_at` passes. The verifier updates
 the store only after every check passes. The store is safe for concurrent use.
 
@@ -133,7 +134,7 @@ error: verify: ErrExpired: org.qmux.firmware _v1.device42.fleet.example.
 | An attacker copies a valid envelope to another QNAME or protocol key. | The signing input holds the QNAME, the class and the type. The client returns `ErrBadSignature`. | None. |
 | An attacker replays an old envelope after its window ends. | The client returns `ErrExpired`. | The attacker can replay it inside its window, until the client accepts a newer one. |
 | An attacker replays an older envelope after the client accepted a newer one. | The freshness store returns `ErrReplay`. | A client that loses its freshness store accepts an older envelope inside its window. |
-| An attacker sends an envelope encoded in a second form. | The verifier encodes again and returns `ErrNotDeterministic`. | None. |
+| An attacker sends an envelope encoded in a second form. | A duplicate key, an indefinite length or a tag fails in decode. The client returns the codec error as `VerifyError.Reason`. For every other form, the verifier encodes again and returns `ErrNotDeterministic`. | None. |
 | A resolver cache returns an envelope after `expires_at`. | The client returns `ErrExpired`. The TTL does not extend the window. | The caller must send a direct query to get a new envelope. |
 | An attacker steals the signing key. | The operator removes the trust anchor from each device. | Each envelope the attacker signs is valid until the anchor is removed. |
 | An attacker sends a large number of queries to the server. | The optional per-source rate limit answers `REFUSED` above the limit. | The server still receives and parses each query. A spoofed source address avoids the limit. |
