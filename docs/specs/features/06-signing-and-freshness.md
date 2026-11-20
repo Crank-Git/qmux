@@ -302,7 +302,8 @@ and exits with code 3.
 - New package `pkg/security`.
 - `codec.SignatureBlock` fields are filled.
 - `server.ServerConfig.Signer`, `client.ClientConfig.TrustAnchors`, `client.Result.Verified`,
-  `client.VerifyError`, `discovery.Client.CacheDir`.
+  `client.VerifyError`, `discovery.Client.CacheDir`, `client.Result.Raw` (the verified
+  envelope bytes, which the manifest cache stores and verifies again on load).
 - Files: signing key (PKCS#8 PEM), trust anchor file (JSON), freshness store file (JSON),
   manifest cache file.
 - `docs/security.md`.

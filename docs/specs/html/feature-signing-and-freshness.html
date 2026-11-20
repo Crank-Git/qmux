@@ -630,7 +630,7 @@ key_id 3f9a1c0b7d2e4a65</code></pre>
 <li><code>server.ServerConfig.Signer</code>, <code>client.ClientConfig.TrustAnchors</code>, <code>client.Result.Verified</code>,
 </li>
 </ul>
-<p><code>client.VerifyError</code>, <code>discovery.Client.CacheDir</code>.</p>
+<p><code>client.VerifyError</code>, <code>discovery.Client.CacheDir</code>, <code>client.Result.Raw</code> (the verified envelope bytes, which the manifest cache stores and verifies again on load).</p>
 <ul>
 <li>Files: signing key (PKCS#8 PEM), trust anchor file (JSON), freshness store file (JSON),
 </li>
