@@ -39,12 +39,6 @@ func newCached(m *Manifest, e codec.Envelope) cached {
 // than any clock, so the expiry comparison keeps its result.
 const maxUnixSeconds = 1 << 40
 
-// replaces reports whether n replaces old in the memory cache at the time now. An
-// expired value is not a cached manifest, so any n replaces it.
-func (n cached) replaces(old cached, ok bool, now time.Time) bool {
-	return !ok || !now.Before(old.expiresAt) || n.issuedAt > old.issuedAt
-}
-
 // lookup returns a copy of the manifest of zone from the memory cache, or from the
 // cache file when the memory cache has no manifest. The bool is false when neither
 // holds a manifest that verifies and has not expired at the time of v.
@@ -101,8 +95,8 @@ func (c *Client) store(v *security.Verifier, zone string, m *Manifest, f cacheFi
 	n := newCached(m.clone(), e)
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	old, ok := c.cache[zone]
-	if !n.replaces(old, ok, clock(v)) {
+	// An expired manifest is no longer a cached manifest, so any manifest replaces it.
+	if old, ok := c.cache[zone]; ok && clock(v).Before(old.expiresAt) && n.issuedAt <= old.issuedAt {
 		return nil
 	}
 	c.set(zone, n)
