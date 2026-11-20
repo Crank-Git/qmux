@@ -264,7 +264,7 @@ func TestDiscoverExitsOneWhenStdoutFails(t *testing.T) {
 	d := startDiscoveryServer(t, discovery.DefaultKey, nil)
 	var stderr bytes.Buffer
 	args := []string{"qmuxctl", "discover", "--server", d.addr, "--name", testZone, "--insecure"}
-	if code := run(args, failingWriter{}, &stderr); code != 1 {
-		t.Errorf("exit code = %d, want 1", code)
+	if code := run(args, failingWriter{}, &stderr); code != 1 || stderr.Len() != 0 {
+		t.Errorf("exit code = %d, stderr = %q; want 1 and no error, because the discovery succeeded", code, stderr.String())
 	}
 }
