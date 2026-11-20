@@ -1,0 +1,211 @@
+package server
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net"
+	"sync"
+	"time"
+
+	"github.com/Crank-Git/qmux/pkg/protocol"
+	"github.com/Crank-Git/qmux/pkg/registry"
+	"github.com/Crank-Git/qmux/pkg/transport"
+)
+
+// The defaults from the timeouts table of the spec.
+const (
+	defaultTTL            = 60
+	defaultUDPSize        = 1232
+	defaultHandlerTimeout = 2 * time.Second
+	defaultReadTimeout    = 2 * time.Second
+	defaultWriteTimeout   = 2 * time.Second
+	defaultShutdownGrace  = 5 * time.Second
+)
+
+// ErrMissingInfo is the error that Register returns for a handler that does not
+// implement protocol.Describer.
+var ErrMissingInfo = errors.New("server: handler does not implement protocol.Describer")
+
+// ServerConfig holds the settings of a Server. NewServer applies a default to each
+// zero field except Address, Zones and Registry.
+type ServerConfig struct {
+	// Address is the host and port of the UDP and TCP listeners, for example
+	// "127.0.0.1:5353". ListenAndServe uses it.
+	Address string
+	// Zones holds the zones that the server answers for. Empty means every QNAME.
+	Zones []string
+	// TTL is the answer TTL when the handler gives TTL 0. The default is 60.
+	TTL uint32
+	// UDPSize is the UDP size limit for a query with EDNS(0). The default is 1232.
+	UDPSize uint16
+	// HandlerTimeout limits each handler call. The default is 2s.
+	HandlerTimeout time.Duration
+	// ReadTimeout limits the wait for each message on a TCP connection. The default
+	// is 2s.
+	ReadTimeout time.Duration
+	// WriteTimeout limits each response write. The default is 2s.
+	WriteTimeout time.Duration
+	// ShutdownGrace is the time that the server waits for in-flight handlers after its
+	// context ends. The default is 5s.
+	ShutdownGrace time.Duration
+	// Logger receives the log records. The default is slog.Default().
+	Logger *slog.Logger
+	// Registry holds the options of the registry of the server.
+	Registry registry.Options
+}
+
+// Server is a QMux authoritative server. It answers each registered protocol key over
+// UDP and TCP.
+type Server struct {
+	cfg ServerConfig
+	reg *registry.Registry
+
+	mu   sync.Mutex
+	addr net.Addr
+}
+
+// NewServer returns a server with a new registry built with cfg.Registry. It applies
+// the defaults of ServerConfig to every zero field of cfg.
+func NewServer(cfg ServerConfig) *Server {
+	if cfg.TTL == 0 {
+		cfg.TTL = defaultTTL
+	}
+	if cfg.UDPSize == 0 {
+		cfg.UDPSize = defaultUDPSize
+	}
+	if cfg.HandlerTimeout == 0 {
+		cfg.HandlerTimeout = defaultHandlerTimeout
+	}
+	if cfg.ReadTimeout == 0 {
+		cfg.ReadTimeout = defaultReadTimeout
+	}
+	if cfg.WriteTimeout == 0 {
+		cfg.WriteTimeout = defaultWriteTimeout
+	}
+	if cfg.ShutdownGrace == 0 {
+		cfg.ShutdownGrace = defaultShutdownGrace
+	}
+	if cfg.Logger == nil {
+		cfg.Logger = slog.Default()
+	}
+	return &Server{cfg: cfg, reg: registry.New(cfg.Registry)}
+}
+
+// Register registers h for key with the Info that h.Info() returns.
+//
+// It returns ErrMissingInfo when h does not implement protocol.Describer. Other errors
+// wrap a sentinel error of package registry.
+func (s *Server) Register(key protocol.ProtocolKey, h protocol.Handler) error {
+	d, ok := h.(protocol.Describer)
+	if !ok {
+		return ErrMissingInfo
+	}
+	return s.RegisterProtocol(key, d.Info(), h)
+}
+
+// RegisterProtocol registers h for key with info. Errors wrap a sentinel error of
+// package registry.
+func (s *Server) RegisterProtocol(key protocol.ProtocolKey, info protocol.Info, h protocol.Handler) error {
+	if err := s.reg.Register(key, info, h); err != nil {
+		return fmt.Errorf("server: register %s: %w", key, err)
+	}
+	return nil
+}
+
+// Unregister removes the registration of key. The error wraps registry.ErrNotFound
+// when key has no registration.
+func (s *Server) Unregister(key protocol.ProtocolKey) error {
+	if err := s.reg.Unregister(key); err != nil {
+		return fmt.Errorf("server: unregister %s: %w", key, err)
+	}
+	return nil
+}
+
+// Registry returns the registry of the server.
+func (s *Server) Registry() *registry.Registry {
+	return s.reg
+}
+
+// ListenAndServe answers queries over UDP and TCP on cfg.Address until ctx ends.
+//
+// It returns the bind error when either listener fails to start, and then starts no
+// listener. After ctx ends, it shuts down as Serve does and returns nil.
+func (s *Server) ListenAndServe(ctx context.Context) error {
+	pc, l, err := transport.Listen(s.cfg.Address)
+	if err != nil {
+		return fmt.Errorf("server: listen: %w", err)
+	}
+	return s.Serve(ctx, pc, l)
+}
+
+// Serve answers queries on pc and l until ctx ends. Serve closes pc and l before it
+// returns.
+//
+// After ctx ends, Serve stops reading new queries. It waits cfg.ShutdownGrace for
+// in-flight handlers, then cancels their contexts. Serve returns nil after the
+// shutdown, or the first read or accept error.
+func (s *Server) Serve(ctx context.Context, pc net.PacketConn, l net.Listener) error {
+	s.mu.Lock()
+	s.addr = pc.LocalAddr()
+	s.mu.Unlock()
+
+	err := transport.Serve(ctx, pc, l, transport.HandlerFunc(s.serveQuery), transport.ServeConfig{
+		UDPSize:       s.cfg.UDPSize,
+		ReadTimeout:   s.cfg.ReadTimeout,
+		WriteTimeout:  s.cfg.WriteTimeout,
+		ShutdownGrace: s.cfg.ShutdownGrace,
+		Logger:        s.cfg.Logger,
+	})
+	if err != nil {
+		return fmt.Errorf("server: serve: %w", err)
+	}
+	return nil
+}
+
+// Addr returns the UDP address that the server listens on. It returns nil before the
+// listeners start.
+func (s *Server) Addr() net.Addr {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.addr
+}
+
+// serveQuery answers q with the handler of the registration of q.Key.
+//
+// TODO(#22): Validate the query before the lookup.
+// TODO(#23): Build the full Request, and limit the handler call to HandlerTimeout.
+func (s *Server) serveQuery(ctx context.Context, q *transport.Query, w transport.Writer) {
+	reg, ok := s.reg.Lookup(q.Key)
+	if !ok {
+		s.write(w, transport.Answer{RCode: transport.RCodeRefused})
+		return
+	}
+	resp, err := reg.Handler.Handle(ctx, &protocol.Request{
+		QName:      q.Name,
+		Key:        q.Key,
+		Source:     q.Source,
+		Transport:  q.Transport,
+		UDPSize:    q.UDPSize,
+		ID:         q.ID,
+		ReceivedAt: q.ReceivedAt,
+	})
+	if err != nil || resp == nil {
+		s.write(w, transport.Answer{RCode: transport.RCodeServFail})
+		return
+	}
+	ttl := resp.TTL
+	if ttl == 0 {
+		ttl = s.cfg.TTL
+	}
+	s.write(w, transport.Answer{RCode: transport.RCodeNoError, TTL: ttl, Payload: resp.Payload})
+}
+
+// write sends a through w. A write error ends only this query, so the server logs it
+// at debug level and continues.
+func (s *Server) write(w transport.Writer, a transport.Answer) {
+	if _, err := w.Write(a); err != nil {
+		s.cfg.Logger.Debug("server: write response", "error", err)
+	}
+}
