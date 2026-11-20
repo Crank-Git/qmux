@@ -281,10 +281,11 @@ Then it applies these checks in this order:
 
 1. If the envelope protocol ID is not `org.qmux.discovery`, it returns a
    `*client.DNSError` of kind `mismatch`.
-2. If the message type is not `2`, it returns an error that wraps `ErrInvalidManifest`.
-3. If the payload does not decode with `codec.Unmarshal`, it returns an error that wraps
+2. If the application status is not `ok`, it returns the `*client.AppError`.
+3. If the message type is not `2`, it returns an error that wraps `ErrInvalidManifest`.
+4. If the payload does not decode with `codec.Unmarshal`, it returns an error that wraps
    `ErrInvalidManifest`.
-4. It validates the manifest.
+5. It validates the manifest.
 
 Manifest validation returns an error that wraps `ErrInvalidManifest` in these cases:
 
