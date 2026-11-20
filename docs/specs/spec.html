@@ -1011,7 +1011,14 @@ golangci-lint run</code></pre>
 <li>2026-11-20 — The user ruled that <code>qmuxctl query</code> shows the envelope fields as <code>key: value</code>
 </li>
 </ul>
-<p>lines and prints the result before an <code>AppError</code> (#36). The envelope rejects a message type or status above 65535 (<code>ErrInvalidStatus</code>, #33).</p><nav class="pager">
+<p>lines and prints the result before an <code>AppError</code> (#36). The envelope rejects a message type or status above 65535 (<code>ErrInvalidStatus</code>, #33).</p>
+<ul>
+<li>2026-11-20 — Envelope codec is <code>built</code> (#122).
+</li>
+<li>2026-11-20 — Discovery decisions (#6): the user ruled that <code>InClass</code> registers discovery
+</li>
+</ul>
+<p>only at <code>(1, 65534)</code> (FR-discovery-12). A <code>version-unsupported</code> envelope reaches the caller as an <code>AppError</code> (#130). The Epic 2 version label rules are marked as replaced (#125).</p><nav class="pager">
 <span></span>
 <a href="html/feature-foundation.html">Feature: Foundation &rarr;</a>
 </nav>

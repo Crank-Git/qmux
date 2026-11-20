@@ -277,7 +277,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li>FR-server-24 — The server sets <code>Request.Version</code> from a leftmost <code>_v&lt;N&gt;</code> label, or to 0
 </li>
 </ul>
-<p>when the QNAME has no version label.</p>
+<p>when the QNAME has no version label. From Epic 5, FR-discovery-21 replaces the 0: with no version label, <code>Request.Version</code> is the highest version of the registration.</p>
 <ul>
 <li>FR-server-25 — The server sets <code>Request.Labels</code> to the QNAME labels below the zone, with
 </li>
@@ -480,7 +480,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li>A version label is a leftmost label <code>_v</code> followed by a decimal number from 1 to 65535
 </li>
 </ul>
-<p>with no leading zero. Any other leftmost label that starts with <code>_v</code> is an ordinary label.</p>
+<p>with no leading zero. Any other leftmost label that starts with <code>_v</code> is an ordinary label. From Epic 5, FR-discovery-22 replaces this rule: such a label gives the application status <code>bad-request</code>.</p>
 <ul>
 <li>In Epic 2 the server passes the version label through to the handler. Epic 5 adds the
 </li>
@@ -535,7 +535,8 @@ func (s *Server) Addr() net.Addr</code></pre>
 type Request struct {
     QName      string // lowercase FQDN
     Key        ProtocolKey
-    Version    uint16 // 0 when no version label
+    Version    uint16 // 0 when no version label; the highest version from Epic 5
+    Name       string // QNAME without the version label; added in Epic 5
     Labels     []string
     Zone       string
     Source     netip.AddrPort
@@ -675,7 +676,7 @@ type Response struct {
 <li>The QNAME <code>_v2.device42.fleet.example.</code> gives <code>Request.Version</code> 2. A QNAME with no
 </li>
 </ul>
-<p>version label gives 0. (FR-server-24)</p>
+<p>version label gives 0, and from Epic 5 the highest version. (FR-server-24, FR-discovery-21)</p>
 <ul>
 <li>With zone <code>fleet.example.</code>, <code>_v2.device42.fleet.example.</code> gives <code>Request.Labels</code>
 </li>

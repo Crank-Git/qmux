@@ -139,6 +139,9 @@ the encoding must give the same bytes for the same values on every platform.
   kind `mismatch`.
 - **FR-codec-41** — When the query QNAME has a version label, the client returns a
   `*client.DNSError` of kind `mismatch` if the envelope version differs from the label.
+  From Epic 5, an envelope with the status `version-unsupported` is the exception: the
+  client skips the version check and returns the result and a `*client.AppError`.
+  FR-discovery-20 gives this envelope the highest version of the registration (#130).
 - **FR-codec-42** — `qmuxctl query` prints the protocol ID, the protocol version, the
   message type, the application status and the payload length of the result.
 

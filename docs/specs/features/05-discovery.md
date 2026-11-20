@@ -64,8 +64,8 @@ each one. Signatures arrive in Epic 6. Until then, discovery runs only with an e
 - **FR-discovery-10** — `discovery.Register(srv, zone, opts)` registers the protocol
   `org.qmux.discovery` with version 1 at `opts.Key`.
 - **FR-discovery-11** — The default `opts.Key` is `(65280, 65534)`.
-- **FR-discovery-12** — When `opts.InClass` is true, `discovery.Register` also registers
-  `org.qmux.discovery` at `(1, 65534)`.
+- **FR-discovery-12** — When `opts.InClass` is true, `discovery.Register` registers
+  `org.qmux.discovery` only at `(1, 65534)`, in place of `opts.Key`.
 - **FR-discovery-13** — The discovery handler answers the QNAME `_qmux.<zone>` with message
   type `manifest`.
 - **FR-discovery-14** — The discovery handler builds the manifest from the registry list
@@ -320,7 +320,7 @@ var ErrInsecure, ErrProtocolNotFound, ErrVersionUnsupported, ErrInvalidManifest 
 - [ ] FR-discovery-8: the version lists `[]`, `[0]`, `[2, 1]` and `[1, 1]` each fail validation.
 - [ ] FR-discovery-9: `Lookup("org.qmux.firmware")` returns the entry and true, and `Lookup("x.y")` returns false.
 - [ ] FR-discovery-10, FR-discovery-11: after `Register` with zero options, the registry lists `org.qmux.discovery` at `(65280, 65534)`.
-- [ ] FR-discovery-12: with `InClass` true, the registry also lists it at `(1, 65534)`.
+- [ ] FR-discovery-12: with `InClass` true, the registry lists it at `(1, 65534)` and not at `(65280, 65534)`.
 - [ ] FR-discovery-13: a query for `_qmux.fleet.example.` returns an envelope with message type 2.
 - [ ] FR-discovery-14: a protocol registered after the server starts appears in the next manifest.
 - [ ] FR-discovery-15: the manifest entries are in class-then-type order and include `org.qmux.discovery`.

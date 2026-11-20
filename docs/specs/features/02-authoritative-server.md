@@ -77,7 +77,8 @@ the envelope. The server never recurses and never delegates.
 - FR-server-23 — The server builds a `Request` with the QNAME in lowercase fully
   qualified form.
 - FR-server-24 — The server sets `Request.Version` from a leftmost `_v<N>` label, or to 0
-  when the QNAME has no version label.
+  when the QNAME has no version label. From Epic 5, FR-discovery-21 replaces the 0: with no
+  version label, `Request.Version` is the highest version of the registration.
 - FR-server-25 — The server sets `Request.Labels` to the QNAME labels below the zone, with
   the version label removed.
 - FR-server-26 — The server sets `Request.Source`, `Request.Transport`,
@@ -213,7 +214,8 @@ level=INFO msg=query qname=device42.fleet.example. qclass=65280 qtype=65280 tran
 - With empty `Zones`, `Request.Zone` is `.` and `Request.Labels` holds every QNAME label.
 - A version label is a leftmost label `_v` followed by a decimal number from 1 to 65535
   with no leading zero. Any other leftmost label that starts with `_v` is an ordinary
-  label.
+  label. From Epic 5, FR-discovery-22 replaces this rule: such a label gives the
+  application status `bad-request`.
 - In Epic 2 the server passes the version label through to the handler. Epic 5 adds the
   check against the registration versions.
 - `Response.Version` 0 means the highest version of the registration.
@@ -264,7 +266,8 @@ package protocol
 type Request struct {
     QName      string // lowercase FQDN
     Key        ProtocolKey
-    Version    uint16 // 0 when no version label
+    Version    uint16 // 0 when no version label; the highest version from Epic 5
+    Name       string // QNAME without the version label; added in Epic 5
     Labels     []string
     Zone       string
     Source     netip.AddrPort
@@ -344,7 +347,8 @@ https://github.com/miekg/dns (v1.1.73) and `go doc` on 2026-11-20:
 - The QNAME `Device42.Fleet.Example.` reaches the handler as `device42.fleet.example.`.
   (FR-server-23)
 - The QNAME `_v2.device42.fleet.example.` gives `Request.Version` 2. A QNAME with no
-  version label gives 0. (FR-server-24)
+  version label gives 0, and from Epic 5 the highest version. (FR-server-24,
+  FR-discovery-21)
 - With zone `fleet.example.`, `_v2.device42.fleet.example.` gives `Request.Labels`
   `["device42"]`. (FR-server-25)
 - A handler sees the client source address, `udp` or `tcp`, the query ID, and a

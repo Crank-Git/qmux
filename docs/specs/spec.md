@@ -796,3 +796,7 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   lines and prints the result before an `AppError` (#36). The envelope rejects a message
   type or status above 65535 (`ErrInvalidStatus`, #33).
 - 2026-11-20 — Envelope codec is `built` (#122).
+- 2026-11-20 — Discovery decisions (#6): the user ruled that `InClass` registers discovery
+  only at `(1, 65534)` (FR-discovery-12). A `version-unsupported` envelope reaches the
+  caller as an `AppError` (#130). The Epic 2 version label rules are marked as replaced
+  (#125).

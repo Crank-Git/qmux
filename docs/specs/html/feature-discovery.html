@@ -241,10 +241,10 @@ body.rv-open .layout { padding-right:21rem; }
 <ul>
 <li><strong>FR-discovery-11</strong> — The default <code>opts.Key</code> is <code>(65280, 65534)</code>.
 </li>
-<li><strong>FR-discovery-12</strong> — When <code>opts.InClass</code> is true, <code>discovery.Register</code> also registers
+<li><strong>FR-discovery-12</strong> — When <code>opts.InClass</code> is true, <code>discovery.Register</code> registers
 </li>
 </ul>
-<p><code>org.qmux.discovery</code> at <code>(1, 65534)</code>.</p>
+<p><code>org.qmux.discovery</code> only at <code>(1, 65534)</code>, in place of <code>opts.Key</code>.</p>
 <ul>
 <li><strong>FR-discovery-13</strong> — The discovery handler answers the QNAME <code>_qmux.&lt;zone&gt;</code> with message
 </li>
@@ -604,7 +604,7 @@ var ErrInsecure, ErrProtocolNotFound, ErrVersionUnsupported, ErrInvalidManifest 
 </li>
 <li>[ ] FR-discovery-10, FR-discovery-11: after <code>Register</code> with zero options, the registry lists <code>org.qmux.discovery</code> at <code>(65280, 65534)</code>.
 </li>
-<li>[ ] FR-discovery-12: with <code>InClass</code> true, the registry also lists it at <code>(1, 65534)</code>.
+<li>[ ] FR-discovery-12: with <code>InClass</code> true, the registry lists it at <code>(1, 65534)</code> and not at <code>(65280, 65534)</code>.
 </li>
 <li>[ ] FR-discovery-13: a query for <code>_qmux.fleet.example.</code> returns an envelope with message type 2.
 </li>

@@ -165,6 +165,39 @@ func TestQueryAcceptsAnEnvelopeVersionThatEqualsTheLabel(t *testing.T) { // FR-c
 	}
 }
 
+// The version-unsupported envelope carries the highest version of the registration
+// (FR-discovery-20), so a version check on it would hide the status (#130).
+func TestQueryReturnsAnAppErrorForAVersionUnsupportedEnvelopeOfAnotherVersion(t *testing.T) { // FR-codec-41, FR-discovery-20
+	q := testQuery
+	q.Version = 9
+	e := envelopeWith(func(e *codec.Envelope) {
+		e.Version = 1
+		e.Status = uint64(protocol.StatusVersionUnsupported)
+	})
+	res, err := queryEnvelope(t, answerWith(mustEncode(e)), q)
+	var ae *client.AppError
+	if !errors.As(err, &ae) || ae.Status != protocol.StatusVersionUnsupported || ae.Version != 1 {
+		t.Fatalf("error = %v, want an AppError with status version-unsupported and version 1", err)
+	}
+	if res == nil || res.Status != protocol.StatusVersionUnsupported || res.Version != 1 {
+		t.Fatalf("result = %+v, want status version-unsupported and version 1", res)
+	}
+}
+
+func TestQueryReturnsAMismatchDNSErrorForANotFoundEnvelopeOfAnotherVersion(t *testing.T) { // FR-codec-41
+	q := testQuery
+	q.Version = 9
+	e := envelopeWith(func(e *codec.Envelope) {
+		e.Version = 1
+		e.Status = uint64(protocol.StatusNotFound)
+	})
+	res, err := queryEnvelope(t, answerWith(mustEncode(e)), q)
+	wantEnvelopeKind(t, err, client.KindMismatch)
+	if res != nil {
+		t.Fatalf("result = %+v, want nil", res)
+	}
+}
+
 func TestQueryChecksTheProtocolIDBeforeTheStatus(t *testing.T) { // FR-codec-40, FR-codec-39
 	q := testQuery
 	q.ExpectedProtocolID = "org.qmux.other"
