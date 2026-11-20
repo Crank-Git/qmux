@@ -22,8 +22,8 @@ const (
 
 var (
 	testProtocolKey = protocol.ProtocolKey{Class: 65280, Type: 65281}
-	// testNow is the fixed clock of the verifier tests.
-	testNow = time.Unix(1_800_000_000, 0)
+	// verifyNow is the fixed clock of the verifier tests.
+	verifyNow = time.Unix(1_800_000_000, 0)
 )
 
 // signedEnvelope is one envelope and the inputs that sign it. A test changes one
@@ -50,8 +50,8 @@ func newSignedEnvelope(t *testing.T) *signedEnvelope {
 			Signature: &codec.SignatureBlock{
 				KeyID:     id[:],
 				Alg:       -8,
-				IssuedAt:  uint64(testNow.Unix()),
-				ExpiresAt: uint64(testNow.Add(time.Hour).Unix()),
+				IssuedAt:  uint64(verifyNow.Unix()),
+				ExpiresAt: uint64(verifyNow.Add(time.Hour).Unix()),
 			},
 		},
 		key:   key,
@@ -83,7 +83,7 @@ func testVerifier(t *testing.T) *Verifier {
 	pub := testKey(t).Public().(ed25519.PublicKey)
 	return &Verifier{
 		Anchors: []TrustAnchor{{KeyID: KeyID(pub), PublicKey: pub}},
-		Now:     func() time.Time { return testNow },
+		Now:     func() time.Time { return verifyNow },
 	}
 }
 
@@ -157,17 +157,17 @@ func TestVerifyReturnsOneSentinelForEachFailedCheck(t *testing.T) {
 			return s.raw(t)
 		}, ErrBadSignature},
 		{"FR-security-24 issued_at later than now + skew", func(t *testing.T, s *signedEnvelope, _ *Verifier) []byte {
-			s.env.Signature.IssuedAt = uint64(testNow.Add(10 * time.Minute).Unix())
-			s.env.Signature.ExpiresAt = uint64(testNow.Add(time.Hour).Unix())
+			s.env.Signature.IssuedAt = uint64(verifyNow.Add(10 * time.Minute).Unix())
+			s.env.Signature.ExpiresAt = uint64(verifyNow.Add(time.Hour).Unix())
 			return s.raw(t)
 		}, ErrNotYetValid},
 		{"FR-security-25 expires_at earlier than now - skew", func(t *testing.T, s *signedEnvelope, _ *Verifier) []byte {
-			s.env.Signature.IssuedAt = uint64(testNow.Add(-2 * time.Hour).Unix())
-			s.env.Signature.ExpiresAt = uint64(testNow.Add(-time.Hour).Unix())
+			s.env.Signature.IssuedAt = uint64(verifyNow.Add(-2 * time.Hour).Unix())
+			s.env.Signature.ExpiresAt = uint64(verifyNow.Add(-time.Hour).Unix())
 			return s.raw(t)
 		}, ErrExpired},
 		{"FR-security-26 window longer than MaxWindow", func(t *testing.T, s *signedEnvelope, _ *Verifier) []byte {
-			s.env.Signature.ExpiresAt = uint64(testNow.Add(48 * time.Hour).Unix())
+			s.env.Signature.ExpiresAt = uint64(verifyNow.Add(48 * time.Hour).Unix())
 			return s.raw(t)
 		}, ErrWindowTooLong},
 		{"FR-security-26 expires_at equal to issued_at", func(t *testing.T, s *signedEnvelope, _ *Verifier) []byte {
@@ -205,8 +205,8 @@ func TestVerifyChecksDeterminismBeforeTheSignatureBlock(t *testing.T) { // FR-se
 
 func TestVerifyReturnsErrBadSignatureForAnExpiredEnvelopeWithABadSignature(t *testing.T) { // FR-security-29
 	s := newSignedEnvelope(t)
-	s.env.Signature.IssuedAt = uint64(testNow.Add(-3 * time.Hour).Unix())
-	s.env.Signature.ExpiresAt = uint64(testNow.Add(-2 * time.Hour).Unix())
+	s.env.Signature.IssuedAt = uint64(verifyNow.Add(-3 * time.Hour).Unix())
+	s.env.Signature.ExpiresAt = uint64(verifyNow.Add(-2 * time.Hour).Unix())
 	s.qname = "_v1.other.fleet.example."
 	_, err := testVerifier(t).Verify(s.raw(t), testQName, testProtocolKey)
 	if !errors.Is(err, ErrBadSignature) {
@@ -231,8 +231,8 @@ func TestZeroVerifierUses60SecondSkewAnd24HourWindow(t *testing.T) { // FR-secur
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := newSignedEnvelope(t)
-			s.env.Signature.IssuedAt = uint64(testNow.Add(tc.issued).Unix())
-			s.env.Signature.ExpiresAt = uint64(testNow.Add(tc.issued + tc.lifetime).Unix())
+			s.env.Signature.IssuedAt = uint64(verifyNow.Add(tc.issued).Unix())
+			s.env.Signature.ExpiresAt = uint64(verifyNow.Add(tc.issued + tc.lifetime).Unix())
 			v := testVerifier(t)
 			if _, err := v.Verify(s.raw(t), testQName, testProtocolKey); !errors.Is(err, tc.want) {
 				t.Fatalf("Verify = %v, want %v", err, tc.want)
@@ -304,7 +304,7 @@ func TestFailedVerifyLeavesTheStoreUnchanged(t *testing.T) { // FR-security-30
 	failures := map[string]func(s *signedEnvelope){
 		"bad signature": func(s *signedEnvelope) { s.qname = "_v1.other.fleet.example." },
 		"window too long": func(s *signedEnvelope) {
-			s.env.Signature.ExpiresAt = uint64(testNow.Add(48 * time.Hour).Unix())
+			s.env.Signature.ExpiresAt = uint64(verifyNow.Add(48 * time.Hour).Unix())
 		},
 	}
 	for name, change := range failures {
@@ -354,15 +354,15 @@ func TestVerifyIsSafeFor100ConcurrentCalls(t *testing.T) { // FR-security-31
 		}
 	}
 	got := v.store().newest[freshnessKey{testProtocolID, "device0.fleet.example."}]
-	if want := uint64(testNow.Unix()) + 2; got != want {
+	if want := uint64(verifyNow.Unix()) + 2; got != want {
 		t.Fatalf("store holds issued_at %d for device0, want the newest %d", got, want)
 	}
 }
 
 func TestVerifyErrorNamesTheProtocolIDAndTheQName(t *testing.T) { // FR-security-33
 	s := newSignedEnvelope(t)
-	s.env.Signature.IssuedAt = uint64(testNow.Add(-2 * time.Hour).Unix())
-	s.env.Signature.ExpiresAt = uint64(testNow.Add(-time.Hour).Unix())
+	s.env.Signature.IssuedAt = uint64(verifyNow.Add(-2 * time.Hour).Unix())
+	s.env.Signature.ExpiresAt = uint64(verifyNow.Add(-time.Hour).Unix())
 	_, err := testVerifier(t).Verify(s.raw(t), testQName, testProtocolKey)
 	if !errors.Is(err, ErrExpired) {
 		t.Fatalf("Verify = %v, want ErrExpired", err)

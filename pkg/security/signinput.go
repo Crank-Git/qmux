@@ -1,36 +1,61 @@
 package security
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/fxamacker/cbor/v2"
 
 	"github.com/Crank-Git/qmux/pkg/codec"
 	"github.com/Crank-Git/qmux/pkg/protocol"
 )
 
-// signingInputTag is the first item of the signing input. It separates a QMux
-// signature from a signature over other data with the same key.
-const signingInputTag = "qmux-sig/1"
+// signingInputLabel is the first item of the signing input. It separates a QMux
+// signature from an Ed25519 signature over other data.
+const signingInputLabel = "qmux-sig/1"
 
-// signingInput returns the signing input of e for qname and key, as defined in
-// docs/specs/spec.md § Data model (FR-security-14). It encodes a CBOR array of 14
-// items with cbor.CoreDetEncOptions, through codec.Marshal.
+// algEdDSA is the COSE algorithm number of EdDSA (RFC 9053 § 2.2).
+const algEdDSA = -8
+
+// errNoSignatureBlock means that the envelope has no signature block, so the
+// signing input has no key ID and no validity window.
+var errNoSignatureBlock = errors.New("envelope has no signature block")
+
+// sigEncMode is immutable and safe for concurrent use. The options are constant, so
+// an error from EncMode is a programming error and not an input error.
+var sigEncMode = func() cbor.EncMode {
+	m, err := cbor.CoreDetEncOptions().EncMode()
+	if err != nil {
+		panic(fmt.Sprintf("security: build core deterministic encode mode: %v", err))
+	}
+	return m
+}()
+
+// signingInput returns the signing input of e for qname and key. It is the core
+// deterministic CBOR encoding of the 14-item array in docs/specs/spec.md § Data
+// model (FR-security-14).
 //
-// The signing input covers the fields of e.Signature except the signature bytes,
-// so e.Signature must not be nil. The QNAME is lowercase in the signing input.
+// qname is the fully qualified QNAME of the question, with the version label.
+// signingInput uses it in lowercase. The signature field of e.Signature is not part
+// of the signing input. signingInput returns an error when e has no signature block.
+// The signer and the verifier both call it, so both use the same bytes.
 func signingInput(e codec.Envelope, qname string, key protocol.ProtocolKey) ([]byte, error) {
-	payload := e.Payload
-	// The core deterministic options encode a nil slice as CBOR null, but the
-	// envelope encodes a nil payload as an empty byte string.
+	sb := e.Signature
+	if sb == nil {
+		return nil, errNoSignatureBlock
+	}
+	// The core deterministic options encode a nil slice as CBOR null. The spec
+	// gives both fields the CBOR type bytes, so a nil slice becomes an empty one.
+	payload, keyID := e.Payload, sb.KeyID
 	if payload == nil {
 		payload = []byte{}
 	}
-	keyID := e.Signature.KeyID
 	if keyID == nil {
 		keyID = []byte{}
 	}
-	b, err := codec.Marshal([]any{
-		signingInputTag,
+	b, err := sigEncMode.Marshal([]any{
+		signingInputLabel,
 		strings.ToLower(qname),
 		key.Class,
 		key.Type,
@@ -41,12 +66,12 @@ func signingInput(e codec.Envelope, qname string, key protocol.ProtocolKey) ([]b
 		e.Status,
 		payload,
 		keyID,
-		e.Signature.Alg,
-		e.Signature.IssuedAt,
-		e.Signature.ExpiresAt,
+		sb.Alg,
+		sb.IssuedAt,
+		sb.ExpiresAt,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("signing input: %w", err)
+		return nil, fmt.Errorf("encode signing input: %w", err)
 	}
 	return b, nil
 }

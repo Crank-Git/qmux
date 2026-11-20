@@ -41,8 +41,6 @@ var (
 const (
 	defaultSkew      = 60 * time.Second
 	defaultMaxWindow = 24 * time.Hour
-	// algEdDSA is the COSE algorithm number of EdDSA (RFC 9053 § 2.2).
-	algEdDSA = -8
 	// maxEnvelope is the largest envelope that the codec accepts. The client
 	// applies its own limit before Verify, so Verify accepts every valid size.
 	maxEnvelope = 65000

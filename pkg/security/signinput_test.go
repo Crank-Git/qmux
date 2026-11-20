@@ -1,42 +1,119 @@
 package security
 
 import (
-	"reflect"
+	"bytes"
+	"encoding/hex"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/Crank-Git/qmux/pkg/codec"
+	"github.com/Crank-Git/qmux/pkg/protocol"
 )
 
-func TestSigningInputIsADeterministicArrayOf14ItemsInTheSpecOrder(t *testing.T) { // FR-security-14
-	s := newSignedEnvelope(t)
-	s.env.Payload = nil
-	in, err := signingInput(s.env, "_v1.Device42.FLEET.example.", testProtocolKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// codec.Unmarshal rejects bytes that are not the core deterministic encoding.
-	var got []any
-	if err := codec.Unmarshal(in, &got); err != nil {
-		t.Fatal(err)
-	}
-	sig := s.env.Signature
-	want := []any{
-		"qmux-sig/1", testQName, uint64(65280), uint64(65281), uint64(1), testProtocolID,
-		uint64(1), uint64(1), uint64(0), []byte{}, sig.KeyID, int64(-8), sig.IssuedAt, sig.ExpiresAt,
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("signing input = %#v, want %#v", got, want)
+// vectorKey is the protocol key of the signing input vector.
+var vectorKey = protocol.ProtocolKey{Class: 65282, Type: 65280}
+
+// vectorEnvelope returns the envelope of the signing input vector. The signature
+// field is empty, because the signing input does not include it.
+func vectorEnvelope() codec.Envelope {
+	return codec.Envelope{
+		Format:      1,
+		ProtocolID:  "org.qmux.firmware",
+		Version:     1,
+		MessageType: 1,
+		Status:      0,
+		Payload:     []byte("hello"),
+		Signature: &codec.SignatureBlock{
+			KeyID:     []byte{1, 2, 3, 4, 5, 6, 7, 8},
+			Alg:       algEdDSA,
+			IssuedAt:  1700000000,
+			ExpiresAt: 1700003600,
+		},
 	}
 }
 
-func TestIsVersionLabelAcceptsOnlyVersions1To65535(t *testing.T) {
-	cases := map[string]bool{
-		"_v1": true, "_v65535": true, "_v0": false, "_v01": false,
-		"_v65536": false, "_v": false, "_vx": false, "device42": false, "_v-1": false,
+// readHexVector returns the bytes of the hex file at path. It ignores the text after
+// a # and all white space.
+func readHexVector(t *testing.T, path string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read vector: %v", err)
 	}
-	for label, want := range cases {
-		if got := isVersionLabel(label); got != want {
-			t.Errorf("isVersionLabel(%q) = %v, want %v", label, got, want)
-		}
+	var digits strings.Builder
+	for line := range strings.Lines(string(b)) {
+		line, _, _ = strings.Cut(line, "#")
+		digits.WriteString(strings.Join(strings.Fields(line), ""))
+	}
+	v, err := hex.DecodeString(digits.String())
+	if err != nil {
+		t.Fatalf("decode vector hex: %v", err)
+	}
+	return v
+}
+
+func TestSigningInputEqualsTheCommittedVector(t *testing.T) { // FR-security-13, FR-security-14
+	want := readHexVector(t, "testdata/signing-input-v1.hex")
+	// The mixed case shows that the signing input uses the lowercase QNAME.
+	got, err := signingInput(vectorEnvelope(), "_v1.Device42.FLEET.example.", vectorKey)
+	if err != nil {
+		t.Fatalf("signingInput: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("signing input = %x, want %x", got, want)
+	}
+}
+
+func TestSigningInputEncodesANilPayloadAsAnEmptyByteString(t *testing.T) {
+	withEmpty := vectorEnvelope()
+	withEmpty.Payload = []byte{}
+	withNil := vectorEnvelope()
+	withNil.Payload = nil
+	want, err := signingInput(withEmpty, "a.example.", vectorKey)
+	if err != nil {
+		t.Fatalf("signingInput(empty payload): %v", err)
+	}
+	got, err := signingInput(withNil, "a.example.", vectorKey)
+	if err != nil {
+		t.Fatalf("signingInput(nil payload): %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("signing input with nil payload = %x, want %x", got, want)
+	}
+}
+
+func TestSigningInputReturnsAnErrorForAnEnvelopeWithNoSignatureBlock(t *testing.T) {
+	e := vectorEnvelope()
+	e.Signature = nil
+	if _, err := signingInput(e, "a.example.", vectorKey); err == nil {
+		t.Fatal("signingInput returned no error for an envelope with no signature block")
+	}
+}
+
+func TestSigningInputDiffersForEachBoundField(t *testing.T) { // spec § Data model: the signature binds the name and the key
+	base, err := signingInput(vectorEnvelope(), "a.example.", vectorKey)
+	if err != nil {
+		t.Fatalf("signingInput: %v", err)
+	}
+	other := []struct {
+		name  string
+		qname string
+		key   protocol.ProtocolKey
+	}{
+		{"another QNAME", "b.example.", vectorKey},
+		{"another class", "a.example.", protocol.ProtocolKey{Class: 65283, Type: 65280}},
+		{"another type", "a.example.", protocol.ProtocolKey{Class: 65282, Type: 65281}},
+	}
+	for _, tc := range other {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := signingInput(vectorEnvelope(), tc.qname, tc.key)
+			if err != nil {
+				t.Fatalf("signingInput: %v", err)
+			}
+			if bytes.Equal(got, base) {
+				t.Fatal("the signing input did not change")
+			}
+		})
 	}
 }
