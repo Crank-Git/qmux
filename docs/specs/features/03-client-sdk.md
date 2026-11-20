@@ -328,11 +328,9 @@ func NewClient(cfg ClientConfig) *client.Client
 miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and
 `go doc` on 2026-11-20:
 
-- `dns.Client` has the fields `Net`, `UDPSize` and `Timeout`. `Timeout` is an overall
-  timeout that overrides the dial, read and write timeouts.
-- `dns.Client.ExchangeContext(ctx, m, addr)` returns `(*Msg, rtt, error)`.
-- `pkg/transport` may use `dns.Client` or a `net.Dialer` with `Msg.Pack` and
-  `Msg.Unpack`. It must report the wire sizes of the query and the response either way.
+- `pkg/transport` does not use `dns.Client`. It sends each query on a `net.Conn` with
+  `Msg.Pack` and reads the response with `Msg.Unpack`. ADR 0005 defines the API.
+- `pkg/transport` reports the wire sizes of the query and the response.
 
 ## Edge cases & failures
 

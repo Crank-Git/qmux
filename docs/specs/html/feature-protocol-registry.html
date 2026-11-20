@@ -263,8 +263,11 @@ body.rv-open .layout { padding-right:21rem; }
 </ul>
 <p><code>Options.AllowNonPrivateTypes</code> is true.</p>
 <ul>
-<li>FR-registry-22 — The registry always rejects the types 0, 41, 250, 251, 252 and 255.
+<li>FR-registry-22 — The registry always rejects the types 0, 41, 250, 251, 252, 255 and
 </li>
+</ul>
+<p>65535.</p>
+<ul>
 <li>FR-registry-23 — The registry rejects a nil handler.
 </li>
 </ul>
@@ -597,10 +600,10 @@ func (r *Registry) Remap(id string, newKey protocol.ProtocolKey) error</code></p
 </ul>
 <p><code>AllowNonPrivateTypes: true</code>. (FR-registry-21)</p>
 <ul>
-<li>Types 0, 41, 250, 251, 252 and 255 return <code>ErrInvalidKey</code> with both options true.
+<li>Types 0, 41, 250, 251, 252, 255 and 65535 return <code>ErrInvalidKey</code> with both options
 </li>
 </ul>
-<p>(FR-registry-22)</p>
+<p>true. (FR-registry-22)</p>
 <ul>
 <li>A nil handler returns <code>ErrInvalidHandler</code>. (FR-registry-23)
 </li>

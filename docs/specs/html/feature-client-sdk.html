@@ -576,17 +576,14 @@ func NewServer(cfg ServerConfig) *server.Server
 func NewClient(cfg ClientConfig) *client.Client</code></pre>
 <p>miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and <code>go doc</code> on 2026-11-20:</p>
 <ul>
-<li><code>dns.Client</code> has the fields <code>Net</code>, <code>UDPSize</code> and <code>Timeout</code>. <code>Timeout</code> is an overall
+<li><code>pkg/transport</code> does not use <code>dns.Client</code>. It sends each query on a <code>net.Conn</code> with
 </li>
 </ul>
-<p>timeout that overrides the dial, read and write timeouts.</p>
+<p><code>Msg.Pack</code> and reads the response with <code>Msg.Unpack</code>. ADR 0005 defines the API.</p>
 <ul>
-<li><code>dns.Client.ExchangeContext(ctx, m, addr)</code> returns <code>(*Msg, rtt, error)</code>.
-</li>
-<li><code>pkg/transport</code> may use <code>dns.Client</code> or a <code>net.Dialer</code> with <code>Msg.Pack</code> and
+<li><code>pkg/transport</code> reports the wire sizes of the query and the response.
 </li>
 </ul>
-<p><code>Msg.Unpack</code>. It must report the wire sizes of the query and the response either way.</p>
 <h3 id="client-sdk-edge-cases-failures">Edge cases &amp; failures</h3>
 <ul>
 <li>The server answers with a different ID over UDP. The client ignores the packet and
