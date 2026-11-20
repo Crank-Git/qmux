@@ -18,3 +18,33 @@ version 1:
 Each type is the `protocol.Schema` of its protocol. Register it in `protocol.Info`, so
 that the server validates each handler payload before it encodes the envelope. If a
 handler returns a payload that the schema rejects, the server answers `SERVFAIL`.
+
+## Server side
+
+The package `fleet` holds the server side of the demonstration. `fleet.Start` starts
+two services on loopback ports that the operating system selects:
+
+- The authoritative server for the zone `fleet.example.`, on one port for UDP and TCP.
+- The mock HTTPS service, from `net/http/httptest.NewTLSServer`.
+
+The server registers these protocols, each at protocol version 1:
+
+| Protocol | Protocol key |
+|---|---|
+| `org.qmux.discovery` | `(65280, 65534)` |
+| `org.qmux.bootstrap` | `(65280, 65280)` |
+| `org.qmux.configuration` | `(65281, 65280)` |
+| `org.qmux.firmware` | `(65282, 65280)` |
+
+Each call of `fleet.Start` generates a new Ed25519 signing key. The server signs every
+envelope with it. The handlers answer the QNAME `device42.fleet.example.`. The returned
+`fleet.Running` gives the device these values:
+
+- `TrustAnchor` is the one trust anchor of the device.
+- `HTTPClient` trusts only the certificate of the mock HTTPS service.
+- `FirmwareKeyID` is the key ID of the mock firmware signing key. It is the same at each
+  start.
+- `Requests` returns the number of HTTPS requests that the mock HTTPS service received.
+
+`Options.BindFlags` defines `--remote-generation` (default `7`) and `--remote-firmware`
+(default `2.4.1`).
