@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +25,16 @@ const (
 	defaultShutdownGrace  = 5 * time.Second
 )
 
+const (
+	// opcodeQuery is the DNS opcode QUERY. The server answers NOTIMP to every other
+	// opcode.
+	opcodeQuery = 0
+	// noEDNSQuerySize is the size limit of a query without EDNS(0).
+	noEDNSQuerySize = 512
+	// rootZone is the Request.Zone when cfg.Zones is empty.
+	rootZone = "."
+)
+
 // ErrMissingInfo is the error that Register returns for a handler that does not
 // implement protocol.Describer.
 var ErrMissingInfo = errors.New("server: handler does not implement protocol.Describer")
@@ -34,7 +45,8 @@ type ServerConfig struct {
 	// Address is the host and port of the UDP and TCP listeners, for example
 	// "127.0.0.1:5353". ListenAndServe uses it.
 	Address string
-	// Zones holds the zones that the server answers for. Empty means every QNAME.
+	// Zones holds the zones that the server answers for, as fully qualified names.
+	// The server compares them without regard to case. Empty means every QNAME.
 	Zones []string
 	// TTL is the answer TTL when the handler gives TTL 0. The default is 60.
 	TTL uint32
@@ -90,6 +102,12 @@ func NewServer(cfg ServerConfig) *Server {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
+	// The copy keeps a later change to the caller's slice out of the server.
+	zones := make([]string, len(cfg.Zones))
+	for i, z := range cfg.Zones {
+		zones[i] = strings.ToLower(z)
+	}
+	cfg.Zones = zones
 	return &Server{cfg: cfg, reg: registry.New(cfg.Registry)}
 }
 
@@ -141,7 +159,7 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 }
 
 // Serve answers queries on pc and l until ctx ends. Serve closes pc and l before it
-// returns.
+// returns. When cfg.Zones is empty, Serve logs one warning at the start.
 //
 // After ctx ends, Serve stops reading new queries. It waits cfg.ShutdownGrace for
 // in-flight handlers, then cancels their contexts. Serve returns nil after the
@@ -151,6 +169,9 @@ func (s *Server) Serve(ctx context.Context, pc net.PacketConn, l net.Listener) e
 	s.addr = pc.LocalAddr()
 	s.mu.Unlock()
 
+	if len(s.cfg.Zones) == 0 {
+		s.cfg.Logger.Warn("server: no zones configured, so the server answers every QNAME")
+	}
 	err := transport.Serve(ctx, pc, l, transport.HandlerFunc(s.serveQuery), transport.ServeConfig{
 		UDPSize:       s.cfg.UDPSize,
 		ReadTimeout:   s.cfg.ReadTimeout,
@@ -172,11 +193,25 @@ func (s *Server) Addr() net.Addr {
 	return s.addr
 }
 
-// serveQuery answers q with the handler of the registration of q.Key.
+// serveQuery answers q with the handler of the registration of q.Key. It applies the
+// checks in the spec order, so a query that fails two checks gets the RCODE of the
+// first check.
 //
-// TODO(#22): Validate the query before the lookup.
 // TODO(#23): Build the full Request, and limit the handler call to HandlerTimeout.
 func (s *Server) serveQuery(ctx context.Context, q *transport.Query, w transport.Writer) {
+	// An answer to a response can start a loop between two servers.
+	if q.QR {
+		return
+	}
+	if rcode, ok := s.checkHeader(q); !ok {
+		s.write(w, transport.Answer{RCode: rcode})
+		return
+	}
+	zone, ok := s.matchZone(q.Name)
+	if !ok {
+		s.write(w, transport.Answer{RCode: transport.RCodeRefused})
+		return
+	}
 	reg, ok := s.reg.Lookup(q.Key)
 	if !ok {
 		s.write(w, transport.Answer{RCode: transport.RCodeRefused})
@@ -185,6 +220,7 @@ func (s *Server) serveQuery(ctx context.Context, q *transport.Query, w transport
 	resp, err := reg.Handler.Handle(ctx, &protocol.Request{
 		QName:      q.Name,
 		Key:        q.Key,
+		Zone:       zone,
 		Source:     q.Source,
 		Transport:  q.Transport,
 		UDPSize:    q.UDPSize,
@@ -200,6 +236,48 @@ func (s *Server) serveQuery(ctx context.Context, q *transport.Query, w transport
 		ttl = s.cfg.TTL
 	}
 	s.write(w, transport.Answer{RCode: transport.RCodeNoError, TTL: ttl, Payload: resp.Payload})
+}
+
+// checkHeader returns the RCODE of the first check that q fails, and false. It checks
+// the opcode, the question count, the size limit and the EDNS version, in that order.
+// It returns true when q passes every check.
+func (s *Server) checkHeader(q *transport.Query) (transport.RCode, bool) {
+	if q.Opcode != opcodeQuery {
+		return transport.RCodeNotImp, false
+	}
+	// A body that does not parse has no question that the server can read.
+	if q.Err != nil || q.QuestionCount != 1 {
+		return transport.RCodeFormErr, false
+	}
+	limit := noEDNSQuerySize
+	if q.EDNS {
+		limit = int(s.cfg.UDPSize)
+	}
+	if q.WireSize > limit {
+		return transport.RCodeFormErr, false
+	}
+	if q.EDNSVersion > 0 {
+		return transport.RCodeBadVers, false
+	}
+	return transport.RCodeNoError, true
+}
+
+// matchZone returns the longest zone in cfg.Zones that matches name, and true. A zone
+// matches a name that equals the zone or ends with "." and the zone. matchZone returns
+// false when no zone matches. When cfg.Zones is empty, it returns the root zone and
+// true.
+func (s *Server) matchZone(name string) (string, bool) {
+	if len(s.cfg.Zones) == 0 {
+		return rootZone, true
+	}
+	name = strings.ToLower(name)
+	best, found := "", false
+	for _, z := range s.cfg.Zones {
+		if (name == z || strings.HasSuffix(name, "."+z)) && len(z) > len(best) {
+			best, found = z, true
+		}
+	}
+	return best, found
 }
 
 // write sends a through w. A write error ends only this query, so the server logs it
