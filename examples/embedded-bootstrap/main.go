@@ -73,8 +73,9 @@ func parse(args []string, stderr io.Writer) (config, error) {
 }
 
 // demo starts the server and the mock HTTPS service, runs one reconcile and writes the
-// step log to stdout. It returns the number of HTTPS requests that the mock HTTPS
-// service received.
+// step log to stdout. Each [device] line comes from device.Reconcile, and demo adds the
+// result line. It returns the number of HTTPS requests that the mock HTTPS service
+// received.
 //
 // demo returns a *device.StepError when a step fails. The step log already holds that
 // failure. It returns another error when the server does not start or stop, or when a
@@ -85,14 +86,6 @@ func demo(ctx context.Context, cfg config, stdout io.Writer) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("start: %w", err)
 	}
-	err = reconcile(ctx, r, cfg, stdout)
-	requests := r.Requests()
-	return requests, errors.Join(err, r.Close())
-}
-
-// reconcile runs device.Reconcile against r and writes each step line and the result
-// line with the [device] prefix.
-func reconcile(ctx context.Context, r *fleet.Running, cfg config, stdout io.Writer) error {
 	var writeErr error
 	logLine := func(line string) {
 		if writeErr == nil {
@@ -105,7 +98,7 @@ func reconcile(ctx context.Context, r *fleet.Running, cfg config, stdout io.Writ
 		HTTPClient:   r.HTTPClient,
 		StatePath:    cfg.statePath,
 		DataDir:      cfg.dataDir,
-		// The allowed firmware key IDs hold the key ID of the mock firmware signing key.
+		// The spec keeps the allowed firmware key IDs as a list in the program.
 		AllowedFirmwareKeyIDs: [][8]byte{r.FirmwareKeyID},
 		Log:                   logLine,
 	})
@@ -122,7 +115,7 @@ func reconcile(ctx context.Context, r *fleet.Running, cfg config, stdout io.Writ
 		logLine(fmt.Sprintf("result: up to date (%d downloads)", report.Downloads))
 	}
 	if writeErr != nil {
-		return errors.Join(err, fmt.Errorf("write step log: %w", writeErr))
+		err = errors.Join(err, fmt.Errorf("write step log: %w", writeErr))
 	}
-	return err
+	return r.Requests(), errors.Join(err, r.Close())
 }
