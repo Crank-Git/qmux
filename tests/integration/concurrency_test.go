@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Crank-Git/qmux/pkg/codec"
 	"github.com/Crank-Git/qmux/pkg/protocol"
 	"github.com/Crank-Git/qmux/pkg/server"
 	"github.com/Crank-Git/qmux/pkg/transport"
@@ -94,6 +95,18 @@ func query(ctx context.Context, network, addr string, id uint16, name string) ([
 	return m.Answer[0].Data, nil
 }
 
+// checkPayload returns an error when rdata is not an envelope with the payload want.
+func checkPayload(rdata []byte, want string) error {
+	e, err := codec.Decode(rdata, codec.Limits{})
+	if err != nil {
+		return fmt.Errorf("decode RDATA: %w", err)
+	}
+	if string(e.Payload) != want {
+		return fmt.Errorf("envelope payload = %q, want %q", e.Payload, want)
+	}
+	return nil
+}
+
 func TestServerAnswers100ConcurrentQueriesOverUDPAndTCP(t *testing.T) {
 	// The handler holds each call until every query is in a handler, so the server
 	// must run the 100 handlers at the same time.
@@ -139,8 +152,8 @@ func TestServerAnswers100ConcurrentQueriesOverUDPAndTCP(t *testing.T) {
 		label := fmt.Sprintf("device%d", i)
 		wg.Go(func() {
 			data, err := query(ctx, network, addr, uint16(i+1), label+".fleet.example.")
-			if err == nil && string(data) != label {
-				err = fmt.Errorf("RDATA = %q, want %q", data, label)
+			if err == nil {
+				err = checkPayload(data, label)
 			}
 			if err != nil {
 				errs <- fmt.Errorf("query %d over %s: %w", i, network, err)

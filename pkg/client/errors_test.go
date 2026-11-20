@@ -32,7 +32,7 @@ func reply(build func(q, ok transporttest.Message) []transporttest.Message) tran
 			ID:       q.ID,
 			Response: true,
 			Question: q.Question,
-			Answer:   []transporttest.RR{{Name: q.Question[0].Name, Key: q.Question[0].Key, TTL: 60, Data: testPayload}},
+			Answer:   []transporttest.RR{{Name: q.Question[0].Name, Key: q.Question[0].Key, TTL: 60, Data: testRDATA}},
 		}
 		var out [][]byte
 		for _, m := range build(q, ok) {
@@ -153,7 +153,7 @@ func TestQueryReturnsAMismatchErrorWhenTheAnswerRRDiffersFromTheQuestion(t *test
 		t.Run(tt.name, func(t *testing.T) {
 			err := queryErr(t, reply(func(_, ok transporttest.Message) []transporttest.Message {
 				tt.rr.TTL = 60
-				tt.rr.Data = testPayload
+				tt.rr.Data = testRDATA
 				ok.Answer = []transporttest.RR{tt.rr}
 				return []transporttest.Message{ok}
 			}))

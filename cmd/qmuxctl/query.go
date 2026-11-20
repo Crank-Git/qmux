@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Crank-Git/qmux/pkg/client"
+	"github.com/Crank-Git/qmux/pkg/protocol"
 )
 
 // The exit codes of qmuxctl query, from FR-client-36 to FR-client-40.
@@ -47,6 +48,11 @@ type queryOutput struct {
 	QueryBytes    int     `json:"query_bytes"`
 	ResponseBytes int     `json:"response_bytes"`
 	Verified      bool    `json:"verified"`
+	ProtocolID    string  `json:"protocol_id"`
+	Version       uint16  `json:"version"`
+	MessageType   string  `json:"message_type"`
+	Status        string  `json:"status"`
+	PayloadBytes  int     `json:"payload_bytes"`
 	Payload       string  `json:"payload"`
 }
 
@@ -73,7 +79,9 @@ func runQuery(ctx context.Context, name string, args []string, stdout, stderr io
 	}
 	c := client.NewClient(client.ClientConfig{Resolver: f.server, Network: network, AttemptTimeout: f.timeout})
 	res, err := c.Query(ctx, client.Query{Name: f.name, Class: f.class, Type: f.typ, Version: f.ver})
-	if code := exitCode(err); code != exitResult {
+	code := exitCode(err)
+	// Query returns a result only with no error or with an AppError.
+	if res == nil {
 		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		if code == exitUsage {
 			_ = printUsage(stderr, usage, fs)
@@ -88,18 +96,55 @@ func runQuery(ctx context.Context, name string, args []string, stdout, stderr io
 		RCode: "NOERROR", TTL: res.TTL, Transport: res.Transport, FellBack: res.FellBack,
 		RTTMillis:  float64(res.RTT) / float64(time.Millisecond),
 		QueryBytes: res.QueryBytes, ResponseBytes: res.ResponseBytes,
-		Verified: res.Verified, Payload: hex.EncodeToString(res.Payload),
+		Verified: res.Verified, ProtocolID: res.ProtocolID, Version: res.Version,
+		MessageType: messageTypeName(res.MessageType), Status: statusName(res.Status),
+		PayloadBytes: len(res.Payload), Payload: hex.EncodeToString(res.Payload),
 	}
+	var werr error
 	if f.json {
-		err = json.NewEncoder(stdout).Encode(out)
+		werr = json.NewEncoder(stdout).Encode(out)
 	} else {
-		err = printText(stdout, out)
+		werr = printText(stdout, out)
 	}
-	if err != nil {
+	if werr != nil {
 		// A caller that reads stdout must not see exit 0 with missing output.
 		return 1
 	}
-	return exitResult
+	if err != nil {
+		// The result goes to stdout first, so a script reads the status and the error.
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
+	}
+	return code
+}
+
+// statusName returns the name of a framework application status, or the decimal
+// number for a reserved or protocol-specific status.
+func statusName(s protocol.Status) string {
+	switch s {
+	case protocol.StatusOK:
+		return "ok"
+	case protocol.StatusNotFound:
+		return "not-found"
+	case protocol.StatusBadRequest:
+		return "bad-request"
+	case protocol.StatusVersionUnsupported:
+		return "version-unsupported"
+	case protocol.StatusUnavailable:
+		return "unavailable"
+	}
+	return strconv.FormatUint(uint64(s), 10)
+}
+
+// messageTypeName returns "record" or "manifest" for a framework message type, or the
+// decimal number for a protocol-specific message type.
+func messageTypeName(t protocol.MessageType) string {
+	switch t {
+	case protocol.MessageRecord:
+		return "record"
+	case protocol.MessageManifest:
+		return "manifest"
+	}
+	return strconv.FormatUint(uint64(t), 10)
 }
 
 // parseQueryFlags returns the flags in args. It returns flag.ErrHelp for --help, and an
@@ -165,19 +210,22 @@ func printUsage(w io.Writer, usage string, fs *flag.FlagSet) error {
 	return err
 }
 
-// printText writes out as one "key: value" line per field.
+// printText writes out as one "key: value" line per field. The envelope fields come
+// after the DNS fields, and the payload hex is the last line because it can be long.
 func printText(w io.Writer, out queryOutput) error {
 	_, err := fmt.Fprintf(w, "name: %s\nclass: %d\ntype: %d\nrcode: %s\nttl: %d\ntransport: %s\n"+
-		"fell_back: %t\nrtt_ms: %.2f\nquery_bytes: %d\nresponse_bytes: %d\nverified: %t\npayload: %s\n",
+		"fell_back: %t\nrtt_ms: %.2f\nquery_bytes: %d\nresponse_bytes: %d\nverified: %t\n"+
+		"protocol_id: %s\nversion: %d\nmessage_type: %s\nstatus: %s\npayload_bytes: %d\npayload: %s\n",
 		out.Name, out.Class, out.Type, out.RCode, out.TTL, out.Transport,
-		out.FellBack, out.RTTMillis, out.QueryBytes, out.ResponseBytes, out.Verified, out.Payload)
+		out.FellBack, out.RTTMillis, out.QueryBytes, out.ResponseBytes, out.Verified,
+		out.ProtocolID, out.Version, out.MessageType, out.Status, out.PayloadBytes, out.Payload)
 	return err
 }
 
 // exitCode returns the exit code of qmuxctl query for the error of client.Query:
 //   - 0 for nil.
 //   - 1 for a *client.DNSError.
-//   - 2 for a client.AppError.
+//   - 2 for a *client.AppError.
 //   - 3 for a client.VerifyError.
 //   - 64 for every other error.
 //
@@ -186,7 +234,7 @@ func printText(w io.Writer, out queryOutput) error {
 // the --name flag, and an invalid flag exits 64.
 func exitCode(err error) int {
 	var dnsErr *client.DNSError
-	var appErr client.AppError
+	var appErr *client.AppError
 	var verifyErr client.VerifyError
 	switch {
 	case err == nil:

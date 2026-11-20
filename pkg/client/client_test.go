@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Crank-Git/qmux/pkg/client"
+	"github.com/Crank-Git/qmux/pkg/codec"
 	"github.com/Crank-Git/qmux/pkg/protocol"
 	"github.com/Crank-Git/qmux/pkg/transport"
 	"github.com/Crank-Git/qmux/pkg/transport/transporttest"
@@ -22,10 +23,24 @@ const testName = "device42.fleet.example."
 var (
 	testKey     = protocol.ProtocolKey{Class: 65280, Type: 65280}
 	testPayload = []byte{0xa1, 0x01, 0x02}
+	// testEnvelope is the envelope of each answer of the recorder.
+	testEnvelope = codec.Envelope{Format: 1, ProtocolID: "org.qmux.firmware", Version: 1,
+		MessageType: 1, Status: 0, Payload: testPayload}
+	testRDATA = mustEncode(testEnvelope)
 )
 
+// mustEncode returns the encoding of e. It panics on an error, because each caller
+// gives a constant envelope.
+func mustEncode(e codec.Envelope) []byte {
+	b, err := codec.Encode(e, codec.Limits{})
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
 // recorder is a fake server that records each query it receives, its network, and the
-// wire sizes of each answered exchange. It answers a query with testPayload, or drops it
+// wire sizes of each answered exchange. It answers a query with testRDATA, or drops it
 // when drop returns true for the query number. The first query has number 1. When edit
 // is set, it changes each response before the server sends it.
 type recorder struct {
@@ -62,7 +77,7 @@ func (r *recorder) respond(network string, wire []byte) [][]byte {
 		ID:       q.ID,
 		Response: true,
 		Question: q.Question,
-		Answer:   []transporttest.RR{{Name: q.Question[0].Name, Key: q.Question[0].Key, TTL: 60, Data: testPayload}},
+		Answer:   []transporttest.RR{{Name: q.Question[0].Name, Key: q.Question[0].Key, TTL: 60, Data: testRDATA}},
 	}
 	if r.edit != nil {
 		r.edit(network, &m)
@@ -170,7 +185,9 @@ func TestQueryAddsTheFinalDotToTheName(t *testing.T) {
 }
 
 func TestQueryAddsTheVersionLabelWhenVersionIsNotZero(t *testing.T) { // FR-client-4
-	var r recorder
+	r := recorder{edit: func(_ string, m *transporttest.Message) {
+		m.Answer[0].Data = mustEncode(envelopeWith(func(e *codec.Envelope) { e.Version = 2 }))
+	}}
 	c := client.NewClient(client.ClientConfig{Resolver: r.start(t)})
 
 	query(t, c, client.Query{Name: testName, Class: testKey.Class, Type: testKey.Type, Version: 2})
