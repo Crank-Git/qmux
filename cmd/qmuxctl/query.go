@@ -14,6 +14,7 @@ import (
 
 	"github.com/Crank-Git/qmux/pkg/client"
 	"github.com/Crank-Git/qmux/pkg/protocol"
+	"github.com/Crank-Git/qmux/pkg/security"
 )
 
 // The exit codes of qmuxctl query, from FR-client-36 to FR-client-40.
@@ -28,6 +29,7 @@ const (
 // queryFlags holds the parsed flags of qmuxctl query.
 type queryFlags struct {
 	server, name     string
+	trustAnchors     string
 	class, typ, ver  uint16
 	tcp, json        bool
 	timeout          time.Duration
@@ -75,11 +77,21 @@ func runQuery(ctx context.Context, name string, args []string, stdout, stderr io
 		return exitUsage
 	}
 
+	verifier, err := loadVerifier(f.trustAnchors)
+	if err != nil {
+		// The exit code is 64 whether or not stderr accepts the write.
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
+		_ = printUsage(stderr, synopsis, exits, fs)
+		return exitUsage
+	}
+
 	network := "udp"
 	if f.tcp {
 		network = "tcp"
 	}
-	c := client.NewClient(client.ClientConfig{Resolver: f.server, Network: network, AttemptTimeout: f.timeout})
+	c := client.NewClient(client.ClientConfig{
+		Resolver: f.server, Network: network, AttemptTimeout: f.timeout, TrustAnchors: verifier,
+	})
 	res, err := c.Query(ctx, client.Query{Name: f.name, Class: f.class, Type: f.typ, Version: f.ver})
 	code := exitCode(err)
 	// Query returns a result only with no error or with an AppError.
@@ -165,6 +177,7 @@ func parseQueryFlags(usage string, args []string) (queryFlags, *flag.FlagSet, er
 	fs.BoolVar(&f.tcp, "tcp", false, "send the query over TCP")
 	fs.DurationVar(&f.timeout, "timeout", 0, "time that one attempt waits for a response (default 1s)")
 	fs.BoolVar(&f.json, "json", false, "print the result as one JSON object")
+	fs.StringVar(&f.trustAnchors, "trust-anchors", "", "trust anchor file; the result must verify against it")
 
 	if err := fs.Parse(args); err != nil {
 		return f, fs, err
@@ -184,6 +197,20 @@ func parseQueryFlags(usage string, args []string) (queryFlags, *flag.FlagSet, er
 		return f, fs, fmt.Errorf("invalid value %v for flag --timeout: negative duration", f.timeout)
 	}
 	return f, fs, nil
+}
+
+// loadVerifier returns a verifier with the trust anchors in the file at path, or nil
+// when path is empty. The verifier keeps an in-memory freshness store, because one
+// qmuxctl run sends one query.
+func loadVerifier(path string) (*security.Verifier, error) {
+	if path == "" {
+		return nil, nil
+	}
+	anchors, err := security.LoadTrustAnchors(path)
+	if err != nil {
+		return nil, fmt.Errorf("invalid value for flag --trust-anchors: %w", err)
+	}
+	return &security.Verifier{Anchors: anchors}, nil
 }
 
 // uint16Flag returns a flag function that parses a decimal value into dst and sets

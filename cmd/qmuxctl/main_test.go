@@ -83,6 +83,9 @@ func TestHelpPrintsUsageAndExitsZero(t *testing.T) {
 	if !strings.HasPrefix(stdout.String(), "Usage: qmuxctl") {
 		t.Errorf("stdout = %q, want a usage text", stdout.String())
 	}
+	if !strings.Contains(stdout.String(), "\n  keygen ") {
+		t.Errorf("stdout = %q, want the keygen command in the list", stdout.String())
+	}
 }
 
 func TestNoSubcommandPrintsUsageToStderrAndExitsOne(t *testing.T) {

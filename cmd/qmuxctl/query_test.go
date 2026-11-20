@@ -38,9 +38,18 @@ func startServer(t *testing.T) string {
 // test ends. It returns the server address.
 func startServerWith(t *testing.T, resp protocol.Response) string {
 	t.Helper()
+	return startSignedServer(t, nil, resp)
+}
+
+// startSignedServer runs a server that signs with signer and answers testKey with resp
+// on 127.0.0.1:0 until the test ends. A nil signer means no signature. It returns the
+// server address.
+func startSignedServer(t *testing.T, signer *security.Signer, resp protocol.Response) string {
+	t.Helper()
 	s := server.NewServer(server.ServerConfig{
 		Address: "127.0.0.1:0",
 		Logger:  slog.New(slog.DiscardHandler),
+		Signer:  signer,
 	})
 	h := protocol.HandlerFunc(func(context.Context, *protocol.Request) (*protocol.Response, error) {
 		return &resp, nil
@@ -93,12 +102,12 @@ func keyArgs(addr string) []string {
 	return []string{"--server", addr, "--class", "65280", "--type", "65280", "--name", testName}
 }
 
-func TestQueryHelpListsTheEightFlags(t *testing.T) {
+func TestQueryHelpListsTheNineFlags(t *testing.T) { // FR-security-50
 	code, stdout, _ := queryCmd("--help")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
-	for _, f := range []string{"--server", "--class", "--type", "--name", "--version", "--tcp", "--timeout", "--json"} {
+	for _, f := range []string{"--server", "--class", "--type", "--name", "--version", "--tcp", "--timeout", "--json", "--trust-anchors"} {
 		if !strings.Contains(stdout, f) {
 			t.Errorf("help text has no %s:\n%s", f, stdout)
 		}
