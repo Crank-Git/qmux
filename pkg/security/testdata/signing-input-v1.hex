@@ -1,0 +1,18 @@
+# The signing input of the envelope in TestSigningInputEqualsTheCommittedVector.
+# Each line is one item of the CBOR array in docs/specs/spec.md § Data model.
+# The test ignores the text after a # and all white space.
+8e                                                              # array of 14 items
+6a 716d75782d7369672f31                                         # "qmux-sig/1"
+78 1b 5f76312e64657669636534322e666c6565742e6578616d706c652e    # "_v1.device42.fleet.example."
+19 ff02                                                         # qclass 65282
+19 ff00                                                         # qtype 65280
+01                                                              # format 1
+71 6f72672e716d75782e6669726d77617265                           # "org.qmux.firmware"
+01                                                              # version 1
+01                                                              # message type 1
+00                                                              # status 0
+45 68656c6c6f                                                   # payload "hello"
+48 0102030405060708                                             # key ID
+27                                                              # alg -8
+1a 6553f100                                                     # issued_at 1700000000
+1a 6553ff10                                                     # expires_at 1700003600
