@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QMux — Feature: Signing and freshness</title>
+<style>
+:root { --bg:#ffffff; --fg:#1a1a24; --muted:#5a5a68; --line:#e3e3ea; --accent:#3452c8;
+        --card:#f6f6f9; --warn-bg:#fff7e8; --warn-line:#e8b34a; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#14141b; --fg:#e8e8ee; --muted:#9a9aa8; --line:#2c2c38; --accent:#8ea6ff;
+          --card:#1c1c26; --warn-bg:#2a2318; --warn-line:#a87c2a; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+       font:16px/1.6 system-ui,-apple-system,sans-serif; }
+.layout { display:flex; min-height:100vh; }
+aside.site { width:17rem; flex:none; border-right:1px solid var(--line);
+             padding:1.2rem 1rem 3rem; position:sticky; top:0; height:100vh;
+             overflow-y:auto; background:var(--card); }
+aside.site h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em;
+                color:var(--muted); margin:1.2rem 0 .3rem; border:none; padding:0; }
+aside.site ul { list-style:none; margin:0; padding:0; }
+aside.site li { margin:.15rem 0; }
+aside.site a { text-decoration:none; color:var(--fg); font-size:.92rem;
+               display:block; padding:.15rem .5rem; border-radius:6px; }
+aside.site a:hover { background:var(--bg); }
+aside.site a.current { background:var(--accent); color:#fff; }
+aside.site a.sub { padding-left:1.3rem; font-size:.84rem; color:var(--muted); }
+aside.site .brand { font-weight:700; font-size:1.05rem; }
+main { max-width:60rem; margin:0 auto; padding:2rem 1.5rem 6rem; min-width:0; flex:1; }
+h1,h2,h3,h4 { line-height:1.25; }
+h1 { font-size:2rem; margin:.2rem 0; }
+h2 { border-bottom:1px solid var(--line); padding-bottom:.3rem; margin-top:2.5rem; }
+a { color:var(--accent); }
+code { background:var(--card); padding:.1em .35em; border-radius:4px; font-size:.9em; }
+pre.code { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; overflow-x:auto; }
+pre.code code { background:none; padding:0; }
+.table-wrap { overflow-x:auto; }
+table { border-collapse:collapse; margin:1rem 0; min-width:50%; }
+th,td { border:1px solid var(--line); padding:.4rem .7rem; text-align:left; }
+th { background:var(--card); }
+blockquote { border-left:3px solid var(--accent); margin:1rem 0; padding:.2rem 1rem;
+             color:var(--muted); }
+.meta { color:var(--muted); margin-bottom:2rem; }
+.badge { display:inline-block; padding:.1rem .6rem; border-radius:999px;
+         border:1px solid var(--accent); color:var(--accent); font-size:.85rem; }
+.diagram { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; margin:1rem 0; overflow-x:auto; }
+.diagram pre.mermaid { margin:0; }
+.diagram.raw::before { content:"diagram source (assets/mermaid.min.js not vendored)";
+                       display:block; color:var(--muted); font-size:.8rem;
+                       margin-bottom:.5rem; }
+.callout-h, .callout-h ~ p, .callout-h ~ ul { background:var(--warn-bg); }
+.callout-h { border-left:4px solid var(--warn-line); padding:.3rem .8rem; }
+.mockup { margin:1.5rem 0; }
+.mockup iframe { width:100%; height:32rem; border:1px solid var(--line);
+                 border-radius:8px; background:#fff; }
+nav.pager { display:flex; justify-content:space-between; margin-top:3rem;
+            border-top:1px solid var(--line); padding-top:1rem; }
+@media (max-width: 900px) {
+  .layout { display:block; }
+  aside.site { width:auto; height:auto; position:static; border-right:none;
+               border-bottom:1px solid var(--line); }
+}
+h1[id]:hover .rv-add, h2[id]:hover .rv-add, h3[id]:hover .rv-add,
+h4[id]:hover .rv-add { opacity:1; }
+.rv-add { opacity:0; margin-left:.5rem; font-size:.75rem; cursor:pointer;
+          border:1px solid var(--accent); color:var(--accent); background:none;
+          border-radius:6px; padding:0 .45rem; vertical-align:middle;
+          transition:opacity .15s; }
+.rv-comment { border:1px solid var(--warn-line); border-left-width:4px;
+              background:var(--warn-bg); border-radius:8px; padding:.6rem .9rem;
+              margin:.8rem 0; font-size:.92rem; }
+.rv-comment.rv-resolved { opacity:.6; border-left-color:var(--line); }
+.rv-comment .rv-head { display:flex; gap:.6rem; align-items:center;
+                       color:var(--muted); font-size:.8rem; margin-bottom:.3rem; }
+.rv-comment .rv-head button { font-size:.75rem; cursor:pointer; background:none;
+                              border:1px solid var(--line); border-radius:6px;
+                              color:var(--muted); padding:0 .4rem; }
+.rv-comment .rv-body { white-space:pre-wrap; }
+.rv-editor textarea { width:100%; min-height:5rem; background:var(--bg);
+                      color:var(--fg); border:1px solid var(--line);
+                      border-radius:6px; padding:.5rem; font:inherit; }
+.rv-editor .rv-actions { margin-top:.4rem; display:flex; gap:.5rem; }
+.rv-editor button { cursor:pointer; border-radius:6px; padding:.2rem .8rem;
+                    border:1px solid var(--accent); background:var(--accent);
+                    color:#fff; }
+.rv-editor button.rv-cancel { background:none; color:var(--accent); }
+#rv-toggle { position:fixed; right:1rem; bottom:1rem; z-index:60;
+             background:var(--accent); color:#fff; border:none; cursor:pointer;
+             border-radius:999px; padding:.5rem 1rem; font-size:.85rem;
+             box-shadow:0 2px 10px rgba(0,0,0,.2); }
+#rv-drawer { position:fixed; top:0; right:0; bottom:0; width:21rem; z-index:55;
+             background:var(--card); border-left:1px solid var(--line);
+             display:flex; flex-direction:column; transform:translateX(100%);
+             transition:transform .2s ease; box-shadow:-4px 0 16px rgba(0,0,0,.12); }
+body.rv-open #rv-drawer { transform:none; }
+body.rv-open .layout { padding-right:21rem; }
+#rv-drawer header { padding:.8rem 1rem .5rem; border-bottom:1px solid var(--line); }
+#rv-drawer header .rv-count { color:var(--muted); font-size:.8rem; }
+#rv-drawer .rv-compose { padding:.8rem 1rem; border-bottom:1px solid var(--line); }
+#rv-drawer .rv-compose label { display:block; font-size:.75rem;
+                               color:var(--muted); margin-bottom:.25rem; }
+#rv-drawer .rv-compose select { width:100%; margin-bottom:.4rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.3rem; font:inherit; font-size:.85rem; }
+#rv-drawer .rv-compose textarea { width:100%; min-height:5.5rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.5rem; font:inherit; font-size:.9rem; }
+#rv-drawer .rv-compose .rv-live { font-size:.72rem; color:var(--muted); }
+#rv-drawer .rv-list { flex:1; overflow-y:auto; padding:.6rem 1rem; }
+#rv-drawer .rv-item { border:1px solid var(--line); border-left:3px solid
+             var(--warn-line); border-radius:8px; padding:.45rem .6rem;
+             margin-bottom:.6rem; font-size:.82rem; cursor:pointer; }
+#rv-drawer .rv-item.rv-resolved { opacity:.55; border-left-color:var(--line); }
+#rv-drawer .rv-item .rv-where { color:var(--accent); font-size:.72rem; }
+#rv-drawer .rv-item .rv-meta { color:var(--muted); font-size:.72rem;
+                               display:flex; gap:.5rem; align-items:center; }
+#rv-drawer .rv-item .rv-meta button { font-size:.7rem; cursor:pointer;
+             background:none; border:1px solid var(--line); border-radius:5px;
+             color:var(--muted); padding:0 .35rem; }
+#rv-drawer .rv-item .rv-text { white-space:pre-wrap; margin:.15rem 0; }
+#rv-drawer footer { padding:.6rem 1rem; border-top:1px solid var(--line);
+                    display:flex; gap:.5rem; flex-wrap:wrap; }
+#rv-drawer footer button, #rv-drawer .rv-compose button {
+  cursor:pointer; border:1px solid var(--accent); background:none;
+  color:var(--accent); border-radius:6px; padding:.2rem .7rem; font-size:.8rem; }
+#rv-drawer .rv-compose button.rv-primary { background:var(--accent); color:#fff; }
+#rv-drawer .rv-otherpages { color:var(--muted); font-size:.75rem;
+                            margin:.4rem 0 0; }
+@media (max-width: 1200px) { body.rv-open .layout { padding-right:0; } }
+</style>
+</head>
+<body data-page="feature-signing-and-freshness" data-rvkey="qmux">
+<div class="layout">
+<aside class="site"><a class="brand" href="../spec.html">QMux</a>
+<h2>Spec</h2><ul>
+<li><a href="../spec.html">Overview &amp; index</a></li>
+</ul>
+<h2>Features</h2><ul>
+<li><a href="feature-foundation.html">Foundation</a></li>
+<li><a href="feature-protocol-registry.html">Protocol registry</a></li>
+<li><a href="feature-authoritative-server.html">Authoritative server</a></li>
+<li><a href="feature-client-sdk.html">Client SDK</a></li>
+<li><a href="feature-envelope-codec.html">Envelope codec</a></li>
+<li><a href="feature-discovery.html">Discovery and version negotiation</a></li>
+<li><a class="current" href="feature-signing-and-freshness.html">Signing and freshness</a></li>
+<li><a href="feature-embedded-recovery.html">Embedded recovery demonstration</a></li>
+<li><a href="feature-qmuxd-daemon.html">qmuxd daemon</a></li>
+<li><a href="feature-interop-harness.html">Interop harness</a></li>
+<li><a href="feature-baseline-benchmarks.html">Baseline benchmarks</a></li>
+<li><a href="feature-documentation.html">Documentation</a></li>
+</ul></aside>
+<main>
+<h1>Feature: Signing and freshness</h1>
+<p class="meta">Epic 6: Signing and freshness &nbsp; <span class="badge">planned</span></p>
+<h3 id="signing-and-freshness-purpose">Purpose</h3>
+<p>DNS gives no integrity and no authentication. This feature makes every envelope verifiable. The authoritative server signs each envelope at answer time with an Ed25519 key. The signature binds the QNAME, the class, the type, the protocol ID and the validity window. A client with trust anchors verifies every envelope before it returns any field. It rejects each envelope that is tampered, signed by an unknown key, outside its validity window, older than one it already accepted, or copied to another name or protocol key.</p>
+<p>This epic delivers Phase 3 of the brief: clients reject tampered, expired or incorrectly signed metadata. It also adds the manifest cache, key files, trust anchor files and <code>qmuxctl keygen</code>.</p>
+<h3 id="signing-and-freshness-user-stories">User stories</h3>
+<ul>
+<li>As a device integrator, I want the client to verify every envelope against my trust
+</li>
+</ul>
+<p>anchors, so that a forged DNS answer never reaches device logic.</p>
+<ul>
+<li>As a device integrator, I want the client to reject a replayed older envelope, so that
+</li>
+</ul>
+<p>an attacker cannot roll a device back to old metadata.</p>
+<ul>
+<li>As an operator, I want to generate a signing key and a trust anchor file with one
+</li>
+</ul>
+<p>command, so that I can provision devices.</p>
+<ul>
+<li>As a device integrator, I want a verified manifest cache, so that a device can skip
+</li>
+</ul>
+<p>discovery while the manifest is valid.</p>
+<ul>
+<li>As a researcher, I want each verification failure to have its own error, so that tests
+</li>
+</ul>
+<p>and logs show the exact reason.</p>
+<h3 id="signing-and-freshness-functional-requirements">Functional requirements</h3>
+<h4 id="signing-and-freshness-keys-key-ids-and-files">Keys, key IDs and files</h4>
+<ul>
+<li><strong>FR-security-1</strong> — <code>security.KeyID(pub)</code> returns the first 8 bytes of the SHA-256 digest
+</li>
+</ul>
+<p>of the 32-byte Ed25519 public key.</p>
+<ul>
+<li><strong>FR-security-2</strong> — <code>security.GenerateKey()</code> returns a new Ed25519 private key from
+</li>
+</ul>
+<p><code>crypto/rand</code>.</p>
+<ul>
+<li><strong>FR-security-3</strong> — <code>security.WritePrivateKey(path, key)</code> writes the key as a PKCS#8 PEM
+</li>
+</ul>
+<p>block of type <code>PRIVATE KEY</code>, with file mode 0600.</p>
+<ul>
+<li><strong>FR-security-4</strong> — <code>security.WritePrivateKey</code> returns an error when the file exists.
+</li>
+<li><strong>FR-security-5</strong> — <code>security.LoadPrivateKey(path)</code> returns an error when the PEM block is
+</li>
+</ul>
+<p>not PKCS#8 or the key is not Ed25519.</p>
+<ul>
+<li><strong>FR-security-6</strong> — <code>security.LoadPrivateKey</code> returns a warning value when the file mode
+</li>
+</ul>
+<p>allows group or world read. The caller logs the warning.</p>
+<ul>
+<li><strong>FR-security-7</strong> — <code>security.LoadTrustAnchors(path)</code> reads the trust anchor file schema in
+</li>
+</ul>
+<p><code>docs/specs/spec.md</code> § Files.</p>
+<ul>
+<li><strong>FR-security-8</strong> — <code>security.LoadTrustAnchors</code> returns an error when a <code>key_id</code> differs
+</li>
+</ul>
+<p>from <code>KeyID(public_key)</code>.</p>
+<ul>
+<li><strong>FR-security-9</strong> — <code>security.LoadTrustAnchors</code> returns an error when a public key is not
+</li>
+</ul>
+<p>32 bytes after base64 decoding, or when two anchors share a key ID.</p>
+<ul>
+<li><strong>FR-security-10</strong> — <code>security.WriteTrustAnchors(path, anchors)</code> writes the same schema.
+</li>
+</ul>
+<h4 id="signing-and-freshness-signer-and-server-signing">Signer and server signing</h4>
+<ul>
+<li><strong>FR-security-11</strong> — <code>security.Signer</code> has the fields <code>Key</code>, <code>Validity</code> and <code>Now</code>. The
+</li>
+</ul>
+<p>default <code>Validity</code> is 1 hour. The default <code>Now</code> is <code>time.Now</code>.</p>
+<ul>
+<li><strong>FR-security-12</strong> — <code>Signer.Sign(env, qname, key)</code> sets the signature block with the key
+</li>
+</ul>
+<p>ID, algorithm <code>-8</code>, <code>issued_at</code> = now, and <code>expires_at</code> = now + <code>Validity</code>.</p>
+<ul>
+<li><strong>FR-security-13</strong> — <code>Signer.Sign</code> computes the Ed25519 signature over the signing input
+</li>
+</ul>
+<p>of <code>docs/specs/spec.md</code> § Data model, with the QNAME in lowercase.</p>
+<ul>
+<li><strong>FR-security-14</strong> — The signing input encodes with <code>cbor.CoreDetEncOptions()</code> as a CBOR
+</li>
+</ul>
+<p>array of 14 items in the stated order.</p>
+<ul>
+<li><strong>FR-security-15</strong> — <code>server.ServerConfig</code> gains the field <code>Signer</code>. When it is set, the
+</li>
+</ul>
+<p>server signs every envelope it returns, for every application status.</p>
+<ul>
+<li><strong>FR-security-16</strong> — The server signs with the full QNAME of the question, including the
+</li>
+</ul>
+<p>version label.</p>
+<ul>
+<li><strong>FR-security-17</strong> — The server returns <code>SERVFAIL</code> when signing fails.
+</li>
+</ul>
+<h4 id="signing-and-freshness-verifier-and-freshness-store">Verifier and freshness store</h4>
+<ul>
+<li><strong>FR-security-18</strong> — <code>security.Verifier</code> has the fields <code>Anchors</code>, <code>Skew</code>, <code>MaxWindow</code>,
+</li>
+</ul>
+<p><code>Store</code> and <code>Now</code>. The defaults are 60 s, 24 h, a new in-memory store, and <code>time.Now</code>.</p>
+<ul>
+<li><strong>FR-security-19</strong> — <code>Verifier.Verify(env, qname, key)</code> returns <code>ErrUnsigned</code> when the
+</li>
+</ul>
+<p>envelope has no signature block.</p>
+<ul>
+<li><strong>FR-security-20</strong> — <code>Verify</code> returns <code>ErrAlgorithm</code> when the algorithm is not <code>-8</code>.
+</li>
+<li><strong>FR-security-21</strong> — <code>Verify</code> returns <code>ErrUnknownKey</code> when no trust anchor has the key ID.
+</li>
+<li><strong>FR-security-22</strong> — <code>Verify</code> returns <code>ErrProtocolNotAllowed</code> when the anchor has a
+</li>
+</ul>
+<p>non-empty <code>protocols</code> list without the envelope protocol ID.</p>
+<ul>
+<li><strong>FR-security-23</strong> — <code>Verify</code> returns <code>ErrBadSignature</code> when the Ed25519 check over the
+</li>
+</ul>
+<p>signing input fails.</p>
+<ul>
+<li><strong>FR-security-24</strong> — <code>Verify</code> returns <code>ErrNotYetValid</code> when <code>issued_at</code> is later than now
+</li>
+</ul>
+<p>+ <code>Skew</code>.</p>
+<ul>
+<li><strong>FR-security-25</strong> — <code>Verify</code> returns <code>ErrExpired</code> when <code>expires_at</code> is earlier than now −
+</li>
+</ul>
+<p><code>Skew</code>.</p>
+<ul>
+<li><strong>FR-security-26</strong> — <code>Verify</code> returns <code>ErrWindowTooLong</code> when <code>expires_at</code> − <code>issued_at</code>
+</li>
+</ul>
+<p>is greater than <code>MaxWindow</code>, or when <code>expires_at</code> is not greater than <code>issued_at</code>.</p>
+<ul>
+<li><strong>FR-security-27</strong> — <code>Verify</code> returns <code>ErrReplay</code> when <code>issued_at</code> is older than the newest
+</li>
+</ul>
+<p><code>issued_at</code> in the freshness store for the protocol ID and the QNAME. An equal value passes.</p>
+<ul>
+<li><strong>FR-security-28</strong> — <code>Verify</code> returns <code>ErrNotDeterministic</code> when the envelope bytes do not
+</li>
+</ul>
+<p>encode back to the same bytes.</p>
+<ul>
+<li><strong>FR-security-29</strong> — <code>Verify</code> runs the check of FR-security-28 first, then the checks of
+</li>
+</ul>
+<p>FR-security-19 to FR-security-27 in that order. It returns the first failure.</p>
+<ul>
+<li><strong>FR-security-30</strong> — <code>Verify</code> updates the freshness store only after every check passes.
+</li>
+<li><strong>FR-security-31</strong> — The freshness store is safe for concurrent use.
+</li>
+<li><strong>FR-security-32</strong> — <code>FreshnessStore.Save(path)</code> and <code>security.LoadFreshnessStore(path)</code>
+</li>
+</ul>
+<p>write and read the store as JSON, so the device keeps it across restarts.</p>
+<ul>
+<li><strong>FR-security-33</strong> — Each sentinel error is wrapped in an error that names the protocol
+</li>
+</ul>
+<p>ID and the QNAME, and <code>errors.Is</code> matches the sentinel.</p>
+<h4 id="signing-and-freshness-client-verification">Client verification</h4>
+<ul>
+<li><strong>FR-security-34</strong> — <code>client.ClientConfig</code> gains the field <code>TrustAnchors</code>, of type
+</li>
+</ul>
+<p><code>*security.Verifier</code>.</p>
+<ul>
+<li><strong>FR-security-35</strong> — When <code>TrustAnchors</code> is set, the client verifies every envelope before
+</li>
+</ul>
+<p>it returns any result field.</p>
+<ul>
+<li><strong>FR-security-36</strong> — When verification fails, the client returns a <code>*client.VerifyError</code>
+</li>
+</ul>
+<p>with the field <code>Reason</code>, which holds the sentinel error. It returns no result.</p>
+<ul>
+<li><strong>FR-security-37</strong> — When <code>TrustAnchors</code> is set and verification passes, <code>Result.Verified</code>
+</li>
+</ul>
+<p>is true.</p>
+<ul>
+<li><strong>FR-security-38</strong> — When <code>TrustAnchors</code> is nil, <code>Result.Verified</code> is false. The client
+</li>
+</ul>
+<p>never returns <code>Verified: true</code> without a verification.</p>
+<ul>
+<li><strong>FR-security-39</strong> — The client verifies an envelope with any application status, before
+</li>
+</ul>
+<p>it builds an <code>AppError</code>.</p>
+<ul>
+<li><strong>FR-security-40</strong> — <code>discovery.Client.Discover</code> returns <code>ErrInsecure</code> when the client has
+</li>
+</ul>
+<p>no <code>TrustAnchors</code> and <code>InsecureSkipVerify</code> is false. This replaces FR-discovery-26.</p>
+<h4 id="signing-and-freshness-manifest-cache">Manifest cache</h4>
+<ul>
+<li><strong>FR-security-41</strong> — <code>discovery.Client</code> gains the field <code>CacheDir</code>.
+</li>
+<li><strong>FR-security-42</strong> — <code>Discover</code> keeps each verified manifest in memory per zone until its
+</li>
+</ul>
+<p><code>expires_at</code>. Before <code>expires_at</code>, <code>Discover</code> returns the cached manifest with no query.</p>
+<ul>
+<li><strong>FR-security-43</strong> — When <code>CacheDir</code> is set, <code>Discover</code> writes each verified manifest to
+</li>
+</ul>
+<p><code>&lt;CacheDir&gt;/&lt;zone&gt;.qmuxcache</code>. The file holds the raw envelope bytes, the QNAME, the class and the type.</p>
+<ul>
+<li><strong>FR-security-44</strong> — When the memory cache is empty, <code>Discover</code> loads the cache file and
+</li>
+</ul>
+<p>verifies it again with the same verifier. It ignores the file when verification fails.</p>
+<ul>
+<li><strong>FR-security-45</strong> — A newly verified manifest replaces the cached manifest only when its
+</li>
+</ul>
+<p><code>issued_at</code> is newer.</p>
+<ul>
+<li><strong>FR-security-46</strong> — The manifest cache never uses the TTL. Only <code>expires_at</code> ends a cache
+</li>
+</ul>
+<p>entry.</p>
+<ul>
+<li><strong>FR-security-47</strong> — The cache is never used when <code>InsecureSkipVerify</code> is true and no
+</li>
+</ul>
+<p>trust anchors exist.</p>
+<h4 id="signing-and-freshness-qmuxctl-fuzz-and-phase-3-test">qmuxctl, fuzz and Phase 3 test</h4>
+<ul>
+<li><strong>FR-security-48</strong> — <code>qmuxctl keygen --out &lt;prefix&gt;</code> writes <code>&lt;prefix&gt;.key</code> and
+</li>
+</ul>
+<p><code>&lt;prefix&gt;.anchor.json</code>. It prints the key ID in hex.</p>
+<ul>
+<li><strong>FR-security-49</strong> — <code>qmuxctl keygen</code> exits with code 1 and writes nothing when either file
+</li>
+</ul>
+<p>exists.</p>
+<ul>
+<li><strong>FR-security-50</strong> — <code>qmuxctl query</code> and <code>qmuxctl discover</code> gain the flag
+</li>
+</ul>
+<p><code>--trust-anchors &lt;path&gt;</code>.</p>
+<ul>
+<li><strong>FR-security-51</strong> — <code>qmuxctl</code> exits with code 3 when verification fails, and prints the
+</li>
+</ul>
+<p>sentinel name.</p>
+<ul>
+<li><strong>FR-security-52</strong> — <code>FuzzVerify</code> in <code>pkg/security</code> calls <code>Verify</code> on fuzzed envelope bytes
+</li>
+</ul>
+<p>and checks that it never panics and never returns nil for a modified signed envelope.</p>
+<ul>
+<li><strong>FR-security-53</strong> — An integration test sends real queries and checks each case below
+</li>
+</ul>
+<p>fails with its own error:</p>
+<ul>
+<li>a tampered payload byte → <code>ErrBadSignature</code>
+<ul>
+<li>a key that is not an anchor → <code>ErrUnknownKey</code>
+</li>
+<li>an expired envelope → <code>ErrExpired</code>
+</li>
+<li>an envelope issued 10 minutes in the future → <code>ErrNotYetValid</code>
+</li>
+<li>an older envelope after a newer one → <code>ErrReplay</code>
+</li>
+<li>an envelope copied to another QNAME → <code>ErrBadSignature</code>
+</li>
+<li>an envelope copied to another protocol key → <code>ErrBadSignature</code>
+</li>
+<li>an unsigned envelope → <code>ErrUnsigned</code>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="signing-and-freshness-security-document">Security document</h4>
+<ul>
+<li><strong>FR-security-54</strong> — The project adds <code>docs/security.md</code> with the sections <code>Trust model</code>,
+</li>
+</ul>
+<p><code>Signing</code>, <code>Replay and freshness controls</code>, <code>Threat model</code> and <code>Limitations</code>.</p>
+<ul>
+<li><strong>FR-security-55</strong> — The <code>Threat model</code> section is a table with the columns threat,
+</li>
+</ul>
+<p>control and residual risk.</p>
+<ul>
+<li><strong>FR-security-56</strong> — The <code>Limitations</code> section states each of these facts:
+<ul>
+<li>DNS gives no confidentiality.
+</li>
+<li>Freshness depends on the client clock.
+</li>
+<li>A stolen server key signs valid envelopes until the anchor is removed.
+</li>
+<li>The rate limit does not protect against a denial of service.
+</li>
+<li>The TTL is not a security expiry.
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="signing-and-freshness-user-flows">User flows</h3>
+<h4 id="signing-and-freshness-flow-1-the-client-verifies-a-signed-answer">Flow 1 — The client verifies a signed answer</h4>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+    participant C as Client
+    participant S as Authoritative server
+    participant V as Verifier
+    C-&gt;&gt;S: Query _v1.device42.fleet.example. at (65282, 65280)
+    S-&gt;&gt;S: Encode the envelope and sign the binding
+    S--&gt;&gt;C: NOERROR, signed envelope
+    C-&gt;&gt;V: Verify(envelope, QNAME, key)
+    alt A check fails
+        V--&gt;&gt;C: Sentinel error
+        C--&gt;&gt;C: Return VerifyError, no result
+    else Every check passes
+        V-&gt;&gt;V: Update the freshness store
+        V--&gt;&gt;C: nil
+        C--&gt;&gt;C: Return result with Verified true
+    end</pre></div>
+<ol>
+<li>The client sends a query.
+</li>
+<li>The server encodes the envelope and signs the signing input.
+</li>
+<li>The server returns the signed envelope.
+</li>
+<li>The client calls <code>Verify</code> with the envelope, the QNAME and the protocol key.
+</li>
+<li>If a check fails, the client returns a <code>VerifyError</code> and no result.
+</li>
+<li>The verifier updates the freshness store.
+</li>
+<li>The client returns the result with <code>Verified</code> true.
+</li>
+</ol>
+<h4 id="signing-and-freshness-flow-2-the-verifier-order-of-checks">Flow 2 — The verifier order of checks</h4>
+<div class="diagram"><pre class="mermaid">flowchart TD
+    A[Envelope bytes] --&gt; D{Deterministic?}
+    D -- no --&gt; E0[ErrNotDeterministic]
+    D -- yes --&gt; S{Signature block present?}
+    S -- no --&gt; E1[ErrUnsigned]
+    S -- yes --&gt; AL{Algorithm -8?}
+    AL -- no --&gt; E2[ErrAlgorithm]
+    AL -- yes --&gt; K{Key ID is an anchor?}
+    K -- no --&gt; E3[ErrUnknownKey]
+    K -- yes --&gt; P{Protocol allowed by anchor?}
+    P -- no --&gt; E4[ErrProtocolNotAllowed]
+    P -- yes --&gt; SIG{Ed25519 check passes?}
+    SIG -- no --&gt; E5[ErrBadSignature]
+    SIG -- yes --&gt; NB{issued_at within skew?}
+    NB -- no --&gt; E6[ErrNotYetValid]
+    NB -- yes --&gt; EX{expires_at reached?}
+    EX -- yes --&gt; E7[ErrExpired]
+    EX -- no --&gt; W{Window within MaxWindow?}
+    W -- no --&gt; E8[ErrWindowTooLong]
+    W -- yes --&gt; R{issued_at older than store?}
+    R -- yes --&gt; E9[ErrReplay]
+    R -- no --&gt; OK[Update store, return nil]</pre></div>
+<ol>
+<li>If the envelope does not encode back to the same bytes, return <code>ErrNotDeterministic</code>.
+</li>
+<li>If the envelope has no signature block, return <code>ErrUnsigned</code>.
+</li>
+<li>If the algorithm is not <code>-8</code>, return <code>ErrAlgorithm</code>.
+</li>
+<li>If no anchor has the key ID, return <code>ErrUnknownKey</code>.
+</li>
+<li>If the anchor does not allow the protocol ID, return <code>ErrProtocolNotAllowed</code>.
+</li>
+<li>If the Ed25519 check fails, return <code>ErrBadSignature</code>.
+</li>
+<li>If <code>issued_at</code> is later than now + skew, return <code>ErrNotYetValid</code>.
+</li>
+<li>If <code>expires_at</code> is earlier than now − skew, return <code>ErrExpired</code>.
+</li>
+<li>If the window is longer than <code>MaxWindow</code> or not positive, return <code>ErrWindowTooLong</code>.
+</li>
+<li>If <code>issued_at</code> is older than the stored value, return <code>ErrReplay</code>.
+</li>
+<li>Update the freshness store and return nil.
+</li>
+</ol>
+<h4 id="signing-and-freshness-flow-3-discover-with-the-manifest-cache">Flow 3 — Discover with the manifest cache</h4>
+<div class="diagram"><pre class="mermaid">flowchart TD
+    A[Discover zone] --&gt; M{Memory cache valid?}
+    M -- yes --&gt; R1[Return cached manifest]
+    M -- no --&gt; F{Cache file exists and verifies?}
+    F -- yes --&gt; R2[Fill memory cache, return manifest]
+    F -- no --&gt; Q[Query the discovery name]
+    Q --&gt; V{Verify passes?}
+    V -- no --&gt; E[VerifyError]
+    V -- yes --&gt; W[Store in memory and cache file]
+    W --&gt; R3[Return manifest]</pre></div>
+<ol>
+<li>If the memory cache holds a manifest before its <code>expires_at</code>, return it.
+</li>
+<li>If the cache file exists and verifies, fill the memory cache and return the manifest.
+</li>
+<li>Send the discovery query.
+</li>
+<li>If verification fails, return a <code>VerifyError</code>.
+</li>
+<li>Store the manifest in memory and, if <code>CacheDir</code> is set, in the cache file.
+</li>
+<li>Return the manifest.
+</li>
+</ol>
+<h3 id="signing-and-freshness-screens-states">Screens &amp; states</h3>
+<p>No graphical screens. <code>qmuxctl keygen</code> output:</p>
+<pre class="code"><code>$ qmuxctl keygen --out keys/qmuxd
+wrote keys/qmuxd.key (mode 0600)
+wrote keys/qmuxd.anchor.json
+key_id 3f9a1c0b7d2e4a65</code></pre>
+<p><code>qmuxctl query</code> with <code>--trust-anchors</code> adds the line <code>verified   yes</code>. A failure prints:</p>
+<pre class="code"><code>error: verify: ErrExpired: org.qmux.firmware device42.fleet.example.</code></pre>
+<p>and exits with code 3.</p>
+<h3 id="signing-and-freshness-behaviour-rules">Behaviour rules</h3>
+<ul>
+<li>The server signs; handlers never sign.
+</li>
+<li>The signing input always uses the lowercase QNAME of the question.
+</li>
+<li>The client never returns a field of an envelope that failed verification.
+</li>
+<li>A client with trust anchors never accepts an unsigned envelope. No option turns this
+</li>
+</ul>
+<p>off for that client.</p>
+<ul>
+<li>The freshness store key is the pair (protocol ID, lowercase QNAME without the version
+</li>
+</ul>
+<p>label). A version change does not reset freshness.</p>
+<ul>
+<li><code>Skew</code> applies to both ends of the validity window.
+</li>
+<li>The verifier never reads the TTL.
+</li>
+</ul>
+<h3 id="signing-and-freshness-data-touched">Data touched</h3>
+<ul>
+<li>New package <code>pkg/security</code>.
+</li>
+<li><code>codec.SignatureBlock</code> fields are filled.
+</li>
+<li><code>server.ServerConfig.Signer</code>, <code>client.ClientConfig.TrustAnchors</code>, <code>client.Result.Verified</code>,
+</li>
+</ul>
+<p><code>client.VerifyError</code>, <code>discovery.Client.CacheDir</code>.</p>
+<ul>
+<li>Files: signing key (PKCS#8 PEM), trust anchor file (JSON), freshness store file (JSON),
+</li>
+</ul>
+<p>manifest cache file.</p>
+<ul>
+<li><code>docs/security.md</code>.
+</li>
+<li><code>.gitignore</code> already excludes <code>*.key</code> (Epic 0).
+</li>
+</ul>
+<h3 id="signing-and-freshness-interfaces">Interfaces</h3>
+<pre class="code"><code>package security
+
+func KeyID(pub ed25519.PublicKey) [8]byte
+func GenerateKey() (ed25519.PrivateKey, error)
+func WritePrivateKey(path string, k ed25519.PrivateKey) error
+func LoadPrivateKey(path string) (ed25519.PrivateKey, Warning, error)
+
+type TrustAnchor struct {
+    KeyID     [8]byte
+    PublicKey ed25519.PublicKey
+    Protocols []string
+}
+func LoadTrustAnchors(path string) ([]TrustAnchor, error)
+func WriteTrustAnchors(path string, a []TrustAnchor) error
+
+type Signer struct {
+    Key      ed25519.PrivateKey
+    Validity time.Duration
+    Now      func() time.Time
+}
+func (s *Signer) Sign(e *codec.Envelope, qname string, key protocol.ProtocolKey) error
+
+type Verifier struct {
+    Anchors   []TrustAnchor
+    Skew      time.Duration
+    MaxWindow time.Duration
+    Store     *FreshnessStore
+    Now       func() time.Time
+}
+func (v *Verifier) Verify(raw []byte, qname string, key protocol.ProtocolKey) (codec.Envelope, error)
+
+var ErrUnsigned, ErrAlgorithm, ErrUnknownKey, ErrProtocolNotAllowed, ErrBadSignature,
+    ErrNotYetValid, ErrExpired, ErrWindowTooLong, ErrReplay, ErrNotDeterministic error</code></pre>
+<p><code>Verify</code> takes the raw RDATA so it can run the deterministic check.</p>
+<p>External references:</p>
+<ul>
+<li><code>crypto/ed25519</code>, Go 1.25 standard library: https://pkg.go.dev/crypto/ed25519
+</li>
+<li><code>crypto/x509</code> <code>MarshalPKCS8PrivateKey</code> and <code>ParsePKCS8PrivateKey</code> accept
+</li>
+</ul>
+<p><code>ed25519.PrivateKey</code>: https://pkg.go.dev/crypto/x509#MarshalPKCS8PrivateKey</p>
+<ul>
+<li>RFC 9053 § 2.2, algorithm <code>-8</code> (EdDSA): https://www.rfc-editor.org/rfc/rfc9053#section-2.2
+</li>
+<li>RFC 8949 § 4.2.1, core deterministic encoding:
+</li>
+</ul>
+<p>https://www.rfc-editor.org/rfc/rfc8949#section-4.2.1</p>
+<ul>
+<li><code>github.com/fxamacker/cbor/v2</code> v2.10.0 <code>CoreDetEncOptions</code>:
+</li>
+</ul>
+<p>https://pkg.go.dev/github.com/fxamacker/cbor/v2@v2.10.0</p>
+<h3 id="signing-and-freshness-edge-cases-failures">Edge cases &amp; failures</h3>
+<div class="table-wrap"><table>
+<tr><th>Case</th><th>Result</th></tr>
+<tr><td>The client clock is 2 hours fast</td><td><code>ErrExpired</code> for a 1-hour window. The docs state the clock dependency.</td></tr>
+<tr><td>A resolver cache returns an envelope after <code>expires_at</code></td><td><code>ErrExpired</code>. The client retries with a direct query only if the caller does so.</td></tr>
+<tr><td>Two concurrent queries for the same QNAME receive two envelopes in reverse order</td><td>The older one returns <code>ErrReplay</code> if the newer one was stored first.</td></tr>
+<tr><td>The trust anchor file is world-writable</td><td><code>LoadTrustAnchors</code> succeeds. The docs tell the integrator to protect the file.</td></tr>
+<tr><td>The cache file is replaced with an older valid manifest</td><td>Load verification returns <code>ErrReplay</code>, and <code>Discover</code> sends a query.</td></tr>
+<tr><td><code>Validity</code> is set to 48 h on the server</td><td>Clients with the default <code>MaxWindow</code> return <code>ErrWindowTooLong</code>.</td></tr>
+</table></div>
+<h3 id="signing-and-freshness-acceptance-criteria">Acceptance criteria</h3>
+<ul>
+<li>[ ] FR-security-1: <code>KeyID</code> of a fixed-seed key equals the committed 8-byte vector.
+</li>
+<li>[ ] FR-security-2: two <code>GenerateKey</code> calls return different keys.
+</li>
+<li>[ ] FR-security-3: the written key file has mode 0600 and a <code>PRIVATE KEY</code> PEM block.
+</li>
+<li>[ ] FR-security-4: <code>WritePrivateKey</code> to an existing path returns an error and leaves the file unchanged.
+</li>
+<li>[ ] FR-security-5: <code>LoadPrivateKey</code> of an ECDSA PKCS#8 file returns an error.
+</li>
+<li>[ ] FR-security-6: <code>LoadPrivateKey</code> of a 0644 file returns a non-empty warning.
+</li>
+<li>[ ] FR-security-7, FR-security-10: a written trust anchor file loads to an equal list.
+</li>
+<li>[ ] FR-security-8: an anchor with a wrong <code>key_id</code> makes <code>LoadTrustAnchors</code> return an error.
+</li>
+<li>[ ] FR-security-9: a 31-byte public key and a duplicate key ID each make <code>LoadTrustAnchors</code> return an error.
+</li>
+<li>[ ] FR-security-11, FR-security-12: a signer with a fixed <code>Now</code> sets <code>issued_at</code> to that time and <code>expires_at</code> one hour later.
+</li>
+<li>[ ] FR-security-13, FR-security-14: the signing input of a fixed envelope equals the committed vector bytes, and the signature verifies with <code>ed25519.Verify</code>.
+</li>
+<li>[ ] FR-security-15: with <code>Signer</code> set, a <code>not-found</code> answer carries a signature block.
+</li>
+<li>[ ] FR-security-16: a query with <code>_v1.device42.fleet.example.</code> verifies only against that full QNAME.
+</li>
+<li>[ ] FR-security-17: a signer with a nil key gives <code>SERVFAIL</code>.
+</li>
+<li>[ ] FR-security-18: a zero <code>Verifier</code> uses 60 s skew and 24 h window.
+</li>
+<li>[ ] FR-security-19 to FR-security-28: one table test case per sentinel returns that sentinel.
+</li>
+<li>[ ] FR-security-29: an expired envelope with a bad signature returns <code>ErrBadSignature</code>.
+</li>
+<li>[ ] FR-security-30: a failed <code>Verify</code> leaves the store unchanged.
+</li>
+<li>[ ] FR-security-31: 100 concurrent <code>Verify</code> calls pass under <code>go test -race</code>.
+</li>
+<li>[ ] FR-security-32: a saved store loads to an equal store.
+</li>
+<li>[ ] FR-security-33: <code>errors.Is(err, security.ErrExpired)</code> is true, and the message contains the protocol ID and the QNAME.
+</li>
+<li>[ ] FR-security-34, FR-security-35, FR-security-37: a client with anchors returns <code>Verified</code> true for a signed answer.
+</li>
+<li>[ ] FR-security-36: a client with anchors returns a <code>*client.VerifyError</code> and a nil result for an unsigned answer.
+</li>
+<li>[ ] FR-security-38: a client with no anchors returns <code>Verified</code> false.
+</li>
+<li>[ ] FR-security-39: a signed <code>not-found</code> answer with a bad signature returns a <code>VerifyError</code>, not an <code>AppError</code>.
+</li>
+<li>[ ] FR-security-40: <code>Discover</code> with no anchors and <code>InsecureSkipVerify</code> false returns <code>ErrInsecure</code>.
+</li>
+<li>[ ] FR-security-41, FR-security-42: a second <code>Discover</code> before <code>expires_at</code> sends no query.
+</li>
+<li>[ ] FR-security-43: after <code>Discover</code>, the cache file exists in <code>CacheDir</code>.
+</li>
+<li>[ ] FR-security-44: a new client with the same <code>CacheDir</code> returns the manifest with no query, and a tampered cache file causes a query.
+</li>
+<li>[ ] FR-security-45: a manifest with an older <code>issued_at</code> does not replace the cached manifest.
+</li>
+<li>[ ] FR-security-46: a manifest with TTL 1 s stays cached until <code>expires_at</code>.
+</li>
+<li>[ ] FR-security-47: an insecure discovery writes no cache file.
+</li>
+<li>[ ] FR-security-48: <code>qmuxctl keygen --out &lt;tmp&gt;/k</code> writes both files and prints a 16-character hex key ID.
+</li>
+<li>[ ] FR-security-49: a second <code>qmuxctl keygen</code> with the same prefix exits with code 1.
+</li>
+<li>[ ] FR-security-50, FR-security-51: <code>qmuxctl query --trust-anchors</code> with a wrong anchor exits with code 3 and prints <code>ErrUnknownKey</code>.
+</li>
+<li>[ ] FR-security-52: <code>go test ./pkg/security</code> runs <code>FuzzVerify</code> on its seed corpus with no failure.
+</li>
+<li>[ ] FR-security-53: the Phase 3 integration test passes for all eight cases.
+</li>
+<li>[ ] FR-security-54, FR-security-55: <code>docs/security.md</code> has the five sections and the threat table has three columns.
+</li>
+<li>[ ] FR-security-56: the <code>Limitations</code> section states each of the five facts.
+</li>
+</ul>
+<h3 id="signing-and-freshness-out-of-scope">Out of scope</h3>
+<ul>
+<li>Key rotation tooling, key revocation lists, and hardware key storage.
+</li>
+<li>Encryption of envelopes.
+</li>
+<li>DNSSEC.
+</li>
+<li>Signatures made offline by a separate signing service.
+</li>
+</ul>
+<h3 id="signing-and-freshness-open-questions" class="callout-h">Open questions</h3><nav class="pager">
+<a href="feature-discovery.html">&larr; Feature: Discovery and version negotiation</a>
+<a href="feature-embedded-recovery.html">Feature: Embedded recovery demonstration &rarr;</a>
+</nav>
+</main>
+</div>
+<script src="../assets/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'default'});</script>
+<script type="application/json" id="rv-embedded">[]</script>
+<script>
+(function(){
+  'use strict';
+  var PAGE = document.body.getAttribute('data-page');
+  // storage key carries the spec's slug: file:// pages can share one
+  // localStorage pool, and two specs must never share a comment store
+  var RVKEY = 'spec-review:' + (document.body.getAttribute('data-rvkey') || 'spec');
+  var EMBED = [];
+  var embedEl = document.getElementById('rv-embedded');
+  if (embedEl) { try { EMBED = JSON.parse(embedEl.textContent); } catch(e){} }
+  function loadLocal(){ try { return JSON.parse(localStorage.getItem(RVKEY)) || {comments:[], deleted:[]}; } catch(e){ return {comments:[], deleted:[]}; } }
+  function saveLocal(s){ try { localStorage.setItem(RVKEY, JSON.stringify(s)); } catch(e){} }
+  function cid(c){ return c.page + '|' + c.section + '|' + (c.date||'') + '|' + c.body.slice(0,24); }
+  function allComments(){
+    var s = loadLocal(), map = {};
+    EMBED.forEach(function(c){ map[cid(c)] = c; });
+    s.comments.forEach(function(c){ map[cid(c)] = c; });
+    s.deleted.forEach(function(id){ delete map[id]; });
+    return Object.keys(map).map(function(k){ return map[k]; });
+  }
+  function upsert(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    s.comments.push(c);
+    s.deleted = s.deleted.filter(function(x){ return x !== id; });
+    saveLocal(s); refresh();
+  }
+  function remove(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    if (EMBED.some(function(x){ return cid(x) === id; })) s.deleted.push(id);
+    saveLocal(s); refresh();
+  }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function exportMd(){
+    var lines = ['# Review comments', '',
+      '<!-- Exported from the spec review layer. Save this file as',
+      '     docs/specs/review-comments.md and re-run render-spec.py to embed',
+      '     every comment under its section for the next review round. -->', ''];
+    allComments().sort(function(a,b){
+      return (a.page+a.section).localeCompare(b.page+b.section);
+    }).forEach(function(c){
+      lines.push('## [' + c.page + '] ' + (c.section||''));
+      lines.push('status: ' + (c.status||'open'));
+      lines.push('date: ' + (c.date||today()));
+      lines.push(c.body); lines.push('');
+    });
+    var blob = new Blob([lines.join('\n')], {type:'text/markdown'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'review-comments.md';
+    a.click(); URL.revokeObjectURL(a.href);
+  }
+  function importMd(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      var text = String(reader.result);
+      var blocks = text.split(/^## /m).slice(1);
+      blocks.forEach(function(b){
+        var head = b.match(/^\[([^\]]+)\]\s*(\S*)/);
+        if (!head) return;
+        var status = (b.match(/^status:\s*(\S+)/m)||[])[1] || 'open';
+        var date = (b.match(/^date:\s*(\S+)/m)||[])[1] || today();
+        var body = b.replace(/^\[[^\]]*\]\s*\S*\s*\n/, '')
+                    .replace(/^status:.*\n?/m,'').replace(/^date:.*\n?/m,'').trim();
+        if (body) upsert({page:head[1], section:head[2]||'', status:status, date:date, body:body});
+      });
+      refresh();
+    };
+    reader.readAsText(file);
+  }
+  function commentBox(c){
+    var div = document.createElement('div');
+    div.className = 'rv-comment' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var head = document.createElement('div'); head.className = 'rv-head';
+    head.textContent = '💬 ' + (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(){ remove(c); c = Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'}); upsert(c); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(){ if (confirm('Delete this comment?')) remove(c); };
+    head.appendChild(tog); head.appendChild(del);
+    var body = document.createElement('div'); body.className = 'rv-body';
+    body.textContent = c.body;
+    div.appendChild(head); div.appendChild(body);
+    return div;
+  }
+  function editor(section, after){
+    var wrap = document.createElement('div');
+    wrap.className = 'rv-comment rv-editor';
+    var ta = document.createElement('textarea');
+    ta.placeholder = 'Comment on this section…';
+    var actions = document.createElement('div'); actions.className = 'rv-actions';
+    var save = document.createElement('button'); save.textContent = 'Save';
+    save.onclick = function(){
+      if (ta.value.trim()) upsert({page:PAGE, section:section, status:'open', date:today(), body:ta.value.trim()});
+      wrap.remove();
+    };
+    var cancel = document.createElement('button'); cancel.textContent = 'Cancel';
+    cancel.className = 'rv-cancel'; cancel.onclick = function(){ wrap.remove(); };
+    actions.appendChild(save); actions.appendChild(cancel);
+    wrap.appendChild(ta); wrap.appendChild(actions);
+    after.insertAdjacentElement('afterend', wrap);
+    ta.focus();
+  }
+  // --- headings, inline buttons ---
+  var mainH1 = document.querySelector('main h1');
+  if (mainH1 && !mainH1.id) { mainH1.id = 'page-title'; }
+  var headings = Array.prototype.slice.call(
+    document.querySelectorAll('main h1[id], main h2[id], main h3[id], main h4[id]'));
+  headings.forEach(function(h){
+    var b = document.createElement('button');
+    b.className = 'rv-add'; b.textContent = '💬 comment'; b.title = 'Comment on this section';
+    b.onclick = function(){ editor(h.id, h); };
+    h.appendChild(b);
+  });
+  function headingTitle(h){
+    var t = h.childNodes[0] ? h.childNodes[0].textContent : h.textContent;
+    return t.trim();
+  }
+  function titleFor(section){
+    var el = section && document.getElementById(section);
+    return el ? headingTitle(el) : (section || '(page)');
+  }
+
+  // --- drawer ---
+  var drawer = document.createElement('div');
+  drawer.id = 'rv-drawer';
+  drawer.innerHTML =
+    '<header><strong>Review</strong> <span class="rv-count"></span></header>' +
+    '<div class="rv-compose">' +
+    '<div class="rv-live">Commenting on the section in view:</div>' +
+    '<label for="rv-sec"></label><select id="rv-sec"></select>' +
+    '<textarea id="rv-text" placeholder="Type as you read… (Ctrl+Enter saves)"></textarea>' +
+    '<div style="margin-top:.4rem; display:flex; gap:.5rem;">' +
+    '<button class="rv-primary" id="rv-save">Save comment</button>' +
+    '<button id="rv-clear">Clear</button></div></div>' +
+    '<div class="rv-list"></div>' +
+    '<footer><button id="rv-export">Export .md</button>' +
+    '<button id="rv-import">Import</button>' +
+    '<span class="rv-otherpages"></span></footer>';
+  document.body.appendChild(drawer);
+  var toggle = document.createElement('button');
+  toggle.id = 'rv-toggle';
+  toggle.onclick = function(){
+    document.body.classList.toggle('rv-open');
+    try { localStorage.setItem(RVKEY + ':open', document.body.classList.contains('rv-open') ? '1' : ''); } catch(e){}
+  };
+  document.body.appendChild(toggle);
+  try { if (localStorage.getItem(RVKEY + ':open')) document.body.classList.add('rv-open'); } catch(e){}
+
+  var sel = drawer.querySelector('#rv-sec');
+  headings.forEach(function(h){
+    var opt = document.createElement('option');
+    opt.value = h.id; opt.textContent = headingTitle(h);
+    sel.appendChild(opt);
+  });
+  var followScroll = true;
+  sel.onchange = function(){ followScroll = false; };
+
+  // scroll spy: pick the last heading above the upper third of the viewport
+  function currentSection(){
+    var line = window.innerHeight * 0.33, best = headings[0];
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].getBoundingClientRect().top <= line) best = headings[i];
+    }
+    return best ? best.id : '';
+  }
+  window.addEventListener('scroll', function(){
+    if (!followScroll) return;
+    var s = currentSection();
+    if (s && sel.value !== s) sel.value = s;
+  }, {passive:true});
+  // typing pins the target section so a stray scroll can't retarget the comment
+  drawer.querySelector('#rv-text').addEventListener('input', function(){
+    if (this.value.trim()) followScroll = false;
+    else followScroll = true;
+  });
+
+  function saveFromDrawer(){
+    var ta = drawer.querySelector('#rv-text');
+    if (!ta.value.trim()) return;
+    upsert({page:PAGE, section:sel.value, status:'open', date:today(), body:ta.value.trim()});
+    ta.value = ''; followScroll = true;
+  }
+  drawer.querySelector('#rv-save').onclick = saveFromDrawer;
+  drawer.querySelector('#rv-text').addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') saveFromDrawer();
+  });
+  drawer.querySelector('#rv-clear').onclick = function(){
+    drawer.querySelector('#rv-text').value = ''; followScroll = true;
+  };
+  drawer.querySelector('#rv-export').onclick = exportMd;
+  var fileIn = document.createElement('input');
+  fileIn.type = 'file'; fileIn.accept = '.md,text/markdown'; fileIn.style.display = 'none';
+  fileIn.onchange = function(){ if (fileIn.files[0]) importMd(fileIn.files[0]); };
+  drawer.appendChild(fileIn);
+  drawer.querySelector('#rv-import').onclick = function(){ fileIn.click(); };
+
+  function drawerItem(c){
+    var div = document.createElement('div');
+    div.className = 'rv-item' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var where = document.createElement('div'); where.className = 'rv-where';
+    where.textContent = titleFor(c.section);
+    var text = document.createElement('div'); text.className = 'rv-text';
+    text.textContent = c.body;
+    var meta = document.createElement('div'); meta.className = 'rv-meta';
+    meta.textContent = (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(e){ e.stopPropagation(); remove(c);
+      upsert(Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'})); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(e){ e.stopPropagation();
+      if (confirm('Delete this comment?')) remove(c); };
+    meta.appendChild(tog); meta.appendChild(del);
+    div.appendChild(where); div.appendChild(text); div.appendChild(meta);
+    div.onclick = function(){
+      var el = c.section && document.getElementById(c.section);
+      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+    return div;
+  }
+
+  function refresh(){
+    document.querySelectorAll('.rv-comment:not(.rv-editor)').forEach(function(el){ el.remove(); });
+    var all = allComments();
+    var mine = all.filter(function(c){ return c.page === PAGE; });
+    mine.forEach(function(c){
+      var target = c.section && document.getElementById(c.section);
+      var anchor = target || mainH1 || document.body.querySelector('main') || document.body;
+      anchor.insertAdjacentElement('afterend', commentBox(c));
+    });
+    var open = all.filter(function(c){ return c.status !== 'resolved'; }).length;
+    toggle.textContent = '💬 Review (' + open + ')';
+    drawer.querySelector('.rv-count').textContent =
+      open + ' open / ' + all.length + ' total';
+    var list = drawer.querySelector('.rv-list');
+    list.innerHTML = '';
+    mine.slice().reverse().forEach(function(c){ list.appendChild(drawerItem(c)); });
+    var others = {};
+    all.forEach(function(c){ if (c.page !== PAGE) others[c.page] = (others[c.page]||0) + 1; });
+    var otherKeys = Object.keys(others);
+    drawer.querySelector('.rv-otherpages').textContent = otherKeys.length
+      ? 'Other pages: ' + otherKeys.map(function(k){ return k + ' (' + others[k] + ')'; }).join(', ')
+      : '';
+  }
+  refresh();
+  var s0 = currentSection();
+  if (s0) sel.value = s0;
+})();
+</script>
+</body>
+</html>

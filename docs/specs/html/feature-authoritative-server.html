@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QMux — Feature: Authoritative server</title>
+<style>
+:root { --bg:#ffffff; --fg:#1a1a24; --muted:#5a5a68; --line:#e3e3ea; --accent:#3452c8;
+        --card:#f6f6f9; --warn-bg:#fff7e8; --warn-line:#e8b34a; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#14141b; --fg:#e8e8ee; --muted:#9a9aa8; --line:#2c2c38; --accent:#8ea6ff;
+          --card:#1c1c26; --warn-bg:#2a2318; --warn-line:#a87c2a; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+       font:16px/1.6 system-ui,-apple-system,sans-serif; }
+.layout { display:flex; min-height:100vh; }
+aside.site { width:17rem; flex:none; border-right:1px solid var(--line);
+             padding:1.2rem 1rem 3rem; position:sticky; top:0; height:100vh;
+             overflow-y:auto; background:var(--card); }
+aside.site h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em;
+                color:var(--muted); margin:1.2rem 0 .3rem; border:none; padding:0; }
+aside.site ul { list-style:none; margin:0; padding:0; }
+aside.site li { margin:.15rem 0; }
+aside.site a { text-decoration:none; color:var(--fg); font-size:.92rem;
+               display:block; padding:.15rem .5rem; border-radius:6px; }
+aside.site a:hover { background:var(--bg); }
+aside.site a.current { background:var(--accent); color:#fff; }
+aside.site a.sub { padding-left:1.3rem; font-size:.84rem; color:var(--muted); }
+aside.site .brand { font-weight:700; font-size:1.05rem; }
+main { max-width:60rem; margin:0 auto; padding:2rem 1.5rem 6rem; min-width:0; flex:1; }
+h1,h2,h3,h4 { line-height:1.25; }
+h1 { font-size:2rem; margin:.2rem 0; }
+h2 { border-bottom:1px solid var(--line); padding-bottom:.3rem; margin-top:2.5rem; }
+a { color:var(--accent); }
+code { background:var(--card); padding:.1em .35em; border-radius:4px; font-size:.9em; }
+pre.code { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; overflow-x:auto; }
+pre.code code { background:none; padding:0; }
+.table-wrap { overflow-x:auto; }
+table { border-collapse:collapse; margin:1rem 0; min-width:50%; }
+th,td { border:1px solid var(--line); padding:.4rem .7rem; text-align:left; }
+th { background:var(--card); }
+blockquote { border-left:3px solid var(--accent); margin:1rem 0; padding:.2rem 1rem;
+             color:var(--muted); }
+.meta { color:var(--muted); margin-bottom:2rem; }
+.badge { display:inline-block; padding:.1rem .6rem; border-radius:999px;
+         border:1px solid var(--accent); color:var(--accent); font-size:.85rem; }
+.diagram { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; margin:1rem 0; overflow-x:auto; }
+.diagram pre.mermaid { margin:0; }
+.diagram.raw::before { content:"diagram source (assets/mermaid.min.js not vendored)";
+                       display:block; color:var(--muted); font-size:.8rem;
+                       margin-bottom:.5rem; }
+.callout-h, .callout-h ~ p, .callout-h ~ ul { background:var(--warn-bg); }
+.callout-h { border-left:4px solid var(--warn-line); padding:.3rem .8rem; }
+.mockup { margin:1.5rem 0; }
+.mockup iframe { width:100%; height:32rem; border:1px solid var(--line);
+                 border-radius:8px; background:#fff; }
+nav.pager { display:flex; justify-content:space-between; margin-top:3rem;
+            border-top:1px solid var(--line); padding-top:1rem; }
+@media (max-width: 900px) {
+  .layout { display:block; }
+  aside.site { width:auto; height:auto; position:static; border-right:none;
+               border-bottom:1px solid var(--line); }
+}
+h1[id]:hover .rv-add, h2[id]:hover .rv-add, h3[id]:hover .rv-add,
+h4[id]:hover .rv-add { opacity:1; }
+.rv-add { opacity:0; margin-left:.5rem; font-size:.75rem; cursor:pointer;
+          border:1px solid var(--accent); color:var(--accent); background:none;
+          border-radius:6px; padding:0 .45rem; vertical-align:middle;
+          transition:opacity .15s; }
+.rv-comment { border:1px solid var(--warn-line); border-left-width:4px;
+              background:var(--warn-bg); border-radius:8px; padding:.6rem .9rem;
+              margin:.8rem 0; font-size:.92rem; }
+.rv-comment.rv-resolved { opacity:.6; border-left-color:var(--line); }
+.rv-comment .rv-head { display:flex; gap:.6rem; align-items:center;
+                       color:var(--muted); font-size:.8rem; margin-bottom:.3rem; }
+.rv-comment .rv-head button { font-size:.75rem; cursor:pointer; background:none;
+                              border:1px solid var(--line); border-radius:6px;
+                              color:var(--muted); padding:0 .4rem; }
+.rv-comment .rv-body { white-space:pre-wrap; }
+.rv-editor textarea { width:100%; min-height:5rem; background:var(--bg);
+                      color:var(--fg); border:1px solid var(--line);
+                      border-radius:6px; padding:.5rem; font:inherit; }
+.rv-editor .rv-actions { margin-top:.4rem; display:flex; gap:.5rem; }
+.rv-editor button { cursor:pointer; border-radius:6px; padding:.2rem .8rem;
+                    border:1px solid var(--accent); background:var(--accent);
+                    color:#fff; }
+.rv-editor button.rv-cancel { background:none; color:var(--accent); }
+#rv-toggle { position:fixed; right:1rem; bottom:1rem; z-index:60;
+             background:var(--accent); color:#fff; border:none; cursor:pointer;
+             border-radius:999px; padding:.5rem 1rem; font-size:.85rem;
+             box-shadow:0 2px 10px rgba(0,0,0,.2); }
+#rv-drawer { position:fixed; top:0; right:0; bottom:0; width:21rem; z-index:55;
+             background:var(--card); border-left:1px solid var(--line);
+             display:flex; flex-direction:column; transform:translateX(100%);
+             transition:transform .2s ease; box-shadow:-4px 0 16px rgba(0,0,0,.12); }
+body.rv-open #rv-drawer { transform:none; }
+body.rv-open .layout { padding-right:21rem; }
+#rv-drawer header { padding:.8rem 1rem .5rem; border-bottom:1px solid var(--line); }
+#rv-drawer header .rv-count { color:var(--muted); font-size:.8rem; }
+#rv-drawer .rv-compose { padding:.8rem 1rem; border-bottom:1px solid var(--line); }
+#rv-drawer .rv-compose label { display:block; font-size:.75rem;
+                               color:var(--muted); margin-bottom:.25rem; }
+#rv-drawer .rv-compose select { width:100%; margin-bottom:.4rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.3rem; font:inherit; font-size:.85rem; }
+#rv-drawer .rv-compose textarea { width:100%; min-height:5.5rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.5rem; font:inherit; font-size:.9rem; }
+#rv-drawer .rv-compose .rv-live { font-size:.72rem; color:var(--muted); }
+#rv-drawer .rv-list { flex:1; overflow-y:auto; padding:.6rem 1rem; }
+#rv-drawer .rv-item { border:1px solid var(--line); border-left:3px solid
+             var(--warn-line); border-radius:8px; padding:.45rem .6rem;
+             margin-bottom:.6rem; font-size:.82rem; cursor:pointer; }
+#rv-drawer .rv-item.rv-resolved { opacity:.55; border-left-color:var(--line); }
+#rv-drawer .rv-item .rv-where { color:var(--accent); font-size:.72rem; }
+#rv-drawer .rv-item .rv-meta { color:var(--muted); font-size:.72rem;
+                               display:flex; gap:.5rem; align-items:center; }
+#rv-drawer .rv-item .rv-meta button { font-size:.7rem; cursor:pointer;
+             background:none; border:1px solid var(--line); border-radius:5px;
+             color:var(--muted); padding:0 .35rem; }
+#rv-drawer .rv-item .rv-text { white-space:pre-wrap; margin:.15rem 0; }
+#rv-drawer footer { padding:.6rem 1rem; border-top:1px solid var(--line);
+                    display:flex; gap:.5rem; flex-wrap:wrap; }
+#rv-drawer footer button, #rv-drawer .rv-compose button {
+  cursor:pointer; border:1px solid var(--accent); background:none;
+  color:var(--accent); border-radius:6px; padding:.2rem .7rem; font-size:.8rem; }
+#rv-drawer .rv-compose button.rv-primary { background:var(--accent); color:#fff; }
+#rv-drawer .rv-otherpages { color:var(--muted); font-size:.75rem;
+                            margin:.4rem 0 0; }
+@media (max-width: 1200px) { body.rv-open .layout { padding-right:0; } }
+</style>
+</head>
+<body data-page="feature-authoritative-server" data-rvkey="qmux">
+<div class="layout">
+<aside class="site"><a class="brand" href="../spec.html">QMux</a>
+<h2>Spec</h2><ul>
+<li><a href="../spec.html">Overview &amp; index</a></li>
+</ul>
+<h2>Features</h2><ul>
+<li><a href="feature-foundation.html">Foundation</a></li>
+<li><a href="feature-protocol-registry.html">Protocol registry</a></li>
+<li><a class="current" href="feature-authoritative-server.html">Authoritative server</a></li>
+<li><a href="feature-client-sdk.html">Client SDK</a></li>
+<li><a href="feature-envelope-codec.html">Envelope codec</a></li>
+<li><a href="feature-discovery.html">Discovery and version negotiation</a></li>
+<li><a href="feature-signing-and-freshness.html">Signing and freshness</a></li>
+<li><a href="feature-embedded-recovery.html">Embedded recovery demonstration</a></li>
+<li><a href="feature-qmuxd-daemon.html">qmuxd daemon</a></li>
+<li><a href="feature-interop-harness.html">Interop harness</a></li>
+<li><a href="feature-baseline-benchmarks.html">Baseline benchmarks</a></li>
+<li><a href="feature-documentation.html">Documentation</a></li>
+</ul></aside>
+<main>
+<h1>Feature: Authoritative server</h1>
+<p class="meta">Epic 2: Authoritative server &nbsp; <span class="badge">planned</span></p>
+<h3 id="authoritative-server-purpose">Purpose</h3>
+<p>The authoritative server receives DNS queries over UDP and TCP, validates them, and dispatches each one to the handler of its protocol key. It returns the handler's payload as opaque RDATA in one answer RR. The class and the type of the answer RR are the class and the type of the question. It enforces size limits, EDNS(0), timeouts and graceful shutdown, and it logs one record per query.</p>
+<p>In Epic 2 the RDATA is the raw <code>Response.Payload</code>. Epic 4 replaces the raw payload with the envelope. The server never recurses and never delegates.</p>
+<h3 id="authoritative-server-user-stories">User stories</h3>
+<ul>
+<li>As a protocol developer, I want to register a handler and call <code>ListenAndServe</code>, so that
+</li>
+</ul>
+<p>my protocol answers over DNS with no DNS code of my own.</p>
+<ul>
+<li>As a protocol developer, I want the server to reject malformed and unsupported queries
+</li>
+</ul>
+<p>with the correct RCODE, so that clients can tell DNS failures from application outcomes.</p>
+<ul>
+<li>As an operator, I want the server to stop cleanly on a signal, so that in-flight
+</li>
+</ul>
+<p>queries complete before the process exits.</p>
+<ul>
+<li>As an operator, I want one log record per query, so that I can see what the server
+</li>
+</ul>
+<p>answered.</p>
+<h3 id="authoritative-server-functional-requirements">Functional requirements</h3>
+<h4 id="authoritative-server-configuration-and-lifecycle">Configuration and lifecycle</h4>
+<ul>
+<li>FR-server-1 — <code>NewServer(cfg ServerConfig)</code> returns a server that holds a new registry
+</li>
+</ul>
+<p>built with <code>cfg.Registry</code>.</p>
+<ul>
+<li>FR-server-2 — <code>NewServer</code> applies the defaults from the spec's timeouts table to every
+</li>
+</ul>
+<p>zero field of <code>ServerConfig</code>.</p>
+<ul>
+<li>FR-server-3 — <code>Register(key, h)</code> registers <code>h</code> with the <code>Info</code> that <code>h.Info()</code> returns.
+</li>
+<li>FR-server-4 — <code>Register</code> returns <code>ErrMissingInfo</code> when <code>h</code> does not implement
+</li>
+</ul>
+<p><code>protocol.Describer</code>.</p>
+<ul>
+<li>FR-server-5 — <code>RegisterProtocol(key, info, h)</code> registers <code>h</code> with an explicit <code>Info</code>.
+</li>
+<li>FR-server-6 — <code>ListenAndServe(ctx)</code> listens on <code>cfg.Address</code> over UDP and over TCP.
+</li>
+<li>FR-server-7 — <code>ListenAndServe</code> returns the bind error when either listener fails to
+</li>
+</ul>
+<p>start.</p>
+<ul>
+<li>FR-server-8 — <code>ListenAndServe</code> returns nil after <code>ctx</code> is cancelled and the graceful
+</li>
+</ul>
+<p>shutdown completes.</p>
+<ul>
+<li>FR-server-9 — <code>Serve(ctx, pc, l)</code> serves on a caller-supplied <code>net.PacketConn</code> and
+</li>
+</ul>
+<p><code>net.Listener</code>.</p>
+<ul>
+<li>FR-server-10 — <code>Addr()</code> returns the UDP address the server listens on, after the
+</li>
+</ul>
+<p>listeners start.</p>
+<ul>
+<li>FR-server-11 — On shutdown, the server stops accepting new queries and waits up to
+</li>
+</ul>
+<p><code>ShutdownGrace</code> for in-flight handlers.</p>
+<ul>
+<li>FR-server-12 — After <code>ShutdownGrace</code>, the server cancels the context of every handler
+</li>
+</ul>
+<p>that still runs.</p>
+<h4 id="authoritative-server-request-validation">Request validation</h4>
+<ul>
+<li>FR-server-13 — The server ignores a message with the QR bit set.
+</li>
+<li>FR-server-14 — The server answers <code>NOTIMP</code> to an opcode other than QUERY.
+</li>
+<li>FR-server-15 — The server answers <code>FORMERR</code> to a query with a question count other
+</li>
+</ul>
+<p>than 1.</p>
+<ul>
+<li>FR-server-16 — The server answers <code>FORMERR</code> to a parseable query larger than 512 bytes
+</li>
+</ul>
+<p>without EDNS(0).</p>
+<ul>
+<li>FR-server-17 — The server answers <code>FORMERR</code> to a parseable query larger than 1232 bytes
+</li>
+</ul>
+<p>with EDNS(0).</p>
+<ul>
+<li>FR-server-18 — The server answers <code>BADVERS</code> to a query with an EDNS version above 0.
+</li>
+<li>FR-server-19 — The server answers <code>REFUSED</code> when the QNAME is outside every configured
+</li>
+</ul>
+<p>zone.</p>
+<ul>
+<li>FR-server-20 — The server accepts every QNAME when <code>Zones</code> is empty.
+</li>
+<li>FR-server-21 — The server logs one warning at start when <code>Zones</code> is empty.
+</li>
+<li>FR-server-22 — The server answers <code>REFUSED</code> when the protocol key has no registration.
+</li>
+</ul>
+<h4 id="authoritative-server-dispatch-and-answer">Dispatch and answer</h4>
+<ul>
+<li>FR-server-23 — The server builds a <code>Request</code> with the QNAME in lowercase fully
+</li>
+</ul>
+<p>qualified form.</p>
+<ul>
+<li>FR-server-24 — The server sets <code>Request.Version</code> from a leftmost <code>_v&lt;N&gt;</code> label, or to 0
+</li>
+</ul>
+<p>when the QNAME has no version label.</p>
+<ul>
+<li>FR-server-25 — The server sets <code>Request.Labels</code> to the QNAME labels below the zone, with
+</li>
+</ul>
+<p>the version label removed.</p>
+<ul>
+<li>FR-server-26 — The server sets <code>Request.Source</code>, <code>Request.Transport</code>,
+</li>
+</ul>
+<p><code>Request.UDPSize</code>, <code>Request.ID</code> and <code>Request.ReceivedAt</code> from the received query.</p>
+<ul>
+<li>FR-server-27 — The server calls the handler of the registration with a context that
+</li>
+</ul>
+<p>expires after <code>HandlerTimeout</code>.</p>
+<ul>
+<li>FR-server-28 — The server calls <code>Info.Schema.Validate</code> on the response payload when the
+</li>
+</ul>
+<p>registration has a schema.</p>
+<ul>
+<li>FR-server-29 — On a handler response, the server answers <code>NOERROR</code> with the AA bit set
+</li>
+</ul>
+<p>and exactly one answer RR.</p>
+<ul>
+<li>FR-server-30 — The answer RR has the QNAME as received, and the class and type of the
+</li>
+</ul>
+<p>question.</p>
+<ul>
+<li>FR-server-31 — The answer RR carries <code>Response.Payload</code> as opaque RDATA in a
+</li>
+</ul>
+<p><code>*dns.RFC3597</code> RR.</p>
+<ul>
+<li>FR-server-32 — The answer RR TTL is <code>Response.TTL</code>, or <code>cfg.TTL</code> when <code>Response.TTL</code> is
+</li>
+</ul>
+<p>0.</p>
+<ul>
+<li>FR-server-33 — The server answers <code>SERVFAIL</code> when the handler returns an error.
+</li>
+<li>FR-server-34 — The server answers <code>SERVFAIL</code> when the handler exceeds <code>HandlerTimeout</code>.
+</li>
+<li>FR-server-35 — The server answers <code>SERVFAIL</code> when the handler panics, and logs the panic
+</li>
+</ul>
+<p>at error level.</p>
+<ul>
+<li>FR-server-36 — The server answers <code>SERVFAIL</code> when the schema rejects the payload.
+</li>
+</ul>
+<h4 id="authoritative-server-size-limits-and-edns-0">Size limits and EDNS(0)</h4>
+<ul>
+<li>FR-server-37 — The UDP size limit is 512 bytes for a query without EDNS(0).
+</li>
+<li>FR-server-38 — The UDP size limit is the smaller of the advertised size and
+</li>
+</ul>
+<p><code>cfg.UDPSize</code> for a query with EDNS(0).</p>
+<ul>
+<li>FR-server-39 — The server adds an OPT RR with <code>cfg.UDPSize</code> to each response to an
+</li>
+</ul>
+<p>EDNS(0) query.</p>
+<ul>
+<li>FR-server-40 — When a UDP response exceeds the UDP size limit, the server sets the TC
+</li>
+</ul>
+<p>bit, removes the answer RR, and keeps the OPT RR.</p>
+<ul>
+<li>FR-server-41 — The server answers <code>SERVFAIL</code> over TCP when the response exceeds 65535
+</li>
+</ul>
+<p>bytes.</p>
+<h4 id="authoritative-server-logging-and-robustness">Logging and robustness</h4>
+<ul>
+<li>FR-server-42 — The server writes one <code>slog</code> record per answered query with the fields
+</li>
+</ul>
+<p>of the spec's Logging section.</p>
+<ul>
+<li>FR-server-43 — The server never logs payload bytes.
+</li>
+<li>FR-server-44 — <code>FuzzServeMessage</code> sends arbitrary bytes through the request path, and
+</li>
+</ul>
+<p>the server never panics.</p>
+<ul>
+<li>FR-server-45 — The server answers 100 concurrent queries with no data race under
+</li>
+</ul>
+<p><code>go test -race</code>.</p>
+<h3 id="authoritative-server-user-flows">User flows</h3>
+<h4 id="authoritative-server-flow-1-the-server-answers-one-query">Flow 1 — The server answers one query</h4>
+<div class="diagram"><pre class="mermaid">flowchart TD
+    A[Query arrives over UDP or TCP] --&gt; B{QR bit set?}
+    B -- yes --&gt; Z[Ignore the message]
+    B -- no --&gt; C{opcode is QUERY?}
+    C -- no --&gt; N[NOTIMP]
+    C -- yes --&gt; D{one question and size within limit?}
+    D -- no --&gt; F[FORMERR]
+    D -- yes --&gt; E{EDNS version above 0?}
+    E -- yes --&gt; V[BADVERS]
+    E -- no --&gt; G{QNAME inside a zone?}
+    G -- no --&gt; R1[REFUSED]
+    G -- yes --&gt; H{protocol key registered?}
+    H -- no --&gt; R2[REFUSED]
+    H -- yes --&gt; I[Call the handler with HandlerTimeout]
+    I --&gt; J{error, timeout, panic or schema failure?}
+    J -- yes --&gt; S[SERVFAIL]
+    J -- no --&gt; K[NOERROR with one opaque RR]
+    K --&gt; L{UDP and larger than UDP size limit?}
+    L -- yes --&gt; T[Set TC and remove the answer RR]
+    L -- no --&gt; M[Send the response]
+    T --&gt; M</pre></div>
+<ol>
+<li>A query arrives over UDP or TCP.
+</li>
+<li>If the QR bit is set, the server ignores the message.
+</li>
+<li>If the opcode is not QUERY, the server answers <code>NOTIMP</code>.
+</li>
+<li>If the query has more or fewer than one question, the server answers <code>FORMERR</code>.
+</li>
+<li>If the query exceeds its size limit, the server answers <code>FORMERR</code>.
+</li>
+<li>If the EDNS version is above 0, the server answers <code>BADVERS</code>.
+</li>
+<li>If the QNAME is outside every zone, the server answers <code>REFUSED</code>.
+</li>
+<li>If the protocol key has no registration, the server answers <code>REFUSED</code>.
+</li>
+<li>The server calls the handler with a context that expires after <code>HandlerTimeout</code>.
+</li>
+<li>If the handler fails, times out or panics, the server answers <code>SERVFAIL</code>.
+</li>
+<li>If the schema rejects the payload, the server answers <code>SERVFAIL</code>.
+</li>
+<li>The server builds a <code>NOERROR</code> response with one opaque answer RR.
+</li>
+<li>If the transport is UDP and the response exceeds the UDP size limit, the server sets
+</li>
+</ol>
+<p>TC and removes the answer RR.</p>
+<ol>
+<li>The server sends the response and writes one log record.
+</li>
+</ol>
+<h4 id="authoritative-server-flow-2-the-server-shuts-down-under-load">Flow 2 — The server shuts down under load</h4>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+    participant Op as Operator
+    participant S as Server
+    participant H as Handler
+    Op-&gt;&gt;S: cancel ctx
+    S-&gt;&gt;S: stop accepting new queries
+    S-&gt;&gt;H: wait for in-flight handlers
+    alt handlers finish within ShutdownGrace
+        H--&gt;&gt;S: responses
+        S--&gt;&gt;Op: ListenAndServe returns nil
+    else ShutdownGrace expires
+        S-&gt;&gt;H: cancel handler contexts
+        S--&gt;&gt;Op: ListenAndServe returns nil
+    end</pre></div>
+<ol>
+<li>The operator cancels the context of <code>ListenAndServe</code>.
+</li>
+<li>The server stops accepting new queries.
+</li>
+<li>The server waits for in-flight handlers.
+</li>
+<li>If the handlers finish within <code>ShutdownGrace</code>, the server sends their responses.
+</li>
+<li>If <code>ShutdownGrace</code> expires, the server cancels every handler context.
+</li>
+<li><code>ListenAndServe</code> returns nil.
+</li>
+</ol>
+<h3 id="authoritative-server-screens-states">Screens &amp; states</h3>
+<p>No screens. The feature is library code only. The log record is the only output:</p>
+<pre class="code"><code>level=INFO msg=query qname=device42.fleet.example. qclass=65280 qtype=65280 transport=udp source=127.0.0.1:53211 rcode=NOERROR status=0 bytes_in=51 bytes_out=88 duration_ms=0.21</code></pre>
+<p><code>status</code> is empty in Epic 2 for a response with no envelope. Epic 4 fills it.</p>
+<h3 id="authoritative-server-behaviour-rules">Behaviour rules</h3>
+<ul>
+<li>The server compares QNAMEs and zones in lowercase. The answer RR keeps the QNAME case
+</li>
+</ul>
+<p>as received.</p>
+<ul>
+<li>A zone matches a QNAME that equals the zone or ends with <code>.</code> plus the zone.
+</li>
+<li>When several zones match, the longest zone is the <code>Request.Zone</code>.
+</li>
+<li>With empty <code>Zones</code>, <code>Request.Zone</code> is <code>.</code> and <code>Request.Labels</code> holds every QNAME label.
+</li>
+<li>A version label is a leftmost label <code>_v</code> followed by a decimal number from 1 to 65535
+</li>
+</ul>
+<p>with no leading zero. Any other leftmost label that starts with <code>_v</code> is an ordinary label.</p>
+<ul>
+<li>In Epic 2 the server passes the version label through to the handler. Epic 5 adds the
+</li>
+</ul>
+<p>check against the registration versions.</p>
+<ul>
+<li><code>Response.Version</code> 0 means the highest version of the registration.
+</li>
+</ul>
+<p><code>Response.MessageType</code> 0 means <code>MessageRecord</code>. Epic 4 writes both into the envelope.</p>
+<ul>
+<li>The server replaces the miekg/dns default <code>MsgAcceptFunc</code>. The default accepts NOTIFY
+</li>
+</ul>
+<p>and allows up to two additional RRs, which QMux does not want.</p>
+<ul>
+<li>A response to a non-EDNS query carries no OPT RR.
+</li>
+<li>The server sets the RA bit to 0 on every response.
+</li>
+</ul>
+<h3 id="authoritative-server-data-touched">Data touched</h3>
+<p>In-memory only. The server reads the registry. It writes log records. It stores no state per query after the response.</p>
+<h3 id="authoritative-server-interfaces">Interfaces</h3>
+<pre class="code"><code>package server
+
+type ServerConfig struct {
+    Address        string        // "127.0.0.1:5353"
+    Zones          []string      // empty: every QNAME
+    TTL            uint32        // default 60
+    UDPSize        uint16        // default 1232
+    HandlerTimeout time.Duration // default 2s
+    ReadTimeout    time.Duration // default 2s
+    WriteTimeout   time.Duration // default 2s
+    ShutdownGrace  time.Duration // default 5s
+    Logger         *slog.Logger  // default slog.Default()
+    Registry       registry.Options
+}
+
+var ErrMissingInfo = errors.New("server: handler does not implement protocol.Describer")
+
+func NewServer(cfg ServerConfig) *Server
+func (s *Server) Register(key protocol.ProtocolKey, h protocol.Handler) error
+func (s *Server) RegisterProtocol(key protocol.ProtocolKey, info protocol.Info, h protocol.Handler) error
+func (s *Server) Unregister(key protocol.ProtocolKey) error
+func (s *Server) Registry() *registry.Registry
+func (s *Server) ListenAndServe(ctx context.Context) error
+func (s *Server) Serve(ctx context.Context, pc net.PacketConn, l net.Listener) error
+func (s *Server) Addr() net.Addr</code></pre>
+<pre class="code"><code>package protocol
+
+type Request struct {
+    QName      string // lowercase FQDN
+    Key        ProtocolKey
+    Version    uint16 // 0 when no version label
+    Labels     []string
+    Zone       string
+    Source     netip.AddrPort
+    Transport  string // "udp" or "tcp"
+    UDPSize    uint16
+    ID         uint16
+    ReceivedAt time.Time
+}
+
+type Response struct {
+    Payload     []byte
+    TTL         uint32      // 0: server default
+    Status      Status
+    Version     uint16      // 0: highest registered version
+    MessageType MessageType // 0: MessageRecord
+}</code></pre>
+<p><code>pkg/transport</code> holds every miekg/dns call: the accept function, the conversion between bytes and the hex <code>RFC3597.Rdata</code>, the EDNS(0) handling, and the size checks. miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and <code>go doc</code> on 2026-11-20:</p>
+<ul>
+<li><code>dns.Server</code> has the fields <code>Addr</code>, <code>Net</code> (<code>udp</code> or <code>tcp</code>), <code>Handler</code>, <code>UDPSize</code>,
+</li>
+</ul>
+<p><code>ReadTimeout</code>, <code>WriteTimeout</code>, <code>NotifyStartedFunc</code>, <code>MsgAcceptFunc</code>, and the methods <code>Shutdown()</code> and <code>ShutdownContext(ctx)</code>.</p>
+<ul>
+<li><code>dns.Server</code> also has <code>PacketConn</code> and <code>Listener</code> fields. <code>Serve</code> uses them.
+</li>
+<li>The default <code>MsgAcceptFunc</code> ignores responses, answers <code>NOTIMP</code> for opcodes other than
+</li>
+</ul>
+<p>QUERY and NOTIFY, and rejects a question count other than 1. It does not check class or type.</p>
+<ul>
+<li><code>Msg.IsEdns0()</code> returns the OPT RR. <code>OPT.UDPSize()</code> and <code>OPT.Version()</code> read its fields.
+</li>
+</ul>
+<h3 id="authoritative-server-edge-cases-failures">Edge cases &amp; failures</h3>
+<ul>
+<li>A query with QCLASS ANY (255) has no registration, so the server answers <code>REFUSED</code>.
+</li>
+<li>A handler returns a nil <code>*Response</code> and a nil error. The server answers <code>SERVFAIL</code> and
+</li>
+</ul>
+<p>logs the handler bug.</p>
+<ul>
+<li>A handler ignores its context and runs past <code>HandlerTimeout</code>. The server answers
+</li>
+</ul>
+<p><code>SERVFAIL</code> at the timeout and discards the late response.</p>
+<ul>
+<li>A client closes a TCP connection before the response. The server logs the write error
+</li>
+</ul>
+<p>at debug level and continues.</p>
+<ul>
+<li>The port is already in use. <code>ListenAndServe</code> returns the bind error and starts no
+</li>
+</ul>
+<p>listener.</p>
+<ul>
+<li><code>Addr()</code> before the listeners start returns nil.
+</li>
+</ul>
+<h3 id="authoritative-server-acceptance-criteria">Acceptance criteria</h3>
+<ul>
+<li><code>NewServer(ServerConfig{})</code> returns a server whose registry accepts a valid
+</li>
+</ul>
+<p>registration. (FR-server-1)</p>
+<ul>
+<li><code>NewServer(ServerConfig{})</code> applies TTL 60, UDP size 1232, handler timeout 2s, read and
+</li>
+</ul>
+<p>write timeouts 2s, and shutdown grace 5s. (FR-server-2)</p>
+<ul>
+<li><code>Register</code> with a <code>Describer</code> handler adds a registration with the handler's <code>Info</code>.
+</li>
+</ul>
+<p>(FR-server-3)</p>
+<ul>
+<li><code>Register</code> with a plain <code>HandlerFunc</code> returns <code>ErrMissingInfo</code>. (FR-server-4)
+</li>
+<li><code>RegisterProtocol</code> adds a registration with the given <code>Info</code>. (FR-server-5)
+</li>
+<li>A test sends one query over UDP and one over TCP to the same address and gets two
+</li>
+</ul>
+<p>answers. (FR-server-6)</p>
+<ul>
+<li><code>ListenAndServe</code> on a port already in use returns a non-nil error. (FR-server-7)
+</li>
+<li><code>ListenAndServe</code> returns nil within 1 second of a context cancel with no load.
+</li>
+</ul>
+<p>(FR-server-8)</p>
+<ul>
+<li><code>Serve</code> with listeners on port 0 answers queries. (FR-server-9)
+</li>
+<li><code>Addr()</code> returns a non-zero port after <code>Serve</code> starts. (FR-server-10)
+</li>
+<li>During shutdown, a handler that sleeps 1s with a grace of 5s completes and its response
+</li>
+</ul>
+<p>arrives. (FR-server-11)</p>
+<ul>
+<li>During shutdown, a handler that blocks on its context with a grace of 100ms sees its
+</li>
+</ul>
+<p>context cancelled. (FR-server-12)</p>
+<ul>
+<li>A message with QR set gets no response. (FR-server-13)
+</li>
+<li>An IQUERY and a NOTIFY each get <code>NOTIMP</code>. (FR-server-14)
+</li>
+<li>A query with zero questions and one with two questions each get <code>FORMERR</code>.
+</li>
+</ul>
+<p>(FR-server-15)</p>
+<ul>
+<li>A 600-byte query without EDNS(0) gets <code>FORMERR</code>. (FR-server-16)
+</li>
+<li>A 1300-byte query with EDNS(0) gets <code>FORMERR</code>. (FR-server-17)
+</li>
+<li>A query with EDNS version 1 gets <code>BADVERS</code>. (FR-server-18)
+</li>
+<li>With zone <code>fleet.example.</code>, the QNAME <code>a.other.example.</code> gets <code>REFUSED</code>.
+</li>
+</ul>
+<p>(FR-server-19)</p>
+<ul>
+<li>With no zones, the QNAME <code>a.other.example.</code> reaches the handler. (FR-server-20)
+</li>
+<li>With no zones, the log holds one warning at start. (FR-server-21)
+</li>
+<li>A query for an unregistered protocol key gets <code>REFUSED</code>. (FR-server-22)
+</li>
+<li>The QNAME <code>Device42.Fleet.Example.</code> reaches the handler as <code>device42.fleet.example.</code>.
+</li>
+</ul>
+<p>(FR-server-23)</p>
+<ul>
+<li>The QNAME <code>_v2.device42.fleet.example.</code> gives <code>Request.Version</code> 2. A QNAME with no
+</li>
+</ul>
+<p>version label gives 0. (FR-server-24)</p>
+<ul>
+<li>With zone <code>fleet.example.</code>, <code>_v2.device42.fleet.example.</code> gives <code>Request.Labels</code>
+</li>
+</ul>
+<p><code>["device42"]</code>. (FR-server-25)</p>
+<ul>
+<li>A handler sees the client source address, <code>udp</code> or <code>tcp</code>, the query ID, and a
+</li>
+</ul>
+<p>non-zero <code>ReceivedAt</code>. (FR-server-26)</p>
+<ul>
+<li>A handler sees a context deadline about 2 seconds after the call with default
+</li>
+</ul>
+<p>settings. (FR-server-27)</p>
+<ul>
+<li>A schema that counts its calls records one call per answered query. (FR-server-28)
+</li>
+<li>A handler response gives <code>NOERROR</code>, AA set, and an answer count of 1. (FR-server-29)
+</li>
+<li>The answer RR for <code>Device42.fleet.example.</code> class 65281 type 65280 has that exact name,
+</li>
+</ul>
+<p>class 65281 and type 65280. (FR-server-30)</p>
+<ul>
+<li>The answer RDATA bytes equal the handler's payload bytes. (FR-server-31)
+</li>
+<li>A response with TTL 0 gives an RR TTL of 60. A response with TTL 5 gives 5.
+</li>
+</ul>
+<p>(FR-server-32)</p>
+<ul>
+<li>A handler error gives <code>SERVFAIL</code>. (FR-server-33)
+</li>
+<li>A handler that sleeps past the timeout gives <code>SERVFAIL</code>. (FR-server-34)
+</li>
+<li>A handler panic gives <code>SERVFAIL</code>, one error log record, and the server keeps
+</li>
+</ul>
+<p>answering. (FR-server-35)</p>
+<ul>
+<li>A schema that returns an error gives <code>SERVFAIL</code>. (FR-server-36)
+</li>
+<li>A 600-byte payload to a non-EDNS UDP query gives TC set and no answer RR.
+</li>
+</ul>
+<p>(FR-server-37)</p>
+<ul>
+<li>A 1500-byte payload to a UDP query that advertises 4096 gives TC set with the default
+</li>
+</ul>
+<p><code>UDPSize</code> of 1232. (FR-server-38)</p>
+<ul>
+<li>A response to an EDNS(0) query holds an OPT RR with UDP size 1232. (FR-server-39)
+</li>
+<li>A truncated UDP response holds the OPT RR and no answer RR. (FR-server-40)
+</li>
+<li>A 70000-byte payload over TCP gives <code>SERVFAIL</code>. (FR-server-41)
+</li>
+<li>Each answered query produces one log record with the ten fields of the spec.
+</li>
+</ul>
+<p>(FR-server-42)</p>
+<ul>
+<li>No log record contains the payload bytes of a test payload marker. (FR-server-43)
+</li>
+<li><code>FuzzServeMessage</code> runs its seed corpus with no panic. (FR-server-44)
+</li>
+<li>An integration test with 100 concurrent queries passes under <code>go test -race</code>.
+</li>
+</ul>
+<p>(FR-server-45)</p>
+<h3 id="authoritative-server-out-of-scope">Out of scope</h3>
+<ul>
+<li>The envelope as RDATA. Epic 4 replaces the raw payload.
+</li>
+<li>The <code>version-unsupported</code> check against registration versions. Epic 5 adds it.
+</li>
+<li><code>ServerConfig.Signer</code>. Epic 6 adds it.
+</li>
+<li><code>ServerConfig.RateLimit</code> and the observation log. Epic 8 adds them.
+</li>
+<li>Recursion, delegation, zone transfer, SOA and NS answers, and DNS over TLS.
+</li>
+</ul>
+<h3 id="authoritative-server-open-questions" class="callout-h">Open questions</h3><nav class="pager">
+<a href="feature-protocol-registry.html">&larr; Feature: Protocol registry</a>
+<a href="feature-client-sdk.html">Feature: Client SDK &rarr;</a>
+</nav>
+</main>
+</div>
+<script src="../assets/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'default'});</script>
+<script type="application/json" id="rv-embedded">[]</script>
+<script>
+(function(){
+  'use strict';
+  var PAGE = document.body.getAttribute('data-page');
+  // storage key carries the spec's slug: file:// pages can share one
+  // localStorage pool, and two specs must never share a comment store
+  var RVKEY = 'spec-review:' + (document.body.getAttribute('data-rvkey') || 'spec');
+  var EMBED = [];
+  var embedEl = document.getElementById('rv-embedded');
+  if (embedEl) { try { EMBED = JSON.parse(embedEl.textContent); } catch(e){} }
+  function loadLocal(){ try { return JSON.parse(localStorage.getItem(RVKEY)) || {comments:[], deleted:[]}; } catch(e){ return {comments:[], deleted:[]}; } }
+  function saveLocal(s){ try { localStorage.setItem(RVKEY, JSON.stringify(s)); } catch(e){} }
+  function cid(c){ return c.page + '|' + c.section + '|' + (c.date||'') + '|' + c.body.slice(0,24); }
+  function allComments(){
+    var s = loadLocal(), map = {};
+    EMBED.forEach(function(c){ map[cid(c)] = c; });
+    s.comments.forEach(function(c){ map[cid(c)] = c; });
+    s.deleted.forEach(function(id){ delete map[id]; });
+    return Object.keys(map).map(function(k){ return map[k]; });
+  }
+  function upsert(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    s.comments.push(c);
+    s.deleted = s.deleted.filter(function(x){ return x !== id; });
+    saveLocal(s); refresh();
+  }
+  function remove(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    if (EMBED.some(function(x){ return cid(x) === id; })) s.deleted.push(id);
+    saveLocal(s); refresh();
+  }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function exportMd(){
+    var lines = ['# Review comments', '',
+      '<!-- Exported from the spec review layer. Save this file as',
+      '     docs/specs/review-comments.md and re-run render-spec.py to embed',
+      '     every comment under its section for the next review round. -->', ''];
+    allComments().sort(function(a,b){
+      return (a.page+a.section).localeCompare(b.page+b.section);
+    }).forEach(function(c){
+      lines.push('## [' + c.page + '] ' + (c.section||''));
+      lines.push('status: ' + (c.status||'open'));
+      lines.push('date: ' + (c.date||today()));
+      lines.push(c.body); lines.push('');
+    });
+    var blob = new Blob([lines.join('\n')], {type:'text/markdown'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'review-comments.md';
+    a.click(); URL.revokeObjectURL(a.href);
+  }
+  function importMd(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      var text = String(reader.result);
+      var blocks = text.split(/^## /m).slice(1);
+      blocks.forEach(function(b){
+        var head = b.match(/^\[([^\]]+)\]\s*(\S*)/);
+        if (!head) return;
+        var status = (b.match(/^status:\s*(\S+)/m)||[])[1] || 'open';
+        var date = (b.match(/^date:\s*(\S+)/m)||[])[1] || today();
+        var body = b.replace(/^\[[^\]]*\]\s*\S*\s*\n/, '')
+                    .replace(/^status:.*\n?/m,'').replace(/^date:.*\n?/m,'').trim();
+        if (body) upsert({page:head[1], section:head[2]||'', status:status, date:date, body:body});
+      });
+      refresh();
+    };
+    reader.readAsText(file);
+  }
+  function commentBox(c){
+    var div = document.createElement('div');
+    div.className = 'rv-comment' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var head = document.createElement('div'); head.className = 'rv-head';
+    head.textContent = '💬 ' + (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(){ remove(c); c = Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'}); upsert(c); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(){ if (confirm('Delete this comment?')) remove(c); };
+    head.appendChild(tog); head.appendChild(del);
+    var body = document.createElement('div'); body.className = 'rv-body';
+    body.textContent = c.body;
+    div.appendChild(head); div.appendChild(body);
+    return div;
+  }
+  function editor(section, after){
+    var wrap = document.createElement('div');
+    wrap.className = 'rv-comment rv-editor';
+    var ta = document.createElement('textarea');
+    ta.placeholder = 'Comment on this section…';
+    var actions = document.createElement('div'); actions.className = 'rv-actions';
+    var save = document.createElement('button'); save.textContent = 'Save';
+    save.onclick = function(){
+      if (ta.value.trim()) upsert({page:PAGE, section:section, status:'open', date:today(), body:ta.value.trim()});
+      wrap.remove();
+    };
+    var cancel = document.createElement('button'); cancel.textContent = 'Cancel';
+    cancel.className = 'rv-cancel'; cancel.onclick = function(){ wrap.remove(); };
+    actions.appendChild(save); actions.appendChild(cancel);
+    wrap.appendChild(ta); wrap.appendChild(actions);
+    after.insertAdjacentElement('afterend', wrap);
+    ta.focus();
+  }
+  // --- headings, inline buttons ---
+  var mainH1 = document.querySelector('main h1');
+  if (mainH1 && !mainH1.id) { mainH1.id = 'page-title'; }
+  var headings = Array.prototype.slice.call(
+    document.querySelectorAll('main h1[id], main h2[id], main h3[id], main h4[id]'));
+  headings.forEach(function(h){
+    var b = document.createElement('button');
+    b.className = 'rv-add'; b.textContent = '💬 comment'; b.title = 'Comment on this section';
+    b.onclick = function(){ editor(h.id, h); };
+    h.appendChild(b);
+  });
+  function headingTitle(h){
+    var t = h.childNodes[0] ? h.childNodes[0].textContent : h.textContent;
+    return t.trim();
+  }
+  function titleFor(section){
+    var el = section && document.getElementById(section);
+    return el ? headingTitle(el) : (section || '(page)');
+  }
+
+  // --- drawer ---
+  var drawer = document.createElement('div');
+  drawer.id = 'rv-drawer';
+  drawer.innerHTML =
+    '<header><strong>Review</strong> <span class="rv-count"></span></header>' +
+    '<div class="rv-compose">' +
+    '<div class="rv-live">Commenting on the section in view:</div>' +
+    '<label for="rv-sec"></label><select id="rv-sec"></select>' +
+    '<textarea id="rv-text" placeholder="Type as you read… (Ctrl+Enter saves)"></textarea>' +
+    '<div style="margin-top:.4rem; display:flex; gap:.5rem;">' +
+    '<button class="rv-primary" id="rv-save">Save comment</button>' +
+    '<button id="rv-clear">Clear</button></div></div>' +
+    '<div class="rv-list"></div>' +
+    '<footer><button id="rv-export">Export .md</button>' +
+    '<button id="rv-import">Import</button>' +
+    '<span class="rv-otherpages"></span></footer>';
+  document.body.appendChild(drawer);
+  var toggle = document.createElement('button');
+  toggle.id = 'rv-toggle';
+  toggle.onclick = function(){
+    document.body.classList.toggle('rv-open');
+    try { localStorage.setItem(RVKEY + ':open', document.body.classList.contains('rv-open') ? '1' : ''); } catch(e){}
+  };
+  document.body.appendChild(toggle);
+  try { if (localStorage.getItem(RVKEY + ':open')) document.body.classList.add('rv-open'); } catch(e){}
+
+  var sel = drawer.querySelector('#rv-sec');
+  headings.forEach(function(h){
+    var opt = document.createElement('option');
+    opt.value = h.id; opt.textContent = headingTitle(h);
+    sel.appendChild(opt);
+  });
+  var followScroll = true;
+  sel.onchange = function(){ followScroll = false; };
+
+  // scroll spy: pick the last heading above the upper third of the viewport
+  function currentSection(){
+    var line = window.innerHeight * 0.33, best = headings[0];
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].getBoundingClientRect().top <= line) best = headings[i];
+    }
+    return best ? best.id : '';
+  }
+  window.addEventListener('scroll', function(){
+    if (!followScroll) return;
+    var s = currentSection();
+    if (s && sel.value !== s) sel.value = s;
+  }, {passive:true});
+  // typing pins the target section so a stray scroll can't retarget the comment
+  drawer.querySelector('#rv-text').addEventListener('input', function(){
+    if (this.value.trim()) followScroll = false;
+    else followScroll = true;
+  });
+
+  function saveFromDrawer(){
+    var ta = drawer.querySelector('#rv-text');
+    if (!ta.value.trim()) return;
+    upsert({page:PAGE, section:sel.value, status:'open', date:today(), body:ta.value.trim()});
+    ta.value = ''; followScroll = true;
+  }
+  drawer.querySelector('#rv-save').onclick = saveFromDrawer;
+  drawer.querySelector('#rv-text').addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') saveFromDrawer();
+  });
+  drawer.querySelector('#rv-clear').onclick = function(){
+    drawer.querySelector('#rv-text').value = ''; followScroll = true;
+  };
+  drawer.querySelector('#rv-export').onclick = exportMd;
+  var fileIn = document.createElement('input');
+  fileIn.type = 'file'; fileIn.accept = '.md,text/markdown'; fileIn.style.display = 'none';
+  fileIn.onchange = function(){ if (fileIn.files[0]) importMd(fileIn.files[0]); };
+  drawer.appendChild(fileIn);
+  drawer.querySelector('#rv-import').onclick = function(){ fileIn.click(); };
+
+  function drawerItem(c){
+    var div = document.createElement('div');
+    div.className = 'rv-item' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var where = document.createElement('div'); where.className = 'rv-where';
+    where.textContent = titleFor(c.section);
+    var text = document.createElement('div'); text.className = 'rv-text';
+    text.textContent = c.body;
+    var meta = document.createElement('div'); meta.className = 'rv-meta';
+    meta.textContent = (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(e){ e.stopPropagation(); remove(c);
+      upsert(Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'})); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(e){ e.stopPropagation();
+      if (confirm('Delete this comment?')) remove(c); };
+    meta.appendChild(tog); meta.appendChild(del);
+    div.appendChild(where); div.appendChild(text); div.appendChild(meta);
+    div.onclick = function(){
+      var el = c.section && document.getElementById(c.section);
+      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+    return div;
+  }
+
+  function refresh(){
+    document.querySelectorAll('.rv-comment:not(.rv-editor)').forEach(function(el){ el.remove(); });
+    var all = allComments();
+    var mine = all.filter(function(c){ return c.page === PAGE; });
+    mine.forEach(function(c){
+      var target = c.section && document.getElementById(c.section);
+      var anchor = target || mainH1 || document.body.querySelector('main') || document.body;
+      anchor.insertAdjacentElement('afterend', commentBox(c));
+    });
+    var open = all.filter(function(c){ return c.status !== 'resolved'; }).length;
+    toggle.textContent = '💬 Review (' + open + ')';
+    drawer.querySelector('.rv-count').textContent =
+      open + ' open / ' + all.length + ' total';
+    var list = drawer.querySelector('.rv-list');
+    list.innerHTML = '';
+    mine.slice().reverse().forEach(function(c){ list.appendChild(drawerItem(c)); });
+    var others = {};
+    all.forEach(function(c){ if (c.page !== PAGE) others[c.page] = (others[c.page]||0) + 1; });
+    var otherKeys = Object.keys(others);
+    drawer.querySelector('.rv-otherpages').textContent = otherKeys.length
+      ? 'Other pages: ' + otherKeys.map(function(k){ return k + ' (' + others[k] + ')'; }).join(', ')
+      : '';
+  }
+  refresh();
+  var s0 = currentSection();
+  if (s0) sel.value = s0;
+})();
+</script>
+</body>
+</html>

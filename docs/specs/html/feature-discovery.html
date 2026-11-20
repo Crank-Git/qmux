@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QMux — Feature: Discovery and version negotiation</title>
+<style>
+:root { --bg:#ffffff; --fg:#1a1a24; --muted:#5a5a68; --line:#e3e3ea; --accent:#3452c8;
+        --card:#f6f6f9; --warn-bg:#fff7e8; --warn-line:#e8b34a; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#14141b; --fg:#e8e8ee; --muted:#9a9aa8; --line:#2c2c38; --accent:#8ea6ff;
+          --card:#1c1c26; --warn-bg:#2a2318; --warn-line:#a87c2a; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+       font:16px/1.6 system-ui,-apple-system,sans-serif; }
+.layout { display:flex; min-height:100vh; }
+aside.site { width:17rem; flex:none; border-right:1px solid var(--line);
+             padding:1.2rem 1rem 3rem; position:sticky; top:0; height:100vh;
+             overflow-y:auto; background:var(--card); }
+aside.site h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em;
+                color:var(--muted); margin:1.2rem 0 .3rem; border:none; padding:0; }
+aside.site ul { list-style:none; margin:0; padding:0; }
+aside.site li { margin:.15rem 0; }
+aside.site a { text-decoration:none; color:var(--fg); font-size:.92rem;
+               display:block; padding:.15rem .5rem; border-radius:6px; }
+aside.site a:hover { background:var(--bg); }
+aside.site a.current { background:var(--accent); color:#fff; }
+aside.site a.sub { padding-left:1.3rem; font-size:.84rem; color:var(--muted); }
+aside.site .brand { font-weight:700; font-size:1.05rem; }
+main { max-width:60rem; margin:0 auto; padding:2rem 1.5rem 6rem; min-width:0; flex:1; }
+h1,h2,h3,h4 { line-height:1.25; }
+h1 { font-size:2rem; margin:.2rem 0; }
+h2 { border-bottom:1px solid var(--line); padding-bottom:.3rem; margin-top:2.5rem; }
+a { color:var(--accent); }
+code { background:var(--card); padding:.1em .35em; border-radius:4px; font-size:.9em; }
+pre.code { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; overflow-x:auto; }
+pre.code code { background:none; padding:0; }
+.table-wrap { overflow-x:auto; }
+table { border-collapse:collapse; margin:1rem 0; min-width:50%; }
+th,td { border:1px solid var(--line); padding:.4rem .7rem; text-align:left; }
+th { background:var(--card); }
+blockquote { border-left:3px solid var(--accent); margin:1rem 0; padding:.2rem 1rem;
+             color:var(--muted); }
+.meta { color:var(--muted); margin-bottom:2rem; }
+.badge { display:inline-block; padding:.1rem .6rem; border-radius:999px;
+         border:1px solid var(--accent); color:var(--accent); font-size:.85rem; }
+.diagram { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; margin:1rem 0; overflow-x:auto; }
+.diagram pre.mermaid { margin:0; }
+.diagram.raw::before { content:"diagram source (assets/mermaid.min.js not vendored)";
+                       display:block; color:var(--muted); font-size:.8rem;
+                       margin-bottom:.5rem; }
+.callout-h, .callout-h ~ p, .callout-h ~ ul { background:var(--warn-bg); }
+.callout-h { border-left:4px solid var(--warn-line); padding:.3rem .8rem; }
+.mockup { margin:1.5rem 0; }
+.mockup iframe { width:100%; height:32rem; border:1px solid var(--line);
+                 border-radius:8px; background:#fff; }
+nav.pager { display:flex; justify-content:space-between; margin-top:3rem;
+            border-top:1px solid var(--line); padding-top:1rem; }
+@media (max-width: 900px) {
+  .layout { display:block; }
+  aside.site { width:auto; height:auto; position:static; border-right:none;
+               border-bottom:1px solid var(--line); }
+}
+h1[id]:hover .rv-add, h2[id]:hover .rv-add, h3[id]:hover .rv-add,
+h4[id]:hover .rv-add { opacity:1; }
+.rv-add { opacity:0; margin-left:.5rem; font-size:.75rem; cursor:pointer;
+          border:1px solid var(--accent); color:var(--accent); background:none;
+          border-radius:6px; padding:0 .45rem; vertical-align:middle;
+          transition:opacity .15s; }
+.rv-comment { border:1px solid var(--warn-line); border-left-width:4px;
+              background:var(--warn-bg); border-radius:8px; padding:.6rem .9rem;
+              margin:.8rem 0; font-size:.92rem; }
+.rv-comment.rv-resolved { opacity:.6; border-left-color:var(--line); }
+.rv-comment .rv-head { display:flex; gap:.6rem; align-items:center;
+                       color:var(--muted); font-size:.8rem; margin-bottom:.3rem; }
+.rv-comment .rv-head button { font-size:.75rem; cursor:pointer; background:none;
+                              border:1px solid var(--line); border-radius:6px;
+                              color:var(--muted); padding:0 .4rem; }
+.rv-comment .rv-body { white-space:pre-wrap; }
+.rv-editor textarea { width:100%; min-height:5rem; background:var(--bg);
+                      color:var(--fg); border:1px solid var(--line);
+                      border-radius:6px; padding:.5rem; font:inherit; }
+.rv-editor .rv-actions { margin-top:.4rem; display:flex; gap:.5rem; }
+.rv-editor button { cursor:pointer; border-radius:6px; padding:.2rem .8rem;
+                    border:1px solid var(--accent); background:var(--accent);
+                    color:#fff; }
+.rv-editor button.rv-cancel { background:none; color:var(--accent); }
+#rv-toggle { position:fixed; right:1rem; bottom:1rem; z-index:60;
+             background:var(--accent); color:#fff; border:none; cursor:pointer;
+             border-radius:999px; padding:.5rem 1rem; font-size:.85rem;
+             box-shadow:0 2px 10px rgba(0,0,0,.2); }
+#rv-drawer { position:fixed; top:0; right:0; bottom:0; width:21rem; z-index:55;
+             background:var(--card); border-left:1px solid var(--line);
+             display:flex; flex-direction:column; transform:translateX(100%);
+             transition:transform .2s ease; box-shadow:-4px 0 16px rgba(0,0,0,.12); }
+body.rv-open #rv-drawer { transform:none; }
+body.rv-open .layout { padding-right:21rem; }
+#rv-drawer header { padding:.8rem 1rem .5rem; border-bottom:1px solid var(--line); }
+#rv-drawer header .rv-count { color:var(--muted); font-size:.8rem; }
+#rv-drawer .rv-compose { padding:.8rem 1rem; border-bottom:1px solid var(--line); }
+#rv-drawer .rv-compose label { display:block; font-size:.75rem;
+                               color:var(--muted); margin-bottom:.25rem; }
+#rv-drawer .rv-compose select { width:100%; margin-bottom:.4rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.3rem; font:inherit; font-size:.85rem; }
+#rv-drawer .rv-compose textarea { width:100%; min-height:5.5rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.5rem; font:inherit; font-size:.9rem; }
+#rv-drawer .rv-compose .rv-live { font-size:.72rem; color:var(--muted); }
+#rv-drawer .rv-list { flex:1; overflow-y:auto; padding:.6rem 1rem; }
+#rv-drawer .rv-item { border:1px solid var(--line); border-left:3px solid
+             var(--warn-line); border-radius:8px; padding:.45rem .6rem;
+             margin-bottom:.6rem; font-size:.82rem; cursor:pointer; }
+#rv-drawer .rv-item.rv-resolved { opacity:.55; border-left-color:var(--line); }
+#rv-drawer .rv-item .rv-where { color:var(--accent); font-size:.72rem; }
+#rv-drawer .rv-item .rv-meta { color:var(--muted); font-size:.72rem;
+                               display:flex; gap:.5rem; align-items:center; }
+#rv-drawer .rv-item .rv-meta button { font-size:.7rem; cursor:pointer;
+             background:none; border:1px solid var(--line); border-radius:5px;
+             color:var(--muted); padding:0 .35rem; }
+#rv-drawer .rv-item .rv-text { white-space:pre-wrap; margin:.15rem 0; }
+#rv-drawer footer { padding:.6rem 1rem; border-top:1px solid var(--line);
+                    display:flex; gap:.5rem; flex-wrap:wrap; }
+#rv-drawer footer button, #rv-drawer .rv-compose button {
+  cursor:pointer; border:1px solid var(--accent); background:none;
+  color:var(--accent); border-radius:6px; padding:.2rem .7rem; font-size:.8rem; }
+#rv-drawer .rv-compose button.rv-primary { background:var(--accent); color:#fff; }
+#rv-drawer .rv-otherpages { color:var(--muted); font-size:.75rem;
+                            margin:.4rem 0 0; }
+@media (max-width: 1200px) { body.rv-open .layout { padding-right:0; } }
+</style>
+</head>
+<body data-page="feature-discovery" data-rvkey="qmux">
+<div class="layout">
+<aside class="site"><a class="brand" href="../spec.html">QMux</a>
+<h2>Spec</h2><ul>
+<li><a href="../spec.html">Overview &amp; index</a></li>
+</ul>
+<h2>Features</h2><ul>
+<li><a href="feature-foundation.html">Foundation</a></li>
+<li><a href="feature-protocol-registry.html">Protocol registry</a></li>
+<li><a href="feature-authoritative-server.html">Authoritative server</a></li>
+<li><a href="feature-client-sdk.html">Client SDK</a></li>
+<li><a href="feature-envelope-codec.html">Envelope codec</a></li>
+<li><a class="current" href="feature-discovery.html">Discovery and version negotiation</a></li>
+<li><a href="feature-signing-and-freshness.html">Signing and freshness</a></li>
+<li><a href="feature-embedded-recovery.html">Embedded recovery demonstration</a></li>
+<li><a href="feature-qmuxd-daemon.html">qmuxd daemon</a></li>
+<li><a href="feature-interop-harness.html">Interop harness</a></li>
+<li><a href="feature-baseline-benchmarks.html">Baseline benchmarks</a></li>
+<li><a href="feature-documentation.html">Documentation</a></li>
+</ul></aside>
+<main>
+<h1>Feature: Discovery and version negotiation</h1>
+<p class="meta">Epic 5: Discovery and version negotiation &nbsp; <span class="badge">planned</span></p>
+<h3 id="discovery-purpose">Purpose</h3>
+<p>A client must not know every private class in advance. Discovery gives the client one fixed entry point: the discovery key and the discovery name. The server answers there with a manifest that lists every registration: the protocol ID, the supported versions, the class and the type.</p>
+<p>The client then negotiates a protocol version for each protocol it needs and sends the query with a version label. The server checks the version label before it calls the handler.</p>
+<p>This epic delivers Phase 2 of the brief: a client discovers the registrations and queries each one. Signatures arrive in Epic 6. Until then, discovery runs only with an explicit <code>InsecureSkipVerify</code>.</p>
+<h3 id="discovery-user-stories">User stories</h3>
+<ul>
+<li>As a device integrator, I want to learn the protocol keys of a server from one query,
+</li>
+</ul>
+<p>so that the device firmware holds only the discovery key.</p>
+<ul>
+<li>As a device integrator, I want the client to pick the highest common protocol version,
+</li>
+</ul>
+<p>so that old devices keep working when a server adds a version.</p>
+<ul>
+<li>As an operator, I want to remap a protocol to a different protocol key, so that two
+</li>
+</ul>
+<p>deployments can use different private classes with no client change.</p>
+<ul>
+<li>As a device integrator, I want a preconfigured mapping, so that a device can skip
+</li>
+</ul>
+<p>discovery when it has no need for it.</p>
+<ul>
+<li>As an operator, I want <code>qmuxctl discover</code> to print the manifest, so that I can inspect a
+</li>
+</ul>
+<p>server.</p>
+<h3 id="discovery-functional-requirements">Functional requirements</h3>
+<h4 id="discovery-manifest-schema">Manifest schema</h4>
+<ul>
+<li><strong>FR-discovery-1</strong> — <code>pkg/discovery</code> defines a <code>Manifest</code> type with the fields
+</li>
+</ul>
+<p><code>FrameworkVersion</code>, <code>Zone</code> and <code>Protocols</code>, from the manifest payload table in <code>docs/specs/spec.md</code> § Data model.</p>
+<ul>
+<li><strong>FR-discovery-2</strong> — Each <code>Protocols</code> entry has the fields <code>ID</code>, <code>Versions</code>, <code>Class</code> and
+</li>
+</ul>
+<p><code>Type</code>, with CBOR keys 1–4.</p>
+<ul>
+<li><strong>FR-discovery-3</strong> — The manifest payload encodes with <code>codec.Marshal</code> and decodes with
+</li>
+</ul>
+<p><code>codec.Unmarshal</code>.</p>
+<ul>
+<li><strong>FR-discovery-4</strong> — Manifest validation returns an error when the framework version is
+</li>
+</ul>
+<p>not 1.</p>
+<ul>
+<li><strong>FR-discovery-5</strong> — Manifest validation returns an error when the zone differs from the
+</li>
+</ul>
+<p>zone the client queried. The comparison ignores letter case.</p>
+<ul>
+<li><strong>FR-discovery-6</strong> — Manifest validation returns an error when two entries share a
+</li>
+</ul>
+<p>protocol ID.</p>
+<ul>
+<li><strong>FR-discovery-7</strong> — Manifest validation returns an error when two entries share a
+</li>
+</ul>
+<p>protocol key.</p>
+<ul>
+<li><strong>FR-discovery-8</strong> — Manifest validation returns an error when an entry has an empty
+</li>
+</ul>
+<p>version list, a version of 0, or an unsorted or repeated version.</p>
+<ul>
+<li><strong>FR-discovery-9</strong> — <code>Manifest.Lookup(id)</code> returns the entry for a protocol ID and a
+</li>
+</ul>
+<p>boolean that is false when no entry exists.</p>
+<h4 id="discovery-discovery-handler">Discovery handler</h4>
+<ul>
+<li><strong>FR-discovery-10</strong> — <code>discovery.Register(srv, zone, opts)</code> registers the protocol
+</li>
+</ul>
+<p><code>org.qmux.discovery</code> with version 1 at <code>opts.Key</code>.</p>
+<ul>
+<li><strong>FR-discovery-11</strong> — The default <code>opts.Key</code> is <code>(65280, 65534)</code>.
+</li>
+<li><strong>FR-discovery-12</strong> — When <code>opts.InClass</code> is true, <code>discovery.Register</code> also registers
+</li>
+</ul>
+<p><code>org.qmux.discovery</code> at <code>(1, 65534)</code>.</p>
+<ul>
+<li><strong>FR-discovery-13</strong> — The discovery handler answers the QNAME <code>_qmux.&lt;zone&gt;</code> with message
+</li>
+</ul>
+<p>type <code>manifest</code>.</p>
+<ul>
+<li><strong>FR-discovery-14</strong> — The discovery handler builds the manifest from the registry list
+</li>
+</ul>
+<p>at request time. A protocol that is registered after start appears in the next manifest.</p>
+<ul>
+<li><strong>FR-discovery-15</strong> — The manifest lists every registration of the server, including the
+</li>
+</ul>
+<p>discovery registration. It sorts the entries by class, then by type.</p>
+<ul>
+<li><strong>FR-discovery-16</strong> — The discovery handler returns the application status <code>not-found</code>
+</li>
+</ul>
+<p>for every QNAME other than <code>_qmux.&lt;zone&gt;</code>.</p>
+<h4 id="discovery-version-label-on-the-server">Version label on the server</h4>
+<ul>
+<li><strong>FR-discovery-17</strong> — The server reads a leftmost QNAME label of the form <code>_v&lt;N&gt;</code>, where
+</li>
+</ul>
+<p><code>&lt;N&gt;</code> is a decimal number 1–65535 with no leading zero, as the version label.</p>
+<ul>
+<li><strong>FR-discovery-18</strong> — The server puts the version from the version label in
+</li>
+</ul>
+<p><code>Request.Version</code>, and puts the QNAME without the version label in <code>Request.Name</code>.</p>
+<ul>
+<li><strong>FR-discovery-19</strong> — When the version label names a version that the registration does
+</li>
+</ul>
+<p>not support, the server returns an envelope with the application status <code>version-unsupported</code>. It does not call the handler.</p>
+<ul>
+<li><strong>FR-discovery-20</strong> — The <code>version-unsupported</code> envelope carries the highest version of
+</li>
+</ul>
+<p>the registration as its protocol version.</p>
+<ul>
+<li><strong>FR-discovery-21</strong> — When the QNAME has no version label, the server sets
+</li>
+</ul>
+<p><code>Request.Version</code> to the highest version of the registration.</p>
+<ul>
+<li><strong>FR-discovery-22</strong> — A leftmost label that starts with <code>_v</code> but does not parse as a
+</li>
+</ul>
+<p>version label gives the application status <code>bad-request</code>. The server does not call the handler.</p>
+<h4 id="discovery-client-discovery-and-negotiation">Client discovery and negotiation</h4>
+<ul>
+<li><strong>FR-discovery-23</strong> — <code>discovery.Client</code> has the fields <code>Client</code> (a <code>*client.Client</code>),
+</li>
+</ul>
+<p><code>Key</code> and <code>InsecureSkipVerify</code>. The default <code>Key</code> is <code>(65280, 65534)</code>.</p>
+<ul>
+<li><strong>FR-discovery-24</strong> — <code>Client.Discover(ctx, zone)</code> sends one query for <code>_qmux.&lt;zone&gt;</code> at
+</li>
+</ul>
+<p><code>Key</code> and returns the validated manifest.</p>
+<ul>
+<li><strong>FR-discovery-25</strong> — <code>Client.Discover</code> returns an error when the envelope message type is
+</li>
+</ul>
+<p>not <code>manifest</code> or the protocol ID is not <code>org.qmux.discovery</code>.</p>
+<ul>
+<li><strong>FR-discovery-26</strong> — In Epic 5, <code>Client.Discover</code> returns <code>ErrInsecure</code> and sends no
+</li>
+</ul>
+<p>query when <code>InsecureSkipVerify</code> is false. Epic 6 replaces this rule with signature verification.</p>
+<ul>
+<li><strong>FR-discovery-27</strong> — <code>discovery.Negotiate(m, id, supported)</code> returns the protocol key and
+</li>
+</ul>
+<p>the highest version that is in both <code>supported</code> and the manifest entry.</p>
+<ul>
+<li><strong>FR-discovery-28</strong> — <code>discovery.Negotiate</code> returns <code>ErrProtocolNotFound</code> when the
+</li>
+</ul>
+<p>manifest has no entry for the protocol ID.</p>
+<ul>
+<li><strong>FR-discovery-29</strong> — <code>discovery.Negotiate</code> returns <code>ErrVersionUnsupported</code> when no common
+</li>
+</ul>
+<p>version exists.</p>
+<ul>
+<li><strong>FR-discovery-30</strong> — <code>Client.QueryProtocol(ctx, m, id, name, supported)</code> negotiates first.
+</li>
+</ul>
+<p>It sends no query when the negotiation fails.</p>
+<ul>
+<li><strong>FR-discovery-31</strong> — <code>Client.QueryProtocol</code> sends the query for <code>_v&lt;N&gt;.&lt;name&gt;</code> at the
+</li>
+</ul>
+<p>negotiated protocol key, with <code>ExpectedProtocolID</code> set to the protocol ID.</p>
+<ul>
+<li><strong>FR-discovery-32</strong> — <code>discovery.Static(zone, entries)</code> returns a manifest that passes
+</li>
+</ul>
+<p>manifest validation, with no query. It returns an error when validation fails.</p>
+<h4 id="discovery-qmuxctl-discover">qmuxctl discover</h4>
+<ul>
+<li><strong>FR-discovery-33</strong> — <code>qmuxctl discover</code> takes the flags <code>--server</code>, <code>--name</code>, <code>--class</code>,
+</li>
+</ul>
+<p><code>--type</code>, <code>--in</code>, <code>--insecure</code> and <code>--json</code>.</p>
+<ul>
+<li><strong>FR-discovery-34</strong> — <code>--name</code> is the zone. <code>qmuxctl discover</code> queries <code>_qmux.&lt;name&gt;</code>.
+</li>
+<li><strong>FR-discovery-35</strong> — <code>--class</code> and <code>--type</code> override the discovery key. <code>--in</code> sets the
+</li>
+</ul>
+<p>discovery key to <code>(1, 65534)</code>. <code>--in</code> together with <code>--class</code> is a usage error.</p>
+<ul>
+<li><strong>FR-discovery-36</strong> — <code>qmuxctl discover</code> prints one table row per manifest entry with
+</li>
+</ul>
+<p>the columns protocol ID, versions, class and type.</p>
+<ul>
+<li><strong>FR-discovery-37</strong> — With <code>--json</code>, <code>qmuxctl discover</code> prints the manifest as one JSON
+</li>
+</ul>
+<p>object with the field names of the illustrative JSON in the brief.</p>
+<ul>
+<li><strong>FR-discovery-38</strong> — In Epic 5, <code>qmuxctl discover</code> without <code>--insecure</code> exits with code 3
+</li>
+</ul>
+<p>and the message <code>discovery requires --trust-anchors or --insecure</code>.</p>
+<h4 id="discovery-phase-2-integration-test-and-document">Phase 2 integration test and document</h4>
+<ul>
+<li><strong>FR-discovery-39</strong> — An integration test starts a server with three registrations in
+</li>
+</ul>
+<p>different private classes. It discovers the manifest, then queries every registration through <code>QueryProtocol</code>, over UDP and over TCP.</p>
+<ul>
+<li><strong>FR-discovery-40</strong> — An integration test discovers through the IN option <code>(1, 65534)</code>.
+</li>
+<li><strong>FR-discovery-41</strong> — An integration test remaps one protocol ID to a new protocol key.
+</li>
+</ul>
+<p>The next discovery returns the new key, and <code>QueryProtocol</code> reaches the handler there.</p>
+<ul>
+<li><strong>FR-discovery-42</strong> — <code>docs/protocol.md</code> gains the sections <code>Protocol dispatch</code>,
+</li>
+</ul>
+<p><code>Discovery</code> and <code>Version negotiation</code>.</p>
+<h3 id="discovery-user-flows">User flows</h3>
+<h4 id="discovery-flow-1-a-client-discovers-and-queries-a-protocol">Flow 1 — A client discovers and queries a protocol</h4>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+    participant D as Device code
+    participant DC as discovery.Client
+    participant S as Authoritative server
+    D-&gt;&gt;DC: Discover(zone)
+    DC-&gt;&gt;S: Query _qmux.zone at the discovery key
+    S--&gt;&gt;DC: NOERROR, manifest envelope
+    DC-&gt;&gt;DC: Validate the manifest
+    alt Manifest is not valid
+        DC--&gt;&gt;D: Error
+    else Manifest is valid
+        DC--&gt;&gt;D: Manifest
+        D-&gt;&gt;DC: QueryProtocol(manifest, id, name, supported)
+        DC-&gt;&gt;DC: Negotiate
+        alt No entry or no common version
+            DC--&gt;&gt;D: ErrProtocolNotFound or ErrVersionUnsupported
+        else Negotiated key and version
+            DC-&gt;&gt;S: Query _vN.name at the negotiated key
+            S--&gt;&gt;DC: NOERROR, record envelope
+            DC--&gt;&gt;D: Result
+        end
+    end</pre></div>
+<ol>
+<li>The device code calls <code>Discover</code> with the zone.
+</li>
+<li>The discovery client sends a query for <code>_qmux.&lt;zone&gt;</code> at the discovery key.
+</li>
+<li>The server returns the manifest envelope.
+</li>
+<li>The discovery client validates the manifest.
+</li>
+<li>If the manifest is not valid, the discovery client returns an error.
+</li>
+<li>The device code calls <code>QueryProtocol</code> with the protocol ID, the name and its
+</li>
+</ol>
+<p>supported versions.</p>
+<ol>
+<li>The discovery client negotiates the protocol key and the version.
+</li>
+<li>If no entry or no common version exists, the discovery client returns
+</li>
+</ol>
+<p><code>ErrProtocolNotFound</code> or <code>ErrVersionUnsupported</code> and sends no query.</p>
+<ol>
+<li>The discovery client sends the query for <code>_v&lt;N&gt;.&lt;name&gt;</code> at the negotiated protocol key.
+</li>
+<li>The discovery client returns the result.
+</li>
+</ol>
+<h4 id="discovery-flow-2-the-server-checks-the-version-label">Flow 2 — The server checks the version label</h4>
+<div class="diagram"><pre class="mermaid">flowchart TD
+    Q[Query for registered key] --&gt; L{Leftmost label starts with _v?}
+    L -- no --&gt; H1[Request.Version = highest] --&gt; CALL[Call the handler]
+    L -- yes --&gt; P{Label parses as _vN?}
+    P -- no --&gt; BR[Envelope status bad-request]
+    P -- yes --&gt; S{N in registration versions?}
+    S -- no --&gt; VU[Envelope status version-unsupported]
+    S -- yes --&gt; H2[Request.Version = N] --&gt; CALL</pre></div>
+<ol>
+<li>The server receives a query for a registered protocol key.
+</li>
+<li>If the leftmost label does not start with <code>_v</code>, the server sets <code>Request.Version</code> to
+</li>
+</ol>
+<p>the highest version and calls the handler.</p>
+<ol>
+<li>If the label does not parse as a version label, the server returns an envelope with
+</li>
+</ol>
+<p>status <code>bad-request</code>.</p>
+<ol>
+<li>If the registration does not support the version, the server returns an envelope with
+</li>
+</ol>
+<p>status <code>version-unsupported</code>.</p>
+<ol>
+<li>The server sets <code>Request.Version</code> to the version and calls the handler.
+</li>
+</ol>
+<h3 id="discovery-screens-states">Screens &amp; states</h3>
+<p>No graphical screens. <code>qmuxctl discover</code> output:</p>
+<pre class="code"><code>$ qmuxctl discover --server 127.0.0.1:5353 --name fleet.example. --insecure
+zone fleet.example.  framework 1  verified no
+PROTOCOL                 VERSIONS  CLASS  TYPE
+org.qmux.bootstrap       1         65280  65280
+org.qmux.discovery       1         65280  65534
+org.qmux.configuration   1         65281  65280
+org.qmux.firmware        1         65282  65280</code></pre>
+<p>States:</p>
+<div class="table-wrap"><table>
+<tr><th>State</th><th>Output</th><th>Exit code</th></tr>
+<tr><td>Success</td><td>The table above.</td><td>0</td></tr>
+<tr><td>DNS failure (timeout, RCODE, mismatch)</td><td><code>error: &lt;DNSError text&gt;</code> on stderr.</td><td>1</td></tr>
+<tr><td>Application status not <code>ok</code></td><td><code>error: &lt;status name&gt;</code> on stderr.</td><td>2</td></tr>
+<tr><td>No <code>--insecure</code> in Epic 5</td><td><code>discovery requires --trust-anchors or --insecure</code> on stderr.</td><td>3</td></tr>
+<tr><td>Usage error</td><td>Usage text on stderr.</td><td>64</td></tr>
+</table></div>
+<h3 id="discovery-behaviour-rules">Behaviour rules</h3>
+<ul>
+<li>The discovery name is <code>_qmux.</code> followed by the zone, in lowercase.
+</li>
+<li>The manifest lists protocol keys local to this server. The client never assumes a
+</li>
+</ul>
+<p>protocol key from another server.</p>
+<ul>
+<li>The negotiation picks the highest common version. It never picks a version that the
+</li>
+</ul>
+<p>client did not list.</p>
+<ul>
+<li>The client sends the version label on every <code>QueryProtocol</code> query, so the server and
+</li>
+</ul>
+<p>the client agree on the version.</p>
+<ul>
+<li><code>Request.Name</code> never contains the version label. A handler never parses it.
+</li>
+<li><code>MaxEnvelope</code> bounds the size of the manifest. If the manifest does not fit, the server
+</li>
+</ul>
+<p>returns <code>SERVFAIL</code> (FR-codec-36). A normal manifest of 8 entries fits in 1232 bytes.</p>
+<h3 id="discovery-data-touched">Data touched</h3>
+<ul>
+<li>New package <code>pkg/discovery</code>.
+</li>
+<li><code>protocol.Request</code> gains the field <code>Version</code> and the field <code>Name</code> without the version
+</li>
+</ul>
+<p>label, if Epic 2 did not add them.</p>
+<ul>
+<li><code>client.Query</code> gains a <code>Version</code> field that makes the client prefix the version label.
+</li>
+<li><code>docs/protocol.md</code> gains three sections.
+</li>
+</ul>
+<h3 id="discovery-interfaces">Interfaces</h3>
+<pre class="code"><code>package discovery
+
+const ProtocolID = "org.qmux.discovery"
+
+var DefaultKey = protocol.ProtocolKey{Class: 65280, Type: 65534}
+var INKey      = protocol.ProtocolKey{Class: 1, Type: 65534}
+
+type Entry struct {
+    ID       string   `cbor:"1,keyasint"`
+    Versions []uint16 `cbor:"2,keyasint"`
+    Class    uint16   `cbor:"3,keyasint"`
+    Type     uint16   `cbor:"4,keyasint"`
+}
+
+type Manifest struct {
+    FrameworkVersion uint64  `cbor:"1,keyasint"`
+    Zone             string  `cbor:"2,keyasint"`
+    Protocols        []Entry `cbor:"3,keyasint"`
+}
+
+type Options struct {
+    Key     protocol.ProtocolKey
+    InClass bool
+}
+
+func Register(srv *server.Server, zone string, opts Options) error
+func Static(zone string, entries []Entry) (*Manifest, error)
+func Negotiate(m *Manifest, id string, supported []uint16) (protocol.ProtocolKey, uint16, error)
+func (m *Manifest) Lookup(id string) (Entry, bool)
+
+type Client struct {
+    Client             *client.Client
+    Key                protocol.ProtocolKey
+    InsecureSkipVerify bool
+}
+
+func (c *Client) Discover(ctx context.Context, zone string) (*Manifest, error)
+func (c *Client) QueryProtocol(ctx context.Context, m *Manifest, id, name string,
+    supported []uint16) (*client.Result, error)
+
+var ErrInsecure, ErrProtocolNotFound, ErrVersionUnsupported, ErrInvalidManifest error</code></pre>
+<p><code>discovery.Register</code> imports <code>pkg/server</code>. <code>pkg/server</code> never imports <code>pkg/discovery</code>.</p>
+<h3 id="discovery-edge-cases-failures">Edge cases &amp; failures</h3>
+<div class="table-wrap"><table>
+<tr><th>Case</th><th>Result</th></tr>
+<tr><td>The server has no discovery registration</td><td><code>Discover</code> returns a <code>DNSError</code> with RCODE <code>REFUSED</code>.</td></tr>
+<tr><td>The manifest zone is <code>other.example.</code></td><td><code>Discover</code> returns <code>ErrInvalidManifest</code>.</td></tr>
+<tr><td>The client supports <code>[2, 3]</code>, the manifest lists <code>[1, 2]</code></td><td>Negotiation picks version 2.</td></tr>
+<tr><td>The client supports <code>[3]</code>, the manifest lists <code>[1, 2]</code></td><td><code>ErrVersionUnsupported</code>, no query.</td></tr>
+<tr><td>The query QNAME is <code>_v01.device42.fleet.example.</code></td><td>Status <code>bad-request</code>.</td></tr>
+<tr><td>The query QNAME is <code>_v9.device42.fleet.example.</code> and the registration lists <code>[1]</code></td><td>Status <code>version-unsupported</code>, envelope version 1.</td></tr>
+<tr><td>A protocol is unregistered between discovery and query</td><td>The query returns a <code>DNSError</code> with RCODE <code>REFUSED</code>. The caller discovers again.</td></tr>
+</table></div>
+<h3 id="discovery-acceptance-criteria">Acceptance criteria</h3>
+<ul>
+<li>[ ] FR-discovery-1, FR-discovery-2, FR-discovery-3: a manifest round trip through <code>codec.Marshal</code> and <code>codec.Unmarshal</code> gives an equal value.
+</li>
+<li>[ ] FR-discovery-4: a manifest with framework version 2 fails validation.
+</li>
+<li>[ ] FR-discovery-5: a manifest for <code>other.example.</code> fails validation for the zone <code>fleet.example.</code>, and <code>FLEET.example.</code> passes.
+</li>
+<li>[ ] FR-discovery-6: a manifest with two <code>org.qmux.firmware</code> entries fails validation.
+</li>
+<li>[ ] FR-discovery-7: a manifest with two entries at <code>(65281, 65280)</code> fails validation.
+</li>
+<li>[ ] FR-discovery-8: the version lists <code>[]</code>, <code>[0]</code>, <code>[2, 1]</code> and <code>[1, 1]</code> each fail validation.
+</li>
+<li>[ ] FR-discovery-9: <code>Lookup("org.qmux.firmware")</code> returns the entry and true, and <code>Lookup("x.y")</code> returns false.
+</li>
+<li>[ ] FR-discovery-10, FR-discovery-11: after <code>Register</code> with zero options, the registry lists <code>org.qmux.discovery</code> at <code>(65280, 65534)</code>.
+</li>
+<li>[ ] FR-discovery-12: with <code>InClass</code> true, the registry also lists it at <code>(1, 65534)</code>.
+</li>
+<li>[ ] FR-discovery-13: a query for <code>_qmux.fleet.example.</code> returns an envelope with message type 2.
+</li>
+<li>[ ] FR-discovery-14: a protocol registered after the server starts appears in the next manifest.
+</li>
+<li>[ ] FR-discovery-15: the manifest entries are in class-then-type order and include <code>org.qmux.discovery</code>.
+</li>
+<li>[ ] FR-discovery-16: a query for <code>x.fleet.example.</code> at the discovery key returns status <code>not-found</code>.
+</li>
+<li>[ ] FR-discovery-17, FR-discovery-18: a handler that receives <code>_v2.device42.fleet.example.</code> sees <code>Request.Version</code> 2 and <code>Request.Name</code> <code>device42.fleet.example.</code>
+</li>
+<li>[ ] FR-discovery-19: a query with <code>_v9</code> on a registration with <code>[1]</code> returns status <code>version-unsupported</code>, and the handler call count stays 0.
+</li>
+<li>[ ] FR-discovery-20: that envelope carries protocol version 1.
+</li>
+<li>[ ] FR-discovery-21: a query with no version label on a registration with <code>[1, 2]</code> gives <code>Request.Version</code> 2.
+</li>
+<li>[ ] FR-discovery-22: a query with <code>_vx</code> returns status <code>bad-request</code>, and the handler call count stays 0.
+</li>
+<li>[ ] FR-discovery-23, FR-discovery-24: <code>Discover</code> with zero <code>Key</code> sends one query at <code>(65280, 65534)</code>.
+</li>
+<li>[ ] FR-discovery-25: a record envelope at the discovery key makes <code>Discover</code> return an error.
+</li>
+<li>[ ] FR-discovery-26: <code>Discover</code> with <code>InsecureSkipVerify</code> false returns <code>ErrInsecure</code>, and the server receives no query.
+</li>
+<li>[ ] FR-discovery-27: supported <code>[2, 3]</code> against manifest <code>[1, 2]</code> returns version 2.
+</li>
+<li>[ ] FR-discovery-28: an unknown protocol ID returns <code>ErrProtocolNotFound</code>.
+</li>
+<li>[ ] FR-discovery-29: supported <code>[3]</code> against <code>[1, 2]</code> returns <code>ErrVersionUnsupported</code>.
+</li>
+<li>[ ] FR-discovery-30: a failed negotiation sends no query to the server.
+</li>
+<li>[ ] FR-discovery-31: the server receives the QNAME <code>_v1.device42.fleet.example.</code> at the negotiated key.
+</li>
+<li>[ ] FR-discovery-32: <code>Static</code> with a duplicate protocol ID returns an error, and a valid list returns a manifest.
+</li>
+<li>[ ] FR-discovery-33, FR-discovery-34: <code>qmuxctl discover --name fleet.example.</code> queries <code>_qmux.fleet.example.</code>
+</li>
+<li>[ ] FR-discovery-35: <code>--in</code> queries at <code>(1, 65534)</code>, and <code>--in --class 65280</code> exits with code 64.
+</li>
+<li>[ ] FR-discovery-36: the table output has one row per manifest entry with four columns.
+</li>
+<li>[ ] FR-discovery-37: the <code>--json</code> output parses as JSON with the fields <code>framework_version</code> and <code>protocols</code>.
+</li>
+<li>[ ] FR-discovery-38: <code>qmuxctl discover</code> without <code>--insecure</code> exits with code 3 and the stated message.
+</li>
+<li>[ ] FR-discovery-39: the Phase 2 integration test passes over UDP and over TCP.
+</li>
+<li>[ ] FR-discovery-40: the IN-option integration test passes.
+</li>
+<li>[ ] FR-discovery-41: the remap integration test passes.
+</li>
+<li>[ ] FR-discovery-42: <code>docs/protocol.md</code> has the three new sections.
+</li>
+</ul>
+<h3 id="discovery-out-of-scope">Out of scope</h3>
+<ul>
+<li>Signature verification of the manifest and the manifest cache (Epic 6).
+</li>
+<li>Discovery through a resolver over a private class. Epic 9 measures it.
+</li>
+<li>Discovery of a zone list. A client knows its zone.
+</li>
+<li>An EDNS option for the protocol version.
+</li>
+</ul>
+<h3 id="discovery-open-questions" class="callout-h">Open questions</h3><nav class="pager">
+<a href="feature-envelope-codec.html">&larr; Feature: Envelope codec</a>
+<a href="feature-signing-and-freshness.html">Feature: Signing and freshness &rarr;</a>
+</nav>
+</main>
+</div>
+<script src="../assets/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'default'});</script>
+<script type="application/json" id="rv-embedded">[]</script>
+<script>
+(function(){
+  'use strict';
+  var PAGE = document.body.getAttribute('data-page');
+  // storage key carries the spec's slug: file:// pages can share one
+  // localStorage pool, and two specs must never share a comment store
+  var RVKEY = 'spec-review:' + (document.body.getAttribute('data-rvkey') || 'spec');
+  var EMBED = [];
+  var embedEl = document.getElementById('rv-embedded');
+  if (embedEl) { try { EMBED = JSON.parse(embedEl.textContent); } catch(e){} }
+  function loadLocal(){ try { return JSON.parse(localStorage.getItem(RVKEY)) || {comments:[], deleted:[]}; } catch(e){ return {comments:[], deleted:[]}; } }
+  function saveLocal(s){ try { localStorage.setItem(RVKEY, JSON.stringify(s)); } catch(e){} }
+  function cid(c){ return c.page + '|' + c.section + '|' + (c.date||'') + '|' + c.body.slice(0,24); }
+  function allComments(){
+    var s = loadLocal(), map = {};
+    EMBED.forEach(function(c){ map[cid(c)] = c; });
+    s.comments.forEach(function(c){ map[cid(c)] = c; });
+    s.deleted.forEach(function(id){ delete map[id]; });
+    return Object.keys(map).map(function(k){ return map[k]; });
+  }
+  function upsert(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    s.comments.push(c);
+    s.deleted = s.deleted.filter(function(x){ return x !== id; });
+    saveLocal(s); refresh();
+  }
+  function remove(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    if (EMBED.some(function(x){ return cid(x) === id; })) s.deleted.push(id);
+    saveLocal(s); refresh();
+  }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function exportMd(){
+    var lines = ['# Review comments', '',
+      '<!-- Exported from the spec review layer. Save this file as',
+      '     docs/specs/review-comments.md and re-run render-spec.py to embed',
+      '     every comment under its section for the next review round. -->', ''];
+    allComments().sort(function(a,b){
+      return (a.page+a.section).localeCompare(b.page+b.section);
+    }).forEach(function(c){
+      lines.push('## [' + c.page + '] ' + (c.section||''));
+      lines.push('status: ' + (c.status||'open'));
+      lines.push('date: ' + (c.date||today()));
+      lines.push(c.body); lines.push('');
+    });
+    var blob = new Blob([lines.join('\n')], {type:'text/markdown'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'review-comments.md';
+    a.click(); URL.revokeObjectURL(a.href);
+  }
+  function importMd(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      var text = String(reader.result);
+      var blocks = text.split(/^## /m).slice(1);
+      blocks.forEach(function(b){
+        var head = b.match(/^\[([^\]]+)\]\s*(\S*)/);
+        if (!head) return;
+        var status = (b.match(/^status:\s*(\S+)/m)||[])[1] || 'open';
+        var date = (b.match(/^date:\s*(\S+)/m)||[])[1] || today();
+        var body = b.replace(/^\[[^\]]*\]\s*\S*\s*\n/, '')
+                    .replace(/^status:.*\n?/m,'').replace(/^date:.*\n?/m,'').trim();
+        if (body) upsert({page:head[1], section:head[2]||'', status:status, date:date, body:body});
+      });
+      refresh();
+    };
+    reader.readAsText(file);
+  }
+  function commentBox(c){
+    var div = document.createElement('div');
+    div.className = 'rv-comment' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var head = document.createElement('div'); head.className = 'rv-head';
+    head.textContent = '💬 ' + (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(){ remove(c); c = Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'}); upsert(c); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(){ if (confirm('Delete this comment?')) remove(c); };
+    head.appendChild(tog); head.appendChild(del);
+    var body = document.createElement('div'); body.className = 'rv-body';
+    body.textContent = c.body;
+    div.appendChild(head); div.appendChild(body);
+    return div;
+  }
+  function editor(section, after){
+    var wrap = document.createElement('div');
+    wrap.className = 'rv-comment rv-editor';
+    var ta = document.createElement('textarea');
+    ta.placeholder = 'Comment on this section…';
+    var actions = document.createElement('div'); actions.className = 'rv-actions';
+    var save = document.createElement('button'); save.textContent = 'Save';
+    save.onclick = function(){
+      if (ta.value.trim()) upsert({page:PAGE, section:section, status:'open', date:today(), body:ta.value.trim()});
+      wrap.remove();
+    };
+    var cancel = document.createElement('button'); cancel.textContent = 'Cancel';
+    cancel.className = 'rv-cancel'; cancel.onclick = function(){ wrap.remove(); };
+    actions.appendChild(save); actions.appendChild(cancel);
+    wrap.appendChild(ta); wrap.appendChild(actions);
+    after.insertAdjacentElement('afterend', wrap);
+    ta.focus();
+  }
+  // --- headings, inline buttons ---
+  var mainH1 = document.querySelector('main h1');
+  if (mainH1 && !mainH1.id) { mainH1.id = 'page-title'; }
+  var headings = Array.prototype.slice.call(
+    document.querySelectorAll('main h1[id], main h2[id], main h3[id], main h4[id]'));
+  headings.forEach(function(h){
+    var b = document.createElement('button');
+    b.className = 'rv-add'; b.textContent = '💬 comment'; b.title = 'Comment on this section';
+    b.onclick = function(){ editor(h.id, h); };
+    h.appendChild(b);
+  });
+  function headingTitle(h){
+    var t = h.childNodes[0] ? h.childNodes[0].textContent : h.textContent;
+    return t.trim();
+  }
+  function titleFor(section){
+    var el = section && document.getElementById(section);
+    return el ? headingTitle(el) : (section || '(page)');
+  }
+
+  // --- drawer ---
+  var drawer = document.createElement('div');
+  drawer.id = 'rv-drawer';
+  drawer.innerHTML =
+    '<header><strong>Review</strong> <span class="rv-count"></span></header>' +
+    '<div class="rv-compose">' +
+    '<div class="rv-live">Commenting on the section in view:</div>' +
+    '<label for="rv-sec"></label><select id="rv-sec"></select>' +
+    '<textarea id="rv-text" placeholder="Type as you read… (Ctrl+Enter saves)"></textarea>' +
+    '<div style="margin-top:.4rem; display:flex; gap:.5rem;">' +
+    '<button class="rv-primary" id="rv-save">Save comment</button>' +
+    '<button id="rv-clear">Clear</button></div></div>' +
+    '<div class="rv-list"></div>' +
+    '<footer><button id="rv-export">Export .md</button>' +
+    '<button id="rv-import">Import</button>' +
+    '<span class="rv-otherpages"></span></footer>';
+  document.body.appendChild(drawer);
+  var toggle = document.createElement('button');
+  toggle.id = 'rv-toggle';
+  toggle.onclick = function(){
+    document.body.classList.toggle('rv-open');
+    try { localStorage.setItem(RVKEY + ':open', document.body.classList.contains('rv-open') ? '1' : ''); } catch(e){}
+  };
+  document.body.appendChild(toggle);
+  try { if (localStorage.getItem(RVKEY + ':open')) document.body.classList.add('rv-open'); } catch(e){}
+
+  var sel = drawer.querySelector('#rv-sec');
+  headings.forEach(function(h){
+    var opt = document.createElement('option');
+    opt.value = h.id; opt.textContent = headingTitle(h);
+    sel.appendChild(opt);
+  });
+  var followScroll = true;
+  sel.onchange = function(){ followScroll = false; };
+
+  // scroll spy: pick the last heading above the upper third of the viewport
+  function currentSection(){
+    var line = window.innerHeight * 0.33, best = headings[0];
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].getBoundingClientRect().top <= line) best = headings[i];
+    }
+    return best ? best.id : '';
+  }
+  window.addEventListener('scroll', function(){
+    if (!followScroll) return;
+    var s = currentSection();
+    if (s && sel.value !== s) sel.value = s;
+  }, {passive:true});
+  // typing pins the target section so a stray scroll can't retarget the comment
+  drawer.querySelector('#rv-text').addEventListener('input', function(){
+    if (this.value.trim()) followScroll = false;
+    else followScroll = true;
+  });
+
+  function saveFromDrawer(){
+    var ta = drawer.querySelector('#rv-text');
+    if (!ta.value.trim()) return;
+    upsert({page:PAGE, section:sel.value, status:'open', date:today(), body:ta.value.trim()});
+    ta.value = ''; followScroll = true;
+  }
+  drawer.querySelector('#rv-save').onclick = saveFromDrawer;
+  drawer.querySelector('#rv-text').addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') saveFromDrawer();
+  });
+  drawer.querySelector('#rv-clear').onclick = function(){
+    drawer.querySelector('#rv-text').value = ''; followScroll = true;
+  };
+  drawer.querySelector('#rv-export').onclick = exportMd;
+  var fileIn = document.createElement('input');
+  fileIn.type = 'file'; fileIn.accept = '.md,text/markdown'; fileIn.style.display = 'none';
+  fileIn.onchange = function(){ if (fileIn.files[0]) importMd(fileIn.files[0]); };
+  drawer.appendChild(fileIn);
+  drawer.querySelector('#rv-import').onclick = function(){ fileIn.click(); };
+
+  function drawerItem(c){
+    var div = document.createElement('div');
+    div.className = 'rv-item' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var where = document.createElement('div'); where.className = 'rv-where';
+    where.textContent = titleFor(c.section);
+    var text = document.createElement('div'); text.className = 'rv-text';
+    text.textContent = c.body;
+    var meta = document.createElement('div'); meta.className = 'rv-meta';
+    meta.textContent = (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(e){ e.stopPropagation(); remove(c);
+      upsert(Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'})); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(e){ e.stopPropagation();
+      if (confirm('Delete this comment?')) remove(c); };
+    meta.appendChild(tog); meta.appendChild(del);
+    div.appendChild(where); div.appendChild(text); div.appendChild(meta);
+    div.onclick = function(){
+      var el = c.section && document.getElementById(c.section);
+      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+    return div;
+  }
+
+  function refresh(){
+    document.querySelectorAll('.rv-comment:not(.rv-editor)').forEach(function(el){ el.remove(); });
+    var all = allComments();
+    var mine = all.filter(function(c){ return c.page === PAGE; });
+    mine.forEach(function(c){
+      var target = c.section && document.getElementById(c.section);
+      var anchor = target || mainH1 || document.body.querySelector('main') || document.body;
+      anchor.insertAdjacentElement('afterend', commentBox(c));
+    });
+    var open = all.filter(function(c){ return c.status !== 'resolved'; }).length;
+    toggle.textContent = '💬 Review (' + open + ')';
+    drawer.querySelector('.rv-count').textContent =
+      open + ' open / ' + all.length + ' total';
+    var list = drawer.querySelector('.rv-list');
+    list.innerHTML = '';
+    mine.slice().reverse().forEach(function(c){ list.appendChild(drawerItem(c)); });
+    var others = {};
+    all.forEach(function(c){ if (c.page !== PAGE) others[c.page] = (others[c.page]||0) + 1; });
+    var otherKeys = Object.keys(others);
+    drawer.querySelector('.rv-otherpages').textContent = otherKeys.length
+      ? 'Other pages: ' + otherKeys.map(function(k){ return k + ' (' + others[k] + ')'; }).join(', ')
+      : '';
+  }
+  refresh();
+  var s0 = currentSection();
+  if (s0) sel.value = s0;
+})();
+</script>
+</body>
+</html>

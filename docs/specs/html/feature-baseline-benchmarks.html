@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QMux — Feature: Baseline benchmarks</title>
+<style>
+:root { --bg:#ffffff; --fg:#1a1a24; --muted:#5a5a68; --line:#e3e3ea; --accent:#3452c8;
+        --card:#f6f6f9; --warn-bg:#fff7e8; --warn-line:#e8b34a; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#14141b; --fg:#e8e8ee; --muted:#9a9aa8; --line:#2c2c38; --accent:#8ea6ff;
+          --card:#1c1c26; --warn-bg:#2a2318; --warn-line:#a87c2a; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+       font:16px/1.6 system-ui,-apple-system,sans-serif; }
+.layout { display:flex; min-height:100vh; }
+aside.site { width:17rem; flex:none; border-right:1px solid var(--line);
+             padding:1.2rem 1rem 3rem; position:sticky; top:0; height:100vh;
+             overflow-y:auto; background:var(--card); }
+aside.site h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em;
+                color:var(--muted); margin:1.2rem 0 .3rem; border:none; padding:0; }
+aside.site ul { list-style:none; margin:0; padding:0; }
+aside.site li { margin:.15rem 0; }
+aside.site a { text-decoration:none; color:var(--fg); font-size:.92rem;
+               display:block; padding:.15rem .5rem; border-radius:6px; }
+aside.site a:hover { background:var(--bg); }
+aside.site a.current { background:var(--accent); color:#fff; }
+aside.site a.sub { padding-left:1.3rem; font-size:.84rem; color:var(--muted); }
+aside.site .brand { font-weight:700; font-size:1.05rem; }
+main { max-width:60rem; margin:0 auto; padding:2rem 1.5rem 6rem; min-width:0; flex:1; }
+h1,h2,h3,h4 { line-height:1.25; }
+h1 { font-size:2rem; margin:.2rem 0; }
+h2 { border-bottom:1px solid var(--line); padding-bottom:.3rem; margin-top:2.5rem; }
+a { color:var(--accent); }
+code { background:var(--card); padding:.1em .35em; border-radius:4px; font-size:.9em; }
+pre.code { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; overflow-x:auto; }
+pre.code code { background:none; padding:0; }
+.table-wrap { overflow-x:auto; }
+table { border-collapse:collapse; margin:1rem 0; min-width:50%; }
+th,td { border:1px solid var(--line); padding:.4rem .7rem; text-align:left; }
+th { background:var(--card); }
+blockquote { border-left:3px solid var(--accent); margin:1rem 0; padding:.2rem 1rem;
+             color:var(--muted); }
+.meta { color:var(--muted); margin-bottom:2rem; }
+.badge { display:inline-block; padding:.1rem .6rem; border-radius:999px;
+         border:1px solid var(--accent); color:var(--accent); font-size:.85rem; }
+.diagram { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; margin:1rem 0; overflow-x:auto; }
+.diagram pre.mermaid { margin:0; }
+.diagram.raw::before { content:"diagram source (assets/mermaid.min.js not vendored)";
+                       display:block; color:var(--muted); font-size:.8rem;
+                       margin-bottom:.5rem; }
+.callout-h, .callout-h ~ p, .callout-h ~ ul { background:var(--warn-bg); }
+.callout-h { border-left:4px solid var(--warn-line); padding:.3rem .8rem; }
+.mockup { margin:1.5rem 0; }
+.mockup iframe { width:100%; height:32rem; border:1px solid var(--line);
+                 border-radius:8px; background:#fff; }
+nav.pager { display:flex; justify-content:space-between; margin-top:3rem;
+            border-top:1px solid var(--line); padding-top:1rem; }
+@media (max-width: 900px) {
+  .layout { display:block; }
+  aside.site { width:auto; height:auto; position:static; border-right:none;
+               border-bottom:1px solid var(--line); }
+}
+h1[id]:hover .rv-add, h2[id]:hover .rv-add, h3[id]:hover .rv-add,
+h4[id]:hover .rv-add { opacity:1; }
+.rv-add { opacity:0; margin-left:.5rem; font-size:.75rem; cursor:pointer;
+          border:1px solid var(--accent); color:var(--accent); background:none;
+          border-radius:6px; padding:0 .45rem; vertical-align:middle;
+          transition:opacity .15s; }
+.rv-comment { border:1px solid var(--warn-line); border-left-width:4px;
+              background:var(--warn-bg); border-radius:8px; padding:.6rem .9rem;
+              margin:.8rem 0; font-size:.92rem; }
+.rv-comment.rv-resolved { opacity:.6; border-left-color:var(--line); }
+.rv-comment .rv-head { display:flex; gap:.6rem; align-items:center;
+                       color:var(--muted); font-size:.8rem; margin-bottom:.3rem; }
+.rv-comment .rv-head button { font-size:.75rem; cursor:pointer; background:none;
+                              border:1px solid var(--line); border-radius:6px;
+                              color:var(--muted); padding:0 .4rem; }
+.rv-comment .rv-body { white-space:pre-wrap; }
+.rv-editor textarea { width:100%; min-height:5rem; background:var(--bg);
+                      color:var(--fg); border:1px solid var(--line);
+                      border-radius:6px; padding:.5rem; font:inherit; }
+.rv-editor .rv-actions { margin-top:.4rem; display:flex; gap:.5rem; }
+.rv-editor button { cursor:pointer; border-radius:6px; padding:.2rem .8rem;
+                    border:1px solid var(--accent); background:var(--accent);
+                    color:#fff; }
+.rv-editor button.rv-cancel { background:none; color:var(--accent); }
+#rv-toggle { position:fixed; right:1rem; bottom:1rem; z-index:60;
+             background:var(--accent); color:#fff; border:none; cursor:pointer;
+             border-radius:999px; padding:.5rem 1rem; font-size:.85rem;
+             box-shadow:0 2px 10px rgba(0,0,0,.2); }
+#rv-drawer { position:fixed; top:0; right:0; bottom:0; width:21rem; z-index:55;
+             background:var(--card); border-left:1px solid var(--line);
+             display:flex; flex-direction:column; transform:translateX(100%);
+             transition:transform .2s ease; box-shadow:-4px 0 16px rgba(0,0,0,.12); }
+body.rv-open #rv-drawer { transform:none; }
+body.rv-open .layout { padding-right:21rem; }
+#rv-drawer header { padding:.8rem 1rem .5rem; border-bottom:1px solid var(--line); }
+#rv-drawer header .rv-count { color:var(--muted); font-size:.8rem; }
+#rv-drawer .rv-compose { padding:.8rem 1rem; border-bottom:1px solid var(--line); }
+#rv-drawer .rv-compose label { display:block; font-size:.75rem;
+                               color:var(--muted); margin-bottom:.25rem; }
+#rv-drawer .rv-compose select { width:100%; margin-bottom:.4rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.3rem; font:inherit; font-size:.85rem; }
+#rv-drawer .rv-compose textarea { width:100%; min-height:5.5rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.5rem; font:inherit; font-size:.9rem; }
+#rv-drawer .rv-compose .rv-live { font-size:.72rem; color:var(--muted); }
+#rv-drawer .rv-list { flex:1; overflow-y:auto; padding:.6rem 1rem; }
+#rv-drawer .rv-item { border:1px solid var(--line); border-left:3px solid
+             var(--warn-line); border-radius:8px; padding:.45rem .6rem;
+             margin-bottom:.6rem; font-size:.82rem; cursor:pointer; }
+#rv-drawer .rv-item.rv-resolved { opacity:.55; border-left-color:var(--line); }
+#rv-drawer .rv-item .rv-where { color:var(--accent); font-size:.72rem; }
+#rv-drawer .rv-item .rv-meta { color:var(--muted); font-size:.72rem;
+                               display:flex; gap:.5rem; align-items:center; }
+#rv-drawer .rv-item .rv-meta button { font-size:.7rem; cursor:pointer;
+             background:none; border:1px solid var(--line); border-radius:5px;
+             color:var(--muted); padding:0 .35rem; }
+#rv-drawer .rv-item .rv-text { white-space:pre-wrap; margin:.15rem 0; }
+#rv-drawer footer { padding:.6rem 1rem; border-top:1px solid var(--line);
+                    display:flex; gap:.5rem; flex-wrap:wrap; }
+#rv-drawer footer button, #rv-drawer .rv-compose button {
+  cursor:pointer; border:1px solid var(--accent); background:none;
+  color:var(--accent); border-radius:6px; padding:.2rem .7rem; font-size:.8rem; }
+#rv-drawer .rv-compose button.rv-primary { background:var(--accent); color:#fff; }
+#rv-drawer .rv-otherpages { color:var(--muted); font-size:.75rem;
+                            margin:.4rem 0 0; }
+@media (max-width: 1200px) { body.rv-open .layout { padding-right:0; } }
+</style>
+</head>
+<body data-page="feature-baseline-benchmarks" data-rvkey="qmux">
+<div class="layout">
+<aside class="site"><a class="brand" href="../spec.html">QMux</a>
+<h2>Spec</h2><ul>
+<li><a href="../spec.html">Overview &amp; index</a></li>
+</ul>
+<h2>Features</h2><ul>
+<li><a href="feature-foundation.html">Foundation</a></li>
+<li><a href="feature-protocol-registry.html">Protocol registry</a></li>
+<li><a href="feature-authoritative-server.html">Authoritative server</a></li>
+<li><a href="feature-client-sdk.html">Client SDK</a></li>
+<li><a href="feature-envelope-codec.html">Envelope codec</a></li>
+<li><a href="feature-discovery.html">Discovery and version negotiation</a></li>
+<li><a href="feature-signing-and-freshness.html">Signing and freshness</a></li>
+<li><a href="feature-embedded-recovery.html">Embedded recovery demonstration</a></li>
+<li><a href="feature-qmuxd-daemon.html">qmuxd daemon</a></li>
+<li><a href="feature-interop-harness.html">Interop harness</a></li>
+<li><a class="current" href="feature-baseline-benchmarks.html">Baseline benchmarks</a></li>
+<li><a href="feature-documentation.html">Documentation</a></li>
+</ul></aside>
+<main>
+<h1>Feature: Baseline benchmarks</h1>
+<p class="meta">Epic 10: Baseline benchmarks &nbsp; <span class="badge">planned</span></p>
+<h3 id="baseline-benchmarks-purpose">Purpose</h3>
+<p>This feature answers the research question with measured numbers. It runs the same firmware metadata lookup over QMux private classes and over each baseline. Every path carries the same signed envelope bytes, and every client verifies the signature, so the work is equal. The benchmark applies the same packet loss to UDP and TCP with netem.</p>
+<p>The results separate measured values from assumptions. The findings cite only measured numbers.</p>
+<h3 id="baseline-benchmarks-user-stories">User stories</h3>
+<ul>
+<li>As a researcher, I want one command that measures every baseline at every loss level,
+</li>
+</ul>
+<p>so that the comparison is reproducible.</p>
+<ul>
+<li>As a researcher, I want the private-class path and the IN-class path to differ only in
+</li>
+</ul>
+<p>the class, so that a difference in the results comes from the class.</p>
+<ul>
+<li>As a device integrator, I want the binary size, memory and CPU of each client, so that
+</li>
+</ul>
+<p>I can judge the cost on a small device.</p>
+<ul>
+<li>As a reader of the docs, I want measured results apart from assumptions, so that I
+</li>
+</ul>
+<p>know what is evidence.</p>
+<h3 id="baseline-benchmarks-functional-requirements">Functional requirements</h3>
+<h4 id="baseline-benchmarks-harness-module-and-baseline-servers">Harness module and baseline servers</h4>
+<ul>
+<li>FR-bench-1 — <code>tests/interoperability</code> is a Go module with <code>go 1.26</code> and a <code>replace</code>
+</li>
+</ul>
+<p>directive to the root module.</p>
+<ul>
+<li>FR-bench-2 — The harness module requires <code>github.com/plgd-dev/go-coap/v3</code> v3.8.2.
+</li>
+<li>FR-bench-3 — The root module does not require go-coap.
+</li>
+<li>FR-bench-4 — <code>bench-server</code> serves the baseline <code>qmux-private</code> at QCLASS 65282, QTYPE
+</li>
+</ul>
+<p>65280, QNAME <code>device42.fleet.example.</code></p>
+<ul>
+<li>FR-bench-5 — <code>bench-server</code> serves the baseline <code>dns-in</code> at QCLASS IN, QTYPE 65280,
+</li>
+</ul>
+<p>QNAME <code>_fw.device42.fleet.example.</code></p>
+<ul>
+<li>FR-bench-6 — <code>bench-server</code> serves the reference row <code>dns-in-txt</code> at QCLASS IN, QTYPE
+</li>
+</ul>
+<p>16, QNAME <code>_fw.device42.fleet.example.</code></p>
+<ul>
+<li>FR-bench-7 — <code>bench-server</code> serves the baseline <code>coap</code> as a confirmable GET on
+</li>
+</ul>
+<p><code>/fw/device42</code> with content-format 60 (<code>application/cbor</code>).</p>
+<ul>
+<li>FR-bench-8 — <code>bench-server</code> serves the baselines <code>https-cold</code> and <code>https-reuse</code> as
+</li>
+</ul>
+<p><code>GET /fw/device42</code> over TLS 1.3.</p>
+<ul>
+<li>FR-bench-9 — Every baseline carries a QMux envelope with the same firmware payload
+</li>
+</ul>
+<p>bytes.</p>
+<ul>
+<li>FR-bench-10 — The <code>coap</code>, <code>https-cold</code> and <code>https-reuse</code> baselines carry the exact
+</li>
+</ul>
+<p>envelope bytes of <code>qmux-private</code>.</p>
+<ul>
+<li>FR-bench-11 — Every baseline client verifies the envelope signature before it counts a
+</li>
+</ul>
+<p>lookup as a success.</p>
+<h4 id="baseline-benchmarks-loss-shaping">Loss shaping</h4>
+<ul>
+<li>FR-bench-12 — <code>tests/interoperability/bench-compose.yaml</code> runs <code>bench-server</code> and
+</li>
+</ul>
+<p><code>bench-client</code> in two containers with the capability <code>NET_ADMIN</code>.</p>
+<ul>
+<li>FR-bench-13 — Before each benchmark run, the harness runs
+</li>
+</ul>
+<p><code>tc qdisc replace dev eth0 root netem delay 10ms loss &lt;X&gt;%</code> in both containers.</p>
+<ul>
+<li>FR-bench-14 — If a container refuses <code>NET_ADMIN</code>, <code>make bench</code> exits with code 1 and
+</li>
+</ul>
+<p>prints <code>netem needs NET_ADMIN: &lt;tc error&gt;</code>.</p>
+<h4 id="baseline-benchmarks-qmux-bench-runner">qmux-bench runner</h4>
+<ul>
+<li>FR-bench-15 — <code>qmux-bench</code> runs the loss levels from <code>--loss</code>. The default is
+</li>
+</ul>
+<p><code>0,1,5,10</code>.</p>
+<ul>
+<li>FR-bench-16 — <code>qmux-bench</code> runs <code>--n</code> lookups per baseline per loss level. The default is
+</li>
+</ul>
+<p>500.</p>
+<ul>
+<li>FR-bench-17 — <code>qmux-bench</code> runs the lookups of one benchmark run one at a time.
+</li>
+<li>FR-bench-18 — Each lookup has a deadline of 5 s.
+</li>
+<li>FR-bench-19 — The DNS baselines use an attempt timeout of 1 s and at most 5 attempts in
+</li>
+</ul>
+<p>the deadline.</p>
+<ul>
+<li>FR-bench-20 — The <code>coap</code> baseline sets <code>TransmissionAcknowledgeTimeout</code> to 1 s,
+</li>
+</ul>
+<p><code>TransmissionAcknowledgeRandomFactor</code> to 1.0 and <code>TransmissionMaxRetransmit</code> to 4. The first timeout and the attempt count then equal those of the DNS baselines. The go-coap v3.8.2 defaults are 2 s, 1.5 and 4 (<code>udp/client/config.go</code>, tag v3.8.2), and they give CoAP fewer retransmissions in the 5 s deadline than DNS gets.</p>
+<ul>
+<li>FR-bench-20a — The results file and the <code>Assumptions</code> section state the retry settings of
+</li>
+</ul>
+<p>every baseline. The HTTPS baselines use the Linux TCP defaults of the client container, and the environment block records <code>net.ipv4.tcp_syn_retries</code> and the kernel version.</p>
+<ul>
+<li>FR-bench-21 — The <code>https-cold</code> baseline opens a new TCP connection and a new TLS session
+</li>
+</ul>
+<p>for each lookup.</p>
+<ul>
+<li>FR-bench-22 — The <code>https-reuse</code> baseline keeps one connection for the whole benchmark
+</li>
+</ul>
+<p>run.</p>
+<ul>
+<li>FR-bench-23 — Each lookup in the <code>qmux-private</code>, <code>dns-in</code>, <code>dns-in-txt</code>, <code>coap</code> and
+</li>
+</ul>
+<p><code>https-cold</code> baselines uses a new socket.</p>
+<ul>
+<li>FR-bench-24 — For each benchmark run, <code>qmux-bench</code> records the success rate.
+</li>
+<li>FR-bench-25 — For each benchmark run, <code>qmux-bench</code> records the median latency and the
+</li>
+</ul>
+<p>p95 latency of the successful lookups.</p>
+<ul>
+<li>FR-bench-26 — For each benchmark run, <code>qmux-bench</code> records the packets and bytes per
+</li>
+</ul>
+<p>lookup from the deltas of <code>/sys/class/net/eth0/statistics/{rx,tx}_{packets,bytes}</code> in the client container.</p>
+<ul>
+<li>FR-bench-27 — For each benchmark run, <code>qmux-bench</code> records the application requests per
+</li>
+</ul>
+<p>lookup. The count includes retries and TCP fallback.</p>
+<ul>
+<li>FR-bench-28 — <code>qmux-bench</code> writes <code>results/bench-&lt;UTC timestamp&gt;.json</code>.
+</li>
+<li>FR-bench-29 — <code>qmux-bench</code> writes a markdown table of the results.
+</li>
+<li>FR-bench-30 — The results file holds an environment block: CPU model, OS, kernel,
+</li>
+</ul>
+<p>Docker version, Go version, commit and date.</p>
+<h4 id="baseline-benchmarks-client-footprint">Client footprint</h4>
+<ul>
+<li>FR-bench-31 — <code>tests/interoperability/clients/&lt;baseline&gt;</code> holds one minimal client
+</li>
+</ul>
+<p>program per baseline. Each program does 100 lookups.</p>
+<ul>
+<li>FR-bench-32 — <code>qmux-bench</code> builds each client with <code>-trimpath -ldflags="-s -w"</code> and
+</li>
+</ul>
+<p>records the binary size in bytes.</p>
+<ul>
+<li>FR-bench-33 — <code>qmux-bench</code> runs each client as a child process and records the maximum
+</li>
+</ul>
+<p>resident set size from the child process resource usage.</p>
+<ul>
+<li>FR-bench-34 — <code>qmux-bench</code> records the user plus system CPU time of each client from the
+</li>
+</ul>
+<p>child process resource usage.</p>
+<h4 id="baseline-benchmarks-dispatch-microbenchmark">Dispatch microbenchmark</h4>
+<ul>
+<li>FR-bench-35 — <code>pkg/server</code> holds <code>BenchmarkDispatchByClass</code>. It dispatches across 8
+</li>
+</ul>
+<p>registrations that differ by class.</p>
+<ul>
+<li>FR-bench-36 — <code>pkg/server</code> holds <code>BenchmarkDispatchByLabel</code>. It dispatches across 8
+</li>
+</ul>
+<p>protocols under one IN-class protocol key by the first QNAME label.</p>
+<ul>
+<li>FR-bench-37 — <code>qmux-bench</code> runs both microbenchmarks and records ns/op and allocs/op.
+</li>
+</ul>
+<h4 id="baseline-benchmarks-make-target-and-results-documentation">Make target and results documentation</h4>
+<ul>
+<li>FR-bench-38 — <code>make bench</code> runs <code>qmux-bench</code> with the variables <code>LOSS</code> and <code>N</code>.
+</li>
+<li>FR-bench-39 — <code>docs/interoperability.md</code> has a section <code>Baseline results</code> with the
+</li>
+</ul>
+<p>measured table and the environment block.</p>
+<ul>
+<li>FR-bench-40 — <code>docs/interoperability.md</code> has a section <code>Assumptions</code> that lists every
+</li>
+</ul>
+<p>assumption of the benchmark apart from the results.</p>
+<ul>
+<li>FR-bench-41 — <code>docs/interoperability.md</code> has a section `Findings on the research
+</li>
+</ul>
+<p>question`.</p>
+<ul>
+<li>FR-bench-42 — Each statement in <code>Findings on the research question</code> cites a measured
+</li>
+</ul>
+<p>number from <code>Baseline results</code> that compares <code>qmux-private</code> with <code>dns-in</code>.</p>
+<h3 id="baseline-benchmarks-user-flows">User flows</h3>
+<h4 id="baseline-benchmarks-flow-1-make-bench">Flow 1 — make bench</h4>
+<div class="diagram"><pre class="mermaid">flowchart TD
+    A[make bench LOSS N] --&gt; B[compose up bench-server and bench-client]
+    B --&gt; C{tc netem allowed?}
+    C -- no --&gt; X[print netem needs NET_ADMIN, exit 1]
+    C -- yes --&gt; D[for each loss level: apply netem in both containers]
+    D --&gt; E[for each baseline: run N lookups]
+    E --&gt; F[read interface counters before and after]
+    F --&gt; G[build and run each client for footprint]
+    G --&gt; H[run dispatch microbenchmarks]
+    H --&gt; I[write results JSON and markdown table]
+    I --&gt; J[compose down, exit 0]</pre></div>
+<ol>
+<li><code>make bench</code> starts <code>bench-server</code> and <code>bench-client</code>.
+</li>
+<li>If <code>tc</code> fails, <code>make bench</code> prints the netem error and exits with code 1.
+</li>
+<li>For each loss level, the harness applies netem in both containers.
+</li>
+<li>For each baseline, <code>qmux-bench</code> runs N lookups.
+</li>
+<li><code>qmux-bench</code> reads the interface counters before and after each benchmark run.
+</li>
+<li><code>qmux-bench</code> builds and runs each client program for the footprint values.
+</li>
+<li><code>qmux-bench</code> runs the dispatch microbenchmarks.
+</li>
+<li><code>qmux-bench</code> writes the results file and the markdown table.
+</li>
+<li><code>make bench</code> stops the containers.
+</li>
+</ol>
+<h4 id="baseline-benchmarks-flow-2-one-lookup">Flow 2 — One lookup</h4>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+    participant C as bench-client
+    participant S as bench-server
+    C-&gt;&gt;C: start timer, deadline 5 s
+    loop until success or deadline
+        C-&gt;&gt;S: request for firmware metadata
+        S--&gt;&gt;C: signed envelope, or no answer
+    end
+    C-&gt;&gt;C: verify signature
+    C-&gt;&gt;C: stop timer and count requests</pre></div>
+<ol>
+<li>The client starts the timer with a deadline of 5 s.
+</li>
+<li>The client sends the request.
+</li>
+<li>If no answer arrives, the client repeats the request by the policy of the baseline.
+</li>
+<li>The client verifies the signature.
+</li>
+<li>The client records the latency and the request count.
+</li>
+</ol>
+<h3 id="baseline-benchmarks-screens-states">Screens &amp; states</h3>
+<p>QMux has no graphical screens. <code>qmux-bench</code> writes to standard output.</p>
+<pre class="code"><code>qmux-bench: 6 baselines x 4 loss levels x 500 lookups
+loss 0%   qmux-private  success 100.0%  p50 10.4 ms  p95 10.9 ms  2.0 pkt  410 B
+loss 0%   https-cold    success 100.0%  p50 52.1 ms  p95 54.0 ms  14.0 pkt  4810 B
+...
+qmux-bench: wrote results/bench-20261120T150405Z.json</code></pre>
+<p>The rows above show the format only. They are not measured results.</p>
+<p>Error states:</p>
+<ul>
+<li>netem refused: <code>netem needs NET_ADMIN: &lt;tc error&gt;</code>, exit code 1.
+</li>
+<li><code>bench-server</code> unreachable: <code>bench-server not ready after 30 s</code>, exit code 1.
+</li>
+</ul>
+<h3 id="baseline-benchmarks-behaviour-rules">Behaviour rules</h3>
+<ul>
+<li>Each baseline runs at each loss level in a fixed order, so two runs are comparable.
+</li>
+<li>A lookup that misses its deadline counts as a failure. Its latency is not in the
+</li>
+</ul>
+<p>median or the p95.</p>
+<ul>
+<li>The latency is the wall-clock time from the first send to the verified envelope.
+</li>
+<li>The <code>dns-in-txt</code> row is labeled <code>reference</code> in every table.
+</li>
+<li>The <code>https-reuse</code> row is labeled <code>connection reuse</code> in every table.
+</li>
+<li>netem applies <code>loss &lt;X&gt;%</code> on the egress of both containers, so each direction gets X%.
+</li>
+<li>The harness logs every value that it does not measure as an assumption.
+</li>
+</ul>
+<h3 id="baseline-benchmarks-data-touched">Data touched</h3>
+<p>Results file <code>results/bench-&lt;UTC timestamp&gt;.json</code>:</p>
+<div class="table-wrap"><table>
+<tr><th>Field</th><th>Type</th></tr>
+<tr><td><code>environment</code></td><td>object: <code>cpu</code>, <code>os</code>, <code>kernel</code>, <code>docker</code>, <code>go</code>, <code>commit</code>, <code>date</code></td></tr>
+<tr><td><code>runs</code></td><td>array: <code>baseline</code>, <code>loss</code>, <code>n</code>, <code>success_rate</code>, <code>p50_ms</code>, <code>p95_ms</code>, <code>packets_per_lookup</code>, <code>bytes_per_lookup</code>, <code>requests_per_lookup</code></td></tr>
+<tr><td><code>clients</code></td><td>array: <code>baseline</code>, <code>binary_bytes</code>, <code>max_rss_kib</code>, <code>cpu_ms</code></td></tr>
+<tr><td><code>dispatch</code></td><td>array: <code>name</code>, <code>ns_per_op</code>, <code>allocs_per_op</code></td></tr>
+</table></div>
+<h3 id="baseline-benchmarks-interfaces">Interfaces</h3>
+<pre class="code"><code>make bench LOSS=0,1,5,10 N=500</code></pre>
+<p>External interfaces:</p>
+<ul>
+<li>go-coap v3.8.2, https://github.com/plgd-dev/go-coap (README, tag v3.8.2, retrieved
+</li>
+</ul>
+<p>2026-11-20): client <code>udp.Dial</code> and <code>Conn.Get</code>, server <code>mux.NewRouter</code> and <code>coap.ListenAndServe</code>.</p>
+<ul>
+<li>CoAP content-format 60 <code>application/cbor</code>, RFC 8949 § 9.5 and the IANA CoAP
+</li>
+</ul>
+<p>Content-Formats registry, https://www.iana.org/assignments/core-parameters.</p>
+<ul>
+<li>netem, https://man7.org/linux/man-pages/man8/tc-netem.8.html (iproute2 man page).
+</li>
+<li>Interface statistics, https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-class-net-statistics.
+</li>
+<li>Process resource usage in Go, <code>os.ProcessState.SysUsage</code> returning <code>*syscall.Rusage</code>,
+</li>
+</ul>
+<p>https://pkg.go.dev/os#ProcessState.SysUsage (Go 1.26).</p>
+<ul>
+<li>TLS 1.3 in Go, <code>crypto/tls</code> with <code>MinVersion: tls.VersionTLS13</code>,
+</li>
+</ul>
+<p>https://pkg.go.dev/crypto/tls (Go 1.26).</p>
+<h3 id="baseline-benchmarks-edge-cases-failures">Edge cases &amp; failures</h3>
+<ul>
+<li>Every lookup of a benchmark run fails: the success rate is 0, and p50 and p95 are
+</li>
+</ul>
+<p>null.</p>
+<ul>
+<li>The host is not Linux and Docker is missing: <code>make bench</code> prints <code>docker not found</code> and
+</li>
+</ul>
+<p>exits with code 1.</p>
+<ul>
+<li>A client binary fails to build: <code>qmux-bench</code> stops and prints the build output.
+</li>
+<li>The interface counters wrap: not expected at these sizes, and the harness reports a
+</li>
+</ul>
+<p>negative delta as an error.</p>
+<h3 id="baseline-benchmarks-acceptance-criteria">Acceptance criteria</h3>
+<ul>
+<li>FR-bench-1 and FR-bench-2: <code>go list -m all</code> in <code>tests/interoperability</code> shows go-coap
+</li>
+</ul>
+<p>v3.8.2.</p>
+<ul>
+<li>FR-bench-3: <code>go list -m all</code> in the root module does not show go-coap.
+</li>
+<li>FR-bench-4 to FR-bench-8: one lookup per baseline at loss 0 succeeds in a harness test.
+</li>
+<li>FR-bench-9 and FR-bench-10: a test compares the payload of every baseline and the
+</li>
+</ul>
+<p>envelope bytes of the CoAP and HTTPS baselines with <code>qmux-private</code>.</p>
+<ul>
+<li>FR-bench-11: an envelope with one changed byte counts as a failed lookup.
+</li>
+<li>FR-bench-12 and FR-bench-13: <code>tc qdisc show dev eth0</code> in each container prints
+</li>
+</ul>
+<p><code>netem delay 10ms loss &lt;X&gt;%</code> during a benchmark run.</p>
+<ul>
+<li>FR-bench-14: with <code>NET_ADMIN</code> removed, <code>make bench</code> exits with code 1 and prints
+</li>
+</ul>
+<p><code>netem needs NET_ADMIN</code>.</p>
+<ul>
+<li>FR-bench-15 and FR-bench-16: <code>make bench LOSS=0 N=10</code> writes runs with <code>loss: 0</code> and
+</li>
+</ul>
+<p><code>n: 10</code>.</p>
+<ul>
+<li>FR-bench-17: the server log shows no two lookups of one benchmark run in parallel.
+</li>
+<li>FR-bench-18: at loss 100, every lookup fails after about 5 s.
+</li>
+<li>FR-bench-19: at loss 100, a DNS baseline records 5 requests per lookup.
+</li>
+<li>FR-bench-20: at loss 100, a <code>coap</code> lookup records 5 transmissions of the request.
+</li>
+<li>FR-bench-20a: the results file holds a <code>retry</code> object for every baseline, and the
+</li>
+</ul>
+<p>environment block holds <code>tcp_syn_retries</code>.</p>
+<ul>
+<li>FR-bench-21: the <code>https-cold</code> row shows more packets per lookup than the <code>https-reuse</code>
+</li>
+</ul>
+<p>row.</p>
+<ul>
+<li>FR-bench-22: the server counts one TLS handshake in an <code>https-reuse</code> benchmark run.
+</li>
+<li>FR-bench-23: the server sees a new source port for each lookup of the DNS and CoAP
+</li>
+</ul>
+<p>baselines.</p>
+<ul>
+<li>FR-bench-24 and FR-bench-25: each run object holds <code>success_rate</code>, <code>p50_ms</code> and
+</li>
+</ul>
+<p><code>p95_ms</code>.</p>
+<ul>
+<li>FR-bench-26: each run object holds nonzero <code>packets_per_lookup</code> and
+</li>
+</ul>
+<p><code>bytes_per_lookup</code>.</p>
+<ul>
+<li>FR-bench-27: at loss 0, <code>qmux-private</code> records 1 request per lookup.
+</li>
+<li>FR-bench-28 and FR-bench-29: the results file and the markdown table exist after a run.
+</li>
+<li>FR-bench-30: the results file holds all seven environment fields.
+</li>
+<li>FR-bench-31 to FR-bench-34: the <code>clients</code> array holds one object per baseline with
+</li>
+</ul>
+<p>nonzero <code>binary_bytes</code>, <code>max_rss_kib</code> and <code>cpu_ms</code>.</p>
+<ul>
+<li>FR-bench-35 to FR-bench-37: the <code>dispatch</code> array holds both microbenchmarks.
+</li>
+<li>FR-bench-38: <code>make bench LOSS=0 N=10</code> exits with code 0.
+</li>
+<li>FR-bench-39 to FR-bench-41: <code>docs/interoperability.md</code> holds the three named sections.
+</li>
+<li>FR-bench-42: each finding contains a number that appears in the <code>Baseline results</code>
+</li>
+</ul>
+<p>table.</p>
+<h3 id="baseline-benchmarks-out-of-scope">Out of scope</h3>
+<ul>
+<li>Throughput or load tests.
+</li>
+<li>Real radio links, real embedded hardware, and cross-compiled device builds.
+</li>
+<li>Resolvers in the benchmark path. The interop harness covers resolvers.
+</li>
+<li>Statistical significance tests beyond the median and the p95.
+</li>
+</ul>
+<h3 id="baseline-benchmarks-open-questions" class="callout-h">Open questions</h3>
+<p>None. The planner closed these items on 2026-11-20:</p>
+<ul>
+<li>go-coap v3.8.2 defaults are ACK timeout 2 s, random factor 1.5 and 4 retransmissions
+</li>
+</ul>
+<p>(<code>udp/client/config.go</code>). The user chose to set the CoAP timers equal to the DNS timers (FR-bench-20).</p>
+<ul>
+<li>A container on the Docker bridge network has the interface <code>eth0</code> (verified with
+</li>
+</ul>
+<p><code>ip -o link</code> in <code>alpine:3.20</code>). <code>qmux-bench</code> still checks it at start and fails with a clear message when it is absent.</p><nav class="pager">
+<a href="feature-interop-harness.html">&larr; Feature: Interop harness</a>
+<a href="feature-documentation.html">Feature: Documentation &rarr;</a>
+</nav>
+</main>
+</div>
+<script src="../assets/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'default'});</script>
+<script type="application/json" id="rv-embedded">[]</script>
+<script>
+(function(){
+  'use strict';
+  var PAGE = document.body.getAttribute('data-page');
+  // storage key carries the spec's slug: file:// pages can share one
+  // localStorage pool, and two specs must never share a comment store
+  var RVKEY = 'spec-review:' + (document.body.getAttribute('data-rvkey') || 'spec');
+  var EMBED = [];
+  var embedEl = document.getElementById('rv-embedded');
+  if (embedEl) { try { EMBED = JSON.parse(embedEl.textContent); } catch(e){} }
+  function loadLocal(){ try { return JSON.parse(localStorage.getItem(RVKEY)) || {comments:[], deleted:[]}; } catch(e){ return {comments:[], deleted:[]}; } }
+  function saveLocal(s){ try { localStorage.setItem(RVKEY, JSON.stringify(s)); } catch(e){} }
+  function cid(c){ return c.page + '|' + c.section + '|' + (c.date||'') + '|' + c.body.slice(0,24); }
+  function allComments(){
+    var s = loadLocal(), map = {};
+    EMBED.forEach(function(c){ map[cid(c)] = c; });
+    s.comments.forEach(function(c){ map[cid(c)] = c; });
+    s.deleted.forEach(function(id){ delete map[id]; });
+    return Object.keys(map).map(function(k){ return map[k]; });
+  }
+  function upsert(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    s.comments.push(c);
+    s.deleted = s.deleted.filter(function(x){ return x !== id; });
+    saveLocal(s); refresh();
+  }
+  function remove(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    if (EMBED.some(function(x){ return cid(x) === id; })) s.deleted.push(id);
+    saveLocal(s); refresh();
+  }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function exportMd(){
+    var lines = ['# Review comments', '',
+      '<!-- Exported from the spec review layer. Save this file as',
+      '     docs/specs/review-comments.md and re-run render-spec.py to embed',
+      '     every comment under its section for the next review round. -->', ''];
+    allComments().sort(function(a,b){
+      return (a.page+a.section).localeCompare(b.page+b.section);
+    }).forEach(function(c){
+      lines.push('## [' + c.page + '] ' + (c.section||''));
+      lines.push('status: ' + (c.status||'open'));
+      lines.push('date: ' + (c.date||today()));
+      lines.push(c.body); lines.push('');
+    });
+    var blob = new Blob([lines.join('\n')], {type:'text/markdown'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'review-comments.md';
+    a.click(); URL.revokeObjectURL(a.href);
+  }
+  function importMd(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      var text = String(reader.result);
+      var blocks = text.split(/^## /m).slice(1);
+      blocks.forEach(function(b){
+        var head = b.match(/^\[([^\]]+)\]\s*(\S*)/);
+        if (!head) return;
+        var status = (b.match(/^status:\s*(\S+)/m)||[])[1] || 'open';
+        var date = (b.match(/^date:\s*(\S+)/m)||[])[1] || today();
+        var body = b.replace(/^\[[^\]]*\]\s*\S*\s*\n/, '')
+                    .replace(/^status:.*\n?/m,'').replace(/^date:.*\n?/m,'').trim();
+        if (body) upsert({page:head[1], section:head[2]||'', status:status, date:date, body:body});
+      });
+      refresh();
+    };
+    reader.readAsText(file);
+  }
+  function commentBox(c){
+    var div = document.createElement('div');
+    div.className = 'rv-comment' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var head = document.createElement('div'); head.className = 'rv-head';
+    head.textContent = '💬 ' + (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(){ remove(c); c = Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'}); upsert(c); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(){ if (confirm('Delete this comment?')) remove(c); };
+    head.appendChild(tog); head.appendChild(del);
+    var body = document.createElement('div'); body.className = 'rv-body';
+    body.textContent = c.body;
+    div.appendChild(head); div.appendChild(body);
+    return div;
+  }
+  function editor(section, after){
+    var wrap = document.createElement('div');
+    wrap.className = 'rv-comment rv-editor';
+    var ta = document.createElement('textarea');
+    ta.placeholder = 'Comment on this section…';
+    var actions = document.createElement('div'); actions.className = 'rv-actions';
+    var save = document.createElement('button'); save.textContent = 'Save';
+    save.onclick = function(){
+      if (ta.value.trim()) upsert({page:PAGE, section:section, status:'open', date:today(), body:ta.value.trim()});
+      wrap.remove();
+    };
+    var cancel = document.createElement('button'); cancel.textContent = 'Cancel';
+    cancel.className = 'rv-cancel'; cancel.onclick = function(){ wrap.remove(); };
+    actions.appendChild(save); actions.appendChild(cancel);
+    wrap.appendChild(ta); wrap.appendChild(actions);
+    after.insertAdjacentElement('afterend', wrap);
+    ta.focus();
+  }
+  // --- headings, inline buttons ---
+  var mainH1 = document.querySelector('main h1');
+  if (mainH1 && !mainH1.id) { mainH1.id = 'page-title'; }
+  var headings = Array.prototype.slice.call(
+    document.querySelectorAll('main h1[id], main h2[id], main h3[id], main h4[id]'));
+  headings.forEach(function(h){
+    var b = document.createElement('button');
+    b.className = 'rv-add'; b.textContent = '💬 comment'; b.title = 'Comment on this section';
+    b.onclick = function(){ editor(h.id, h); };
+    h.appendChild(b);
+  });
+  function headingTitle(h){
+    var t = h.childNodes[0] ? h.childNodes[0].textContent : h.textContent;
+    return t.trim();
+  }
+  function titleFor(section){
+    var el = section && document.getElementById(section);
+    return el ? headingTitle(el) : (section || '(page)');
+  }
+
+  // --- drawer ---
+  var drawer = document.createElement('div');
+  drawer.id = 'rv-drawer';
+  drawer.innerHTML =
+    '<header><strong>Review</strong> <span class="rv-count"></span></header>' +
+    '<div class="rv-compose">' +
+    '<div class="rv-live">Commenting on the section in view:</div>' +
+    '<label for="rv-sec"></label><select id="rv-sec"></select>' +
+    '<textarea id="rv-text" placeholder="Type as you read… (Ctrl+Enter saves)"></textarea>' +
+    '<div style="margin-top:.4rem; display:flex; gap:.5rem;">' +
+    '<button class="rv-primary" id="rv-save">Save comment</button>' +
+    '<button id="rv-clear">Clear</button></div></div>' +
+    '<div class="rv-list"></div>' +
+    '<footer><button id="rv-export">Export .md</button>' +
+    '<button id="rv-import">Import</button>' +
+    '<span class="rv-otherpages"></span></footer>';
+  document.body.appendChild(drawer);
+  var toggle = document.createElement('button');
+  toggle.id = 'rv-toggle';
+  toggle.onclick = function(){
+    document.body.classList.toggle('rv-open');
+    try { localStorage.setItem(RVKEY + ':open', document.body.classList.contains('rv-open') ? '1' : ''); } catch(e){}
+  };
+  document.body.appendChild(toggle);
+  try { if (localStorage.getItem(RVKEY + ':open')) document.body.classList.add('rv-open'); } catch(e){}
+
+  var sel = drawer.querySelector('#rv-sec');
+  headings.forEach(function(h){
+    var opt = document.createElement('option');
+    opt.value = h.id; opt.textContent = headingTitle(h);
+    sel.appendChild(opt);
+  });
+  var followScroll = true;
+  sel.onchange = function(){ followScroll = false; };
+
+  // scroll spy: pick the last heading above the upper third of the viewport
+  function currentSection(){
+    var line = window.innerHeight * 0.33, best = headings[0];
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].getBoundingClientRect().top <= line) best = headings[i];
+    }
+    return best ? best.id : '';
+  }
+  window.addEventListener('scroll', function(){
+    if (!followScroll) return;
+    var s = currentSection();
+    if (s && sel.value !== s) sel.value = s;
+  }, {passive:true});
+  // typing pins the target section so a stray scroll can't retarget the comment
+  drawer.querySelector('#rv-text').addEventListener('input', function(){
+    if (this.value.trim()) followScroll = false;
+    else followScroll = true;
+  });
+
+  function saveFromDrawer(){
+    var ta = drawer.querySelector('#rv-text');
+    if (!ta.value.trim()) return;
+    upsert({page:PAGE, section:sel.value, status:'open', date:today(), body:ta.value.trim()});
+    ta.value = ''; followScroll = true;
+  }
+  drawer.querySelector('#rv-save').onclick = saveFromDrawer;
+  drawer.querySelector('#rv-text').addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') saveFromDrawer();
+  });
+  drawer.querySelector('#rv-clear').onclick = function(){
+    drawer.querySelector('#rv-text').value = ''; followScroll = true;
+  };
+  drawer.querySelector('#rv-export').onclick = exportMd;
+  var fileIn = document.createElement('input');
+  fileIn.type = 'file'; fileIn.accept = '.md,text/markdown'; fileIn.style.display = 'none';
+  fileIn.onchange = function(){ if (fileIn.files[0]) importMd(fileIn.files[0]); };
+  drawer.appendChild(fileIn);
+  drawer.querySelector('#rv-import').onclick = function(){ fileIn.click(); };
+
+  function drawerItem(c){
+    var div = document.createElement('div');
+    div.className = 'rv-item' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var where = document.createElement('div'); where.className = 'rv-where';
+    where.textContent = titleFor(c.section);
+    var text = document.createElement('div'); text.className = 'rv-text';
+    text.textContent = c.body;
+    var meta = document.createElement('div'); meta.className = 'rv-meta';
+    meta.textContent = (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(e){ e.stopPropagation(); remove(c);
+      upsert(Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'})); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(e){ e.stopPropagation();
+      if (confirm('Delete this comment?')) remove(c); };
+    meta.appendChild(tog); meta.appendChild(del);
+    div.appendChild(where); div.appendChild(text); div.appendChild(meta);
+    div.onclick = function(){
+      var el = c.section && document.getElementById(c.section);
+      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+    return div;
+  }
+
+  function refresh(){
+    document.querySelectorAll('.rv-comment:not(.rv-editor)').forEach(function(el){ el.remove(); });
+    var all = allComments();
+    var mine = all.filter(function(c){ return c.page === PAGE; });
+    mine.forEach(function(c){
+      var target = c.section && document.getElementById(c.section);
+      var anchor = target || mainH1 || document.body.querySelector('main') || document.body;
+      anchor.insertAdjacentElement('afterend', commentBox(c));
+    });
+    var open = all.filter(function(c){ return c.status !== 'resolved'; }).length;
+    toggle.textContent = '💬 Review (' + open + ')';
+    drawer.querySelector('.rv-count').textContent =
+      open + ' open / ' + all.length + ' total';
+    var list = drawer.querySelector('.rv-list');
+    list.innerHTML = '';
+    mine.slice().reverse().forEach(function(c){ list.appendChild(drawerItem(c)); });
+    var others = {};
+    all.forEach(function(c){ if (c.page !== PAGE) others[c.page] = (others[c.page]||0) + 1; });
+    var otherKeys = Object.keys(others);
+    drawer.querySelector('.rv-otherpages').textContent = otherKeys.length
+      ? 'Other pages: ' + otherKeys.map(function(k){ return k + ' (' + others[k] + ')'; }).join(', ')
+      : '';
+  }
+  refresh();
+  var s0 = currentSection();
+  if (s0) sel.value = s0;
+})();
+</script>
+</body>
+</html>

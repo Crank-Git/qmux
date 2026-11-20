@@ -1,0 +1,1044 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QMux — Feature: Client SDK</title>
+<style>
+:root { --bg:#ffffff; --fg:#1a1a24; --muted:#5a5a68; --line:#e3e3ea; --accent:#3452c8;
+        --card:#f6f6f9; --warn-bg:#fff7e8; --warn-line:#e8b34a; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#14141b; --fg:#e8e8ee; --muted:#9a9aa8; --line:#2c2c38; --accent:#8ea6ff;
+          --card:#1c1c26; --warn-bg:#2a2318; --warn-line:#a87c2a; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+       font:16px/1.6 system-ui,-apple-system,sans-serif; }
+.layout { display:flex; min-height:100vh; }
+aside.site { width:17rem; flex:none; border-right:1px solid var(--line);
+             padding:1.2rem 1rem 3rem; position:sticky; top:0; height:100vh;
+             overflow-y:auto; background:var(--card); }
+aside.site h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em;
+                color:var(--muted); margin:1.2rem 0 .3rem; border:none; padding:0; }
+aside.site ul { list-style:none; margin:0; padding:0; }
+aside.site li { margin:.15rem 0; }
+aside.site a { text-decoration:none; color:var(--fg); font-size:.92rem;
+               display:block; padding:.15rem .5rem; border-radius:6px; }
+aside.site a:hover { background:var(--bg); }
+aside.site a.current { background:var(--accent); color:#fff; }
+aside.site a.sub { padding-left:1.3rem; font-size:.84rem; color:var(--muted); }
+aside.site .brand { font-weight:700; font-size:1.05rem; }
+main { max-width:60rem; margin:0 auto; padding:2rem 1.5rem 6rem; min-width:0; flex:1; }
+h1,h2,h3,h4 { line-height:1.25; }
+h1 { font-size:2rem; margin:.2rem 0; }
+h2 { border-bottom:1px solid var(--line); padding-bottom:.3rem; margin-top:2.5rem; }
+a { color:var(--accent); }
+code { background:var(--card); padding:.1em .35em; border-radius:4px; font-size:.9em; }
+pre.code { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; overflow-x:auto; }
+pre.code code { background:none; padding:0; }
+.table-wrap { overflow-x:auto; }
+table { border-collapse:collapse; margin:1rem 0; min-width:50%; }
+th,td { border:1px solid var(--line); padding:.4rem .7rem; text-align:left; }
+th { background:var(--card); }
+blockquote { border-left:3px solid var(--accent); margin:1rem 0; padding:.2rem 1rem;
+             color:var(--muted); }
+.meta { color:var(--muted); margin-bottom:2rem; }
+.badge { display:inline-block; padding:.1rem .6rem; border-radius:999px;
+         border:1px solid var(--accent); color:var(--accent); font-size:.85rem; }
+.diagram { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; margin:1rem 0; overflow-x:auto; }
+.diagram pre.mermaid { margin:0; }
+.diagram.raw::before { content:"diagram source (assets/mermaid.min.js not vendored)";
+                       display:block; color:var(--muted); font-size:.8rem;
+                       margin-bottom:.5rem; }
+.callout-h, .callout-h ~ p, .callout-h ~ ul { background:var(--warn-bg); }
+.callout-h { border-left:4px solid var(--warn-line); padding:.3rem .8rem; }
+.mockup { margin:1.5rem 0; }
+.mockup iframe { width:100%; height:32rem; border:1px solid var(--line);
+                 border-radius:8px; background:#fff; }
+nav.pager { display:flex; justify-content:space-between; margin-top:3rem;
+            border-top:1px solid var(--line); padding-top:1rem; }
+@media (max-width: 900px) {
+  .layout { display:block; }
+  aside.site { width:auto; height:auto; position:static; border-right:none;
+               border-bottom:1px solid var(--line); }
+}
+h1[id]:hover .rv-add, h2[id]:hover .rv-add, h3[id]:hover .rv-add,
+h4[id]:hover .rv-add { opacity:1; }
+.rv-add { opacity:0; margin-left:.5rem; font-size:.75rem; cursor:pointer;
+          border:1px solid var(--accent); color:var(--accent); background:none;
+          border-radius:6px; padding:0 .45rem; vertical-align:middle;
+          transition:opacity .15s; }
+.rv-comment { border:1px solid var(--warn-line); border-left-width:4px;
+              background:var(--warn-bg); border-radius:8px; padding:.6rem .9rem;
+              margin:.8rem 0; font-size:.92rem; }
+.rv-comment.rv-resolved { opacity:.6; border-left-color:var(--line); }
+.rv-comment .rv-head { display:flex; gap:.6rem; align-items:center;
+                       color:var(--muted); font-size:.8rem; margin-bottom:.3rem; }
+.rv-comment .rv-head button { font-size:.75rem; cursor:pointer; background:none;
+                              border:1px solid var(--line); border-radius:6px;
+                              color:var(--muted); padding:0 .4rem; }
+.rv-comment .rv-body { white-space:pre-wrap; }
+.rv-editor textarea { width:100%; min-height:5rem; background:var(--bg);
+                      color:var(--fg); border:1px solid var(--line);
+                      border-radius:6px; padding:.5rem; font:inherit; }
+.rv-editor .rv-actions { margin-top:.4rem; display:flex; gap:.5rem; }
+.rv-editor button { cursor:pointer; border-radius:6px; padding:.2rem .8rem;
+                    border:1px solid var(--accent); background:var(--accent);
+                    color:#fff; }
+.rv-editor button.rv-cancel { background:none; color:var(--accent); }
+#rv-toggle { position:fixed; right:1rem; bottom:1rem; z-index:60;
+             background:var(--accent); color:#fff; border:none; cursor:pointer;
+             border-radius:999px; padding:.5rem 1rem; font-size:.85rem;
+             box-shadow:0 2px 10px rgba(0,0,0,.2); }
+#rv-drawer { position:fixed; top:0; right:0; bottom:0; width:21rem; z-index:55;
+             background:var(--card); border-left:1px solid var(--line);
+             display:flex; flex-direction:column; transform:translateX(100%);
+             transition:transform .2s ease; box-shadow:-4px 0 16px rgba(0,0,0,.12); }
+body.rv-open #rv-drawer { transform:none; }
+body.rv-open .layout { padding-right:21rem; }
+#rv-drawer header { padding:.8rem 1rem .5rem; border-bottom:1px solid var(--line); }
+#rv-drawer header .rv-count { color:var(--muted); font-size:.8rem; }
+#rv-drawer .rv-compose { padding:.8rem 1rem; border-bottom:1px solid var(--line); }
+#rv-drawer .rv-compose label { display:block; font-size:.75rem;
+                               color:var(--muted); margin-bottom:.25rem; }
+#rv-drawer .rv-compose select { width:100%; margin-bottom:.4rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.3rem; font:inherit; font-size:.85rem; }
+#rv-drawer .rv-compose textarea { width:100%; min-height:5.5rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.5rem; font:inherit; font-size:.9rem; }
+#rv-drawer .rv-compose .rv-live { font-size:.72rem; color:var(--muted); }
+#rv-drawer .rv-list { flex:1; overflow-y:auto; padding:.6rem 1rem; }
+#rv-drawer .rv-item { border:1px solid var(--line); border-left:3px solid
+             var(--warn-line); border-radius:8px; padding:.45rem .6rem;
+             margin-bottom:.6rem; font-size:.82rem; cursor:pointer; }
+#rv-drawer .rv-item.rv-resolved { opacity:.55; border-left-color:var(--line); }
+#rv-drawer .rv-item .rv-where { color:var(--accent); font-size:.72rem; }
+#rv-drawer .rv-item .rv-meta { color:var(--muted); font-size:.72rem;
+                               display:flex; gap:.5rem; align-items:center; }
+#rv-drawer .rv-item .rv-meta button { font-size:.7rem; cursor:pointer;
+             background:none; border:1px solid var(--line); border-radius:5px;
+             color:var(--muted); padding:0 .35rem; }
+#rv-drawer .rv-item .rv-text { white-space:pre-wrap; margin:.15rem 0; }
+#rv-drawer footer { padding:.6rem 1rem; border-top:1px solid var(--line);
+                    display:flex; gap:.5rem; flex-wrap:wrap; }
+#rv-drawer footer button, #rv-drawer .rv-compose button {
+  cursor:pointer; border:1px solid var(--accent); background:none;
+  color:var(--accent); border-radius:6px; padding:.2rem .7rem; font-size:.8rem; }
+#rv-drawer .rv-compose button.rv-primary { background:var(--accent); color:#fff; }
+#rv-drawer .rv-otherpages { color:var(--muted); font-size:.75rem;
+                            margin:.4rem 0 0; }
+@media (max-width: 1200px) { body.rv-open .layout { padding-right:0; } }
+</style>
+</head>
+<body data-page="feature-client-sdk" data-rvkey="qmux">
+<div class="layout">
+<aside class="site"><a class="brand" href="../spec.html">QMux</a>
+<h2>Spec</h2><ul>
+<li><a href="../spec.html">Overview &amp; index</a></li>
+</ul>
+<h2>Features</h2><ul>
+<li><a href="feature-foundation.html">Foundation</a></li>
+<li><a href="feature-protocol-registry.html">Protocol registry</a></li>
+<li><a href="feature-authoritative-server.html">Authoritative server</a></li>
+<li><a class="current" href="feature-client-sdk.html">Client SDK</a></li>
+<li><a href="feature-envelope-codec.html">Envelope codec</a></li>
+<li><a href="feature-discovery.html">Discovery and version negotiation</a></li>
+<li><a href="feature-signing-and-freshness.html">Signing and freshness</a></li>
+<li><a href="feature-embedded-recovery.html">Embedded recovery demonstration</a></li>
+<li><a href="feature-qmuxd-daemon.html">qmuxd daemon</a></li>
+<li><a href="feature-interop-harness.html">Interop harness</a></li>
+<li><a href="feature-baseline-benchmarks.html">Baseline benchmarks</a></li>
+<li><a href="feature-documentation.html">Documentation</a></li>
+</ul></aside>
+<main>
+<h1>Feature: Client SDK</h1>
+<p class="meta">Epic 3: Client SDK &nbsp; <span class="badge">planned</span></p>
+<h3 id="client-sdk-purpose">Purpose</h3>
+<p>The client SDK sends a query for one QNAME, QCLASS and QTYPE directly to a configured server, and returns a result. It builds every DNS packet itself and never uses the operating system's stub resolver. It retries on a UDP timeout, repeats a truncated query over TCP, and checks that the answer matches the question exactly. It reports DNS failures and application outcomes as separate error types.</p>
+<p><code>qmuxctl query</code> exposes the SDK on the command line. This epic also adds the root <code>qmux</code> facade, so the brief's API examples compile as written. The Phase 1 deliverable closes this epic: two protocols answer through two private classes.</p>
+<h3 id="client-sdk-user-stories">User stories</h3>
+<ul>
+<li>As a device integrator, I want to send a query with a private class and a private type,
+</li>
+</ul>
+<p>so that the device reads protocol data with no recursive resolver.</p>
+<ul>
+<li>As a device integrator, I want the client to retry and to fall back to TCP, so that a
+</li>
+</ul>
+<p>lost packet or a large answer does not fail the query.</p>
+<ul>
+<li>As a device integrator, I want a mismatched answer to fail, so that a spoofed or
+</li>
+</ul>
+<p>confused response never reaches my code.</p>
+<ul>
+<li>As an operator, I want <code>qmuxctl query</code>, so that I can inspect an answer from a shell.
+</li>
+</ul>
+<h3 id="client-sdk-functional-requirements">Functional requirements</h3>
+<h4 id="client-sdk-client-configuration-and-query">Client configuration and query</h4>
+<ul>
+<li>FR-client-1 — <code>NewClient(cfg ClientConfig)</code> returns a client that sends every query to
+</li>
+</ul>
+<p><code>cfg.Resolver</code>.</p>
+<ul>
+<li>FR-client-2 — <code>NewClient</code> applies the defaults from the spec's timeouts table to every
+</li>
+</ul>
+<p>zero field of <code>ClientConfig</code>.</p>
+<ul>
+<li>FR-client-3 — <code>Query(ctx, q)</code> sends one DNS question with <code>q.Name</code>, <code>q.Class</code> and
+</li>
+</ul>
+<p><code>q.Type</code>.</p>
+<ul>
+<li>FR-client-4 — <code>Query</code> adds the version label <code>_v&lt;N&gt;</code> to the QNAME when <code>q.Version</code> is
+</li>
+</ul>
+<p>not 0.</p>
+<ul>
+<li>FR-client-5 — <code>Query</code> adds an OPT RR with <code>cfg.UDPSize</code> to every UDP query.
+</li>
+<li>FR-client-6 — <code>Query</code> builds the packet through <code>pkg/transport</code> and sends it with
+</li>
+</ul>
+<p><code>net.Dialer</code>.</p>
+<ul>
+<li>FR-client-7 — <code>Query</code> uses a new random query ID for each attempt.
+</li>
+</ul>
+<h4 id="client-sdk-transport-retries-and-fallback">Transport, retries and fallback</h4>
+<ul>
+<li>FR-client-8 — <code>Query</code> sends over UDP when <code>cfg.Network</code> is <code>udp</code> or empty.
+</li>
+<li>FR-client-9 — <code>Query</code> sends over TCP only when <code>cfg.Network</code> is <code>tcp</code>.
+</li>
+<li>FR-client-10 — <code>Query</code> makes a new UDP attempt after <code>AttemptTimeout</code> with no
+</li>
+</ul>
+<p>response, up to <code>Attempts</code> attempts.</p>
+<ul>
+<li>FR-client-11 — <code>Query</code> makes no new attempt after a response with any RCODE.
+</li>
+<li>FR-client-12 — <code>Query</code> stops and returns a timeout <code>DNSError</code> when <code>ctx</code> expires.
+</li>
+<li>FR-client-13 — <code>Query</code> stops and returns an error that wraps <code>context.Canceled</code> when
+</li>
+</ul>
+<p><code>ctx</code> is cancelled.</p>
+<ul>
+<li>FR-client-14 — <code>Query</code> repeats the query once over TCP when a UDP response has the TC
+</li>
+</ul>
+<p>bit set.</p>
+<ul>
+<li>FR-client-15 — <code>Query</code> returns a truncation <code>DNSError</code> when the TC bit is set and
+</li>
+</ul>
+<p><code>cfg.DisableTCPFallback</code> is true.</p>
+<h4 id="client-sdk-response-matching-and-errors">Response matching and errors</h4>
+<ul>
+<li>FR-client-16 — <code>Query</code> ignores a UDP response whose ID differs from the query ID, and
+</li>
+</ul>
+<p>waits for the matching response until the attempt times out.</p>
+<ul>
+<li>FR-client-17 — <code>Query</code> returns a mismatch <code>DNSError</code> when the response question name,
+</li>
+</ul>
+<p>class or type differs from the query.</p>
+<ul>
+<li>FR-client-18 — <code>Query</code> compares names without regard to case.
+</li>
+<li>FR-client-19 — <code>Query</code> returns a mismatch <code>DNSError</code> when a <code>NOERROR</code> response does not
+</li>
+</ul>
+<p>hold exactly one answer RR.</p>
+<ul>
+<li>FR-client-20 — <code>Query</code> returns a mismatch <code>DNSError</code> when the answer RR name, class or
+</li>
+</ul>
+<p>type differs from the question.</p>
+<ul>
+<li>FR-client-21 — <code>Query</code> returns an RCODE <code>DNSError</code> that holds the RCODE when the RCODE
+</li>
+</ul>
+<p>is not <code>NOERROR</code>.</p>
+<ul>
+<li>FR-client-22 — <code>Query</code> returns a malformed <code>DNSError</code> when the response does not parse.
+</li>
+<li>FR-client-23 — <code>Query</code> returns a network <code>DNSError</code> when the dial, the write or the
+</li>
+</ul>
+<p>read fails for a reason other than a timeout.</p>
+<ul>
+<li>FR-client-24 — <code>pkg/client</code> defines <code>AppError</code> with the fields <code>Status</code>, <code>ProtocolID</code>
+</li>
+</ul>
+<p>and <code>Version</code>.</p>
+<ul>
+<li>FR-client-25 — <code>pkg/client</code> defines <code>VerifyError</code> with the fields <code>Reason</code> and <code>Err</code>.
+</li>
+</ul>
+<h4 id="client-sdk-result">Result</h4>
+<ul>
+<li>FR-client-26 — <code>Result.Payload</code> holds the opaque RDATA bytes of the answer RR.
+</li>
+<li>FR-client-27 — <code>Result</code> holds the QNAME, protocol key, RCODE and TTL of the answer.
+</li>
+<li>FR-client-28 — <code>Result.Transport</code> is <code>udp</code> or <code>tcp</code>, the transport of the final
+</li>
+</ul>
+<p>attempt.</p>
+<ul>
+<li>FR-client-29 — <code>Result.FellBack</code> is true when the client repeated the query over TCP.
+</li>
+<li>FR-client-30 — <code>Result.RTT</code> is the time of the final attempt.
+</li>
+<li>FR-client-31 — <code>Result.QueryBytes</code> and <code>Result.ResponseBytes</code> are the wire sizes of the
+</li>
+</ul>
+<p>final attempt.</p>
+<ul>
+<li>FR-client-32 — <code>Result.Verified</code> is false in Epic 3.
+</li>
+</ul>
+<h4 id="client-sdk-qmuxctl-query">qmuxctl query</h4>
+<ul>
+<li>FR-client-33 — <code>qmuxctl query</code> accepts the flags <code>--server</code>, <code>--class</code>, <code>--type</code>,
+</li>
+</ul>
+<p><code>--name</code>, <code>--version</code>, <code>--tcp</code>, <code>--timeout</code> and <code>--json</code>.</p>
+<ul>
+<li>FR-client-34 — <code>qmuxctl query</code> prints one <code>key: value</code> line per result field, with the
+</li>
+</ul>
+<p>payload as lowercase hex.</p>
+<ul>
+<li>FR-client-35 — <code>qmuxctl query --json</code> prints the result as one JSON object.
+</li>
+<li>FR-client-36 — <code>qmuxctl query</code> exits 0 on a result.
+</li>
+<li>FR-client-37 — <code>qmuxctl query</code> exits 1 on a <code>DNSError</code>.
+</li>
+<li>FR-client-38 — <code>qmuxctl query</code> exits 2 on an <code>AppError</code>.
+</li>
+<li>FR-client-39 — <code>qmuxctl query</code> exits 3 on a <code>VerifyError</code>.
+</li>
+<li>FR-client-40 — <code>qmuxctl query</code> exits 64 on a missing or invalid flag, and prints the
+</li>
+</ul>
+<p>usage.</p>
+<h4 id="client-sdk-facade-and-phase-1-deliverable">Facade and Phase 1 deliverable</h4>
+<ul>
+<li>FR-client-41 — The root package <code>qmux</code> defines the aliases <code>ServerConfig</code>,
+</li>
+</ul>
+<p><code>ClientConfig</code>, <code>ProtocolKey</code> and <code>Query</code>, and the functions <code>NewServer</code> and <code>NewClient</code>.</p>
+<ul>
+<li>FR-client-42 — <code>example_test.go</code> holds the brief's server snippet and client snippet,
+</li>
+</ul>
+<p>and both compile.</p>
+<ul>
+<li>FR-client-43 — <code>tests/integration</code> holds a test in which protocols at <code>65280/65280</code>
+</li>
+</ul>
+<p>and <code>65281/65280</code> answer different payloads to one client over UDP.</p>
+<ul>
+<li>FR-client-44 — The same integration test repeats both queries over TCP.
+</li>
+<li>FR-client-45 — <code>tests/integration</code> holds a test in which a large answer arrives
+</li>
+</ul>
+<p>through TCP fallback.</p>
+<h3 id="client-sdk-user-flows">User flows</h3>
+<h4 id="client-sdk-flow-1-the-client-sends-a-query">Flow 1 — The client sends a query</h4>
+<div class="diagram"><pre class="mermaid">flowchart TD
+    A[Caller calls Query] --&gt; B[Build the packet with a new ID]
+    B --&gt; C{Network is tcp?}
+    C -- yes --&gt; T[Send over TCP]
+    C -- no --&gt; U[Send over UDP]
+    U --&gt; D{Response before AttemptTimeout?}
+    D -- no --&gt; E{Attempts left and ctx alive?}
+    E -- yes --&gt; B
+    E -- no --&gt; X1[DNSError timeout]
+    D -- yes --&gt; F{TC bit set?}
+    F -- yes --&gt; G{DisableTCPFallback?}
+    G -- yes --&gt; X2[DNSError truncation]
+    G -- no --&gt; T
+    F -- no --&gt; H[Match the response]
+    T --&gt; H
+    H --&gt; I{question and answer match?}
+    I -- no --&gt; X3[DNSError mismatch]
+    I -- yes --&gt; J{RCODE is NOERROR?}
+    J -- no --&gt; X4[DNSError rcode]
+    J -- yes --&gt; K[Return the result]</pre></div>
+<ol>
+<li>The caller calls <code>Query</code>.
+</li>
+<li>The client builds the packet with a new random ID.
+</li>
+<li>If <code>Network</code> is <code>tcp</code>, the client sends over TCP.
+</li>
+<li>Otherwise, the client sends over UDP.
+</li>
+<li>If no response arrives before <code>AttemptTimeout</code>, and attempts and context remain, the
+</li>
+</ol>
+<p>client starts again at step 2.</p>
+<ol>
+<li>If no attempts remain, the client returns a timeout <code>DNSError</code>.
+</li>
+<li>If the TC bit is set and <code>DisableTCPFallback</code> is true, the client returns a
+</li>
+</ol>
+<p>truncation <code>DNSError</code>.</p>
+<ol>
+<li>If the TC bit is set, the client sends the query over TCP.
+</li>
+<li>The client matches the response against the query.
+</li>
+<li>If the question or the answer does not match, the client returns a mismatch
+</li>
+</ol>
+<p><code>DNSError</code>.</p>
+<ol>
+<li>If the RCODE is not <code>NOERROR</code>, the client returns an RCODE <code>DNSError</code>.
+</li>
+<li>The client returns the result.
+</li>
+</ol>
+<h4 id="client-sdk-flow-2-an-operator-runs-qmuxctl-query">Flow 2 — An operator runs qmuxctl query</h4>
+<div class="diagram"><pre class="mermaid">flowchart TD
+    A[Operator runs qmuxctl query] --&gt; B{flags valid?}
+    B -- no --&gt; X1[Print usage and exit 64]
+    B -- yes --&gt; C[Client sends the query]
+    C --&gt; D{outcome}
+    D -- result --&gt; E[Print the result and exit 0]
+    D -- DNSError --&gt; F[Print the error and exit 1]
+    D -- AppError --&gt; G[Print the error and exit 2]
+    D -- VerifyError --&gt; H[Print the error and exit 3]</pre></div>
+<ol>
+<li>The operator runs <code>qmuxctl query</code> with flags.
+</li>
+<li>If a flag is missing or invalid, <code>qmuxctl</code> prints the usage and exits 64.
+</li>
+<li>The client sends the query.
+</li>
+<li>If the client returns a result, <code>qmuxctl</code> prints it and exits 0.
+</li>
+<li>If the client returns a <code>DNSError</code>, <code>qmuxctl</code> prints it and exits 1.
+</li>
+<li>If the client returns an <code>AppError</code>, <code>qmuxctl</code> prints it and exits 2.
+</li>
+<li>If the client returns a <code>VerifyError</code>, <code>qmuxctl</code> prints it and exits 3.
+</li>
+</ol>
+<h3 id="client-sdk-screens-states">Screens &amp; states</h3>
+<p>No graphical screens. <code>qmuxctl query</code> output states:</p>
+<p>Result:</p>
+<pre class="code"><code>$ qmuxctl query --server 127.0.0.1:5353 --class 65280 --type 65280 --name device42.fleet.example.
+name: device42.fleet.example.
+class: 65280
+type: 65280
+rcode: NOERROR
+ttl: 60
+transport: udp
+fell_back: false
+rtt_ms: 0.41
+query_bytes: 51
+response_bytes: 88
+verified: false
+payload: a1016b68656c6c6f</code></pre>
+<p>DNS error (exit 1):</p>
+<pre class="code"><code>error: dns: rcode REFUSED for device42.fleet.example. 65283/65280</code></pre>
+<p>Timeout (exit 1):</p>
+<pre class="code"><code>error: dns: timeout after 3 attempts to 127.0.0.1:5353</code></pre>
+<p>Usage error (exit 64): the usage text for <code>qmuxctl query</code>.</p>
+<h3 id="client-sdk-behaviour-rules">Behaviour rules</h3>
+<ul>
+<li><code>cfg.Resolver</code> is a <code>host:port</code> string. <code>NewClient</code> does not resolve a host name through
+</li>
+</ul>
+<p>DNS. A host name in <code>Resolver</code> is an error at the first query.</p>
+<ul>
+<li><code>q.Name</code> must be a fully qualified name. The client adds the final <code>.</code> when it is
+</li>
+</ul>
+<p>absent.</p>
+<ul>
+<li>The client sets RD to 0 for a direct query. A caller can set <code>ClientConfig.Recursion</code>
+</li>
+</ul>
+<p>to true, so that a query through a resolver sets RD to 1.</p>
+<ul>
+<li>The client never retries over TCP on a timeout. A TCP attempt uses the remaining
+</li>
+</ul>
+<p>context time and <code>AttemptTimeout</code>, whichever ends first.</p>
+<ul>
+<li>The TCP fallback counts as one extra attempt beyond <code>Attempts</code>.
+</li>
+<li><code>Result.TTL</code> is informational. Nothing in the client uses it as an expiry.
+</li>
+<li><code>DNSError.Error()</code> names the kind, the QNAME, the protocol key and, for the kind
+</li>
+</ul>
+<p><code>rcode</code>, the RCODE text.</p>
+<ul>
+<li>Every error wraps a cause, so callers test it with <code>errors.As</code> and <code>errors.Is</code>.
+</li>
+<li>In Epic 3 the client never returns <code>AppError</code> or <code>VerifyError</code>. Epics 4 and 6 return
+</li>
+</ul>
+<p>them.</p>
+<h3 id="client-sdk-data-touched">Data touched</h3>
+<p>In-memory only. The client holds its configuration. It stores nothing between queries.</p>
+<h3 id="client-sdk-interfaces">Interfaces</h3>
+<pre class="code"><code>package client
+
+type ClientConfig struct {
+    Resolver           string        // "127.0.0.1:5353"
+    Network            string        // "udp" (default) or "tcp"
+    AttemptTimeout     time.Duration // default 1s
+    Attempts           int           // default 3
+    UDPSize            uint16        // default 1232
+    DisableTCPFallback bool
+    Recursion          bool          // sets RD, for queries through a resolver
+    Logger             *slog.Logger
+}
+
+type Query struct {
+    Name    string
+    Class   uint16
+    Type    uint16
+    Version uint16 // 0: no version label
+}
+
+type Result struct {
+    Name          string
+    Key           protocol.ProtocolKey
+    RCode         int
+    Payload       []byte
+    TTL           uint32
+    Transport     string // "udp" or "tcp"
+    FellBack      bool
+    RTT           time.Duration
+    QueryBytes    int
+    ResponseBytes int
+    Verified      bool
+}
+
+type ErrorKind string
+const (
+    KindRCode      ErrorKind = "rcode"
+    KindTimeout    ErrorKind = "timeout"
+    KindNetwork    ErrorKind = "network"
+    KindMismatch   ErrorKind = "mismatch"
+    KindMalformed  ErrorKind = "malformed"
+    KindTruncation ErrorKind = "truncation"
+)
+
+type DNSError struct {
+    Kind  ErrorKind
+    RCode int
+    Name  string
+    Key   protocol.ProtocolKey
+    Err   error
+}
+
+type AppError struct {
+    Status     protocol.Status
+    ProtocolID string
+    Version    uint16
+}
+
+type VerifyError struct {
+    Reason string
+    Err    error
+}
+
+func NewClient(cfg ClientConfig) *Client
+func (c *Client) Query(ctx context.Context, q Query) (*Result, error)</code></pre>
+<pre class="code"><code>package qmux
+
+type ServerConfig = server.ServerConfig
+type ClientConfig = client.ClientConfig
+type ProtocolKey  = protocol.ProtocolKey
+type Query        = client.Query
+
+func NewServer(cfg ServerConfig) *server.Server
+func NewClient(cfg ClientConfig) *client.Client</code></pre>
+<p>miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and <code>go doc</code> on 2026-11-20:</p>
+<ul>
+<li><code>dns.Client</code> has the fields <code>Net</code>, <code>UDPSize</code> and <code>Timeout</code>. <code>Timeout</code> is an overall
+</li>
+</ul>
+<p>timeout that overrides the dial, read and write timeouts.</p>
+<ul>
+<li><code>dns.Client.ExchangeContext(ctx, m, addr)</code> returns <code>(*Msg, rtt, error)</code>.
+</li>
+<li><code>pkg/transport</code> may use <code>dns.Client</code> or a <code>net.Dialer</code> with <code>Msg.Pack</code> and
+</li>
+</ul>
+<p><code>Msg.Unpack</code>. It must report the wire sizes of the query and the response either way.</p>
+<h3 id="client-sdk-edge-cases-failures">Edge cases &amp; failures</h3>
+<ul>
+<li>The server answers with a different ID over UDP. The client ignores the packet and
+</li>
+</ul>
+<p>waits for the correct ID until the attempt times out.</p>
+<ul>
+<li>The server answers <code>NOERROR</code> with zero answer RRs. The client returns a mismatch
+</li>
+</ul>
+<p><code>DNSError</code>.</p>
+<ul>
+<li>The server answers with an RR of type 65281 to a question of type 65280. The client
+</li>
+</ul>
+<p>returns a mismatch <code>DNSError</code>.</p>
+<ul>
+<li>The server answers TC over TCP. The client returns a malformed <code>DNSError</code>, because TCP
+</li>
+</ul>
+<p>allows no truncation.</p>
+<ul>
+<li>The context has 300ms left and <code>AttemptTimeout</code> is 1s. The single attempt stops at
+</li>
+</ul>
+<p>300ms with a timeout <code>DNSError</code>.</p>
+<ul>
+<li>Nothing listens on the TCP port during fallback. The client returns a network
+</li>
+</ul>
+<p><code>DNSError</code>.</p>
+<h3 id="client-sdk-acceptance-criteria">Acceptance criteria</h3>
+<ul>
+<li>A query from a client built with <code>Resolver</code> set reaches that address. (FR-client-1)
+</li>
+<li><code>NewClient(ClientConfig{Resolver: addr})</code> applies attempt timeout 1s, 3 attempts and
+</li>
+</ul>
+<p>UDP size 1232. (FR-client-2)</p>
+<ul>
+<li>The server sees one question with the QNAME, class and type of the query.
+</li>
+</ul>
+<p>(FR-client-3)</p>
+<ul>
+<li>A query with <code>Version: 2</code> reaches the server as <code>_v2.&lt;name&gt;</code>. (FR-client-4)
+</li>
+<li>The server sees an OPT RR with UDP size 1232 on each UDP query. (FR-client-5)
+</li>
+<li>A test with the system resolver configuration removed still completes a query.
+</li>
+</ul>
+<p>(FR-client-6)</p>
+<ul>
+<li>A test server that drops the first two packets sees three different query IDs.
+</li>
+</ul>
+<p>(FR-client-7)</p>
+<ul>
+<li>A default client query reaches the server over UDP. (FR-client-8)
+</li>
+<li>A client with <code>Network: "tcp"</code> reaches the server over TCP only. (FR-client-9)
+</li>
+<li>A test server that drops every packet sees exactly 3 attempts. (FR-client-10)
+</li>
+<li>A test server that answers <code>SERVFAIL</code> sees exactly 1 attempt. (FR-client-11)
+</li>
+<li>A context with a 200ms deadline against a silent server returns a timeout <code>DNSError</code>
+</li>
+</ul>
+<p>within 300ms. (FR-client-12)</p>
+<ul>
+<li>A context cancelled during an attempt returns an error for which
+</li>
+</ul>
+<p><code>errors.Is(err, context.Canceled)</code> is true. (FR-client-13)</p>
+<ul>
+<li>A UDP answer with TC set leads to one TCP query and a result with <code>FellBack</code> true.
+</li>
+</ul>
+<p>(FR-client-14)</p>
+<ul>
+<li>With <code>DisableTCPFallback</code>, a TC answer returns a truncation <code>DNSError</code>. (FR-client-15)
+</li>
+<li>A test server that sends a wrong-ID packet and then the correct packet produces a
+</li>
+</ul>
+<p>result. (FR-client-16)</p>
+<ul>
+<li>A response with a different question type returns a mismatch <code>DNSError</code>.
+</li>
+</ul>
+<p>(FR-client-17)</p>
+<ul>
+<li>A response question <code>DEVICE42.fleet.example.</code> matches a query for
+</li>
+</ul>
+<p><code>device42.fleet.example.</code>. (FR-client-18)</p>
+<ul>
+<li>A <code>NOERROR</code> response with two answer RRs returns a mismatch <code>DNSError</code>.
+</li>
+</ul>
+<p>(FR-client-19)</p>
+<ul>
+<li>An answer RR with class 65281 to a class 65280 question returns a mismatch <code>DNSError</code>.
+</li>
+</ul>
+<p>(FR-client-20)</p>
+<ul>
+<li>A <code>REFUSED</code> response returns a <code>DNSError</code> with kind <code>rcode</code> and <code>RCode</code> 5.
+</li>
+</ul>
+<p>(FR-client-21)</p>
+<ul>
+<li>A truncated, unparseable TCP response returns a malformed <code>DNSError</code>. (FR-client-22)
+</li>
+<li>A query to a closed TCP port returns a network <code>DNSError</code>. (FR-client-23)
+</li>
+<li><code>AppError{Status: 1, ProtocolID: "org.qmux.firmware", Version: 1}</code> compiles and its
+</li>
+</ul>
+<p><code>Error()</code> names the status. (FR-client-24)</p>
+<ul>
+<li><code>VerifyError{Reason: "expired"}</code> compiles and its <code>Error()</code> names the reason.
+</li>
+</ul>
+<p>(FR-client-25)</p>
+<ul>
+<li><code>Result.Payload</code> equals the handler's payload bytes. (FR-client-26)
+</li>
+<li><code>Result</code> holds the QNAME, protocol key, <code>NOERROR</code> and the RR TTL. (FR-client-27)
+</li>
+<li><code>Result.Transport</code> is <code>tcp</code> after a fallback and <code>udp</code> otherwise. (FR-client-28)
+</li>
+<li><code>Result.FellBack</code> is false for a small answer. (FR-client-29)
+</li>
+<li><code>Result.RTT</code> is greater than 0. (FR-client-30)
+</li>
+<li><code>Result.QueryBytes</code> and <code>Result.ResponseBytes</code> equal the packed sizes the test server
+</li>
+</ul>
+<p>records. (FR-client-31)</p>
+<ul>
+<li><code>Result.Verified</code> is false. (FR-client-32)
+</li>
+<li><code>qmuxctl query --help</code> lists the eight flags. (FR-client-33)
+</li>
+<li><code>qmuxctl query</code> prints <code>payload:</code> followed by lowercase hex. (FR-client-34)
+</li>
+<li><code>qmuxctl query --json</code> output parses as one JSON object. (FR-client-35)
+</li>
+<li><code>qmuxctl query</code> against a registered protocol key exits 0. (FR-client-36)
+</li>
+<li><code>qmuxctl query</code> against an unregistered protocol key exits 1. (FR-client-37)
+</li>
+<li>A unit test of the exit-code function maps an <code>AppError</code> to 2. (FR-client-38)
+</li>
+<li>A unit test of the exit-code function maps a <code>VerifyError</code> to 3. (FR-client-39)
+</li>
+<li><code>qmuxctl query</code> with no <code>--name</code> exits 64 and prints the usage. (FR-client-40)
+</li>
+<li><code>qmux.NewServer</code>, <code>qmux.NewClient</code>, <code>qmux.ServerConfig</code>, <code>qmux.ClientConfig</code>,
+</li>
+</ul>
+<p><code>qmux.ProtocolKey</code> and <code>qmux.Query</code> resolve in <code>go doc</code>. (FR-client-41)</p>
+<ul>
+<li><code>go vet ./...</code> compiles <code>example_test.go</code> with both snippets. (FR-client-42)
+</li>
+<li>The integration test receives payload A from <code>65280/65280</code> and payload B from
+</li>
+</ul>
+<p><code>65281/65280</code> over UDP. (FR-client-43)</p>
+<ul>
+<li>The integration test receives the same two payloads over TCP. (FR-client-44)
+</li>
+<li>The integration test receives a 4000-byte payload with <code>FellBack</code> true.
+</li>
+</ul>
+<p>(FR-client-45)</p>
+<h3 id="client-sdk-out-of-scope">Out of scope</h3>
+<ul>
+<li>Envelope decoding and <code>AppError</code> returns. Epic 4 adds them.
+</li>
+<li>Signature verification and <code>ClientConfig.TrustAnchors</code>. Epic 6 adds them.
+</li>
+<li>Discovery and version negotiation. Epic 5 adds them.
+</li>
+<li>Use of the operating system's stub resolver, DNS over TLS, and DNS over HTTPS.
+</li>
+<li>A connection pool for TCP.
+</li>
+</ul>
+<h3 id="client-sdk-open-questions" class="callout-h">Open questions</h3><nav class="pager">
+<a href="feature-authoritative-server.html">&larr; Feature: Authoritative server</a>
+<a href="feature-envelope-codec.html">Feature: Envelope codec &rarr;</a>
+</nav>
+</main>
+</div>
+<script src="../assets/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'default'});</script>
+<script type="application/json" id="rv-embedded">[]</script>
+<script>
+(function(){
+  'use strict';
+  var PAGE = document.body.getAttribute('data-page');
+  // storage key carries the spec's slug: file:// pages can share one
+  // localStorage pool, and two specs must never share a comment store
+  var RVKEY = 'spec-review:' + (document.body.getAttribute('data-rvkey') || 'spec');
+  var EMBED = [];
+  var embedEl = document.getElementById('rv-embedded');
+  if (embedEl) { try { EMBED = JSON.parse(embedEl.textContent); } catch(e){} }
+  function loadLocal(){ try { return JSON.parse(localStorage.getItem(RVKEY)) || {comments:[], deleted:[]}; } catch(e){ return {comments:[], deleted:[]}; } }
+  function saveLocal(s){ try { localStorage.setItem(RVKEY, JSON.stringify(s)); } catch(e){} }
+  function cid(c){ return c.page + '|' + c.section + '|' + (c.date||'') + '|' + c.body.slice(0,24); }
+  function allComments(){
+    var s = loadLocal(), map = {};
+    EMBED.forEach(function(c){ map[cid(c)] = c; });
+    s.comments.forEach(function(c){ map[cid(c)] = c; });
+    s.deleted.forEach(function(id){ delete map[id]; });
+    return Object.keys(map).map(function(k){ return map[k]; });
+  }
+  function upsert(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    s.comments.push(c);
+    s.deleted = s.deleted.filter(function(x){ return x !== id; });
+    saveLocal(s); refresh();
+  }
+  function remove(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    if (EMBED.some(function(x){ return cid(x) === id; })) s.deleted.push(id);
+    saveLocal(s); refresh();
+  }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function exportMd(){
+    var lines = ['# Review comments', '',
+      '<!-- Exported from the spec review layer. Save this file as',
+      '     docs/specs/review-comments.md and re-run render-spec.py to embed',
+      '     every comment under its section for the next review round. -->', ''];
+    allComments().sort(function(a,b){
+      return (a.page+a.section).localeCompare(b.page+b.section);
+    }).forEach(function(c){
+      lines.push('## [' + c.page + '] ' + (c.section||''));
+      lines.push('status: ' + (c.status||'open'));
+      lines.push('date: ' + (c.date||today()));
+      lines.push(c.body); lines.push('');
+    });
+    var blob = new Blob([lines.join('\n')], {type:'text/markdown'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'review-comments.md';
+    a.click(); URL.revokeObjectURL(a.href);
+  }
+  function importMd(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      var text = String(reader.result);
+      var blocks = text.split(/^## /m).slice(1);
+      blocks.forEach(function(b){
+        var head = b.match(/^\[([^\]]+)\]\s*(\S*)/);
+        if (!head) return;
+        var status = (b.match(/^status:\s*(\S+)/m)||[])[1] || 'open';
+        var date = (b.match(/^date:\s*(\S+)/m)||[])[1] || today();
+        var body = b.replace(/^\[[^\]]*\]\s*\S*\s*\n/, '')
+                    .replace(/^status:.*\n?/m,'').replace(/^date:.*\n?/m,'').trim();
+        if (body) upsert({page:head[1], section:head[2]||'', status:status, date:date, body:body});
+      });
+      refresh();
+    };
+    reader.readAsText(file);
+  }
+  function commentBox(c){
+    var div = document.createElement('div');
+    div.className = 'rv-comment' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var head = document.createElement('div'); head.className = 'rv-head';
+    head.textContent = '💬 ' + (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(){ remove(c); c = Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'}); upsert(c); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(){ if (confirm('Delete this comment?')) remove(c); };
+    head.appendChild(tog); head.appendChild(del);
+    var body = document.createElement('div'); body.className = 'rv-body';
+    body.textContent = c.body;
+    div.appendChild(head); div.appendChild(body);
+    return div;
+  }
+  function editor(section, after){
+    var wrap = document.createElement('div');
+    wrap.className = 'rv-comment rv-editor';
+    var ta = document.createElement('textarea');
+    ta.placeholder = 'Comment on this section…';
+    var actions = document.createElement('div'); actions.className = 'rv-actions';
+    var save = document.createElement('button'); save.textContent = 'Save';
+    save.onclick = function(){
+      if (ta.value.trim()) upsert({page:PAGE, section:section, status:'open', date:today(), body:ta.value.trim()});
+      wrap.remove();
+    };
+    var cancel = document.createElement('button'); cancel.textContent = 'Cancel';
+    cancel.className = 'rv-cancel'; cancel.onclick = function(){ wrap.remove(); };
+    actions.appendChild(save); actions.appendChild(cancel);
+    wrap.appendChild(ta); wrap.appendChild(actions);
+    after.insertAdjacentElement('afterend', wrap);
+    ta.focus();
+  }
+  // --- headings, inline buttons ---
+  var mainH1 = document.querySelector('main h1');
+  if (mainH1 && !mainH1.id) { mainH1.id = 'page-title'; }
+  var headings = Array.prototype.slice.call(
+    document.querySelectorAll('main h1[id], main h2[id], main h3[id], main h4[id]'));
+  headings.forEach(function(h){
+    var b = document.createElement('button');
+    b.className = 'rv-add'; b.textContent = '💬 comment'; b.title = 'Comment on this section';
+    b.onclick = function(){ editor(h.id, h); };
+    h.appendChild(b);
+  });
+  function headingTitle(h){
+    var t = h.childNodes[0] ? h.childNodes[0].textContent : h.textContent;
+    return t.trim();
+  }
+  function titleFor(section){
+    var el = section && document.getElementById(section);
+    return el ? headingTitle(el) : (section || '(page)');
+  }
+
+  // --- drawer ---
+  var drawer = document.createElement('div');
+  drawer.id = 'rv-drawer';
+  drawer.innerHTML =
+    '<header><strong>Review</strong> <span class="rv-count"></span></header>' +
+    '<div class="rv-compose">' +
+    '<div class="rv-live">Commenting on the section in view:</div>' +
+    '<label for="rv-sec"></label><select id="rv-sec"></select>' +
+    '<textarea id="rv-text" placeholder="Type as you read… (Ctrl+Enter saves)"></textarea>' +
+    '<div style="margin-top:.4rem; display:flex; gap:.5rem;">' +
+    '<button class="rv-primary" id="rv-save">Save comment</button>' +
+    '<button id="rv-clear">Clear</button></div></div>' +
+    '<div class="rv-list"></div>' +
+    '<footer><button id="rv-export">Export .md</button>' +
+    '<button id="rv-import">Import</button>' +
+    '<span class="rv-otherpages"></span></footer>';
+  document.body.appendChild(drawer);
+  var toggle = document.createElement('button');
+  toggle.id = 'rv-toggle';
+  toggle.onclick = function(){
+    document.body.classList.toggle('rv-open');
+    try { localStorage.setItem(RVKEY + ':open', document.body.classList.contains('rv-open') ? '1' : ''); } catch(e){}
+  };
+  document.body.appendChild(toggle);
+  try { if (localStorage.getItem(RVKEY + ':open')) document.body.classList.add('rv-open'); } catch(e){}
+
+  var sel = drawer.querySelector('#rv-sec');
+  headings.forEach(function(h){
+    var opt = document.createElement('option');
+    opt.value = h.id; opt.textContent = headingTitle(h);
+    sel.appendChild(opt);
+  });
+  var followScroll = true;
+  sel.onchange = function(){ followScroll = false; };
+
+  // scroll spy: pick the last heading above the upper third of the viewport
+  function currentSection(){
+    var line = window.innerHeight * 0.33, best = headings[0];
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].getBoundingClientRect().top <= line) best = headings[i];
+    }
+    return best ? best.id : '';
+  }
+  window.addEventListener('scroll', function(){
+    if (!followScroll) return;
+    var s = currentSection();
+    if (s && sel.value !== s) sel.value = s;
+  }, {passive:true});
+  // typing pins the target section so a stray scroll can't retarget the comment
+  drawer.querySelector('#rv-text').addEventListener('input', function(){
+    if (this.value.trim()) followScroll = false;
+    else followScroll = true;
+  });
+
+  function saveFromDrawer(){
+    var ta = drawer.querySelector('#rv-text');
+    if (!ta.value.trim()) return;
+    upsert({page:PAGE, section:sel.value, status:'open', date:today(), body:ta.value.trim()});
+    ta.value = ''; followScroll = true;
+  }
+  drawer.querySelector('#rv-save').onclick = saveFromDrawer;
+  drawer.querySelector('#rv-text').addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') saveFromDrawer();
+  });
+  drawer.querySelector('#rv-clear').onclick = function(){
+    drawer.querySelector('#rv-text').value = ''; followScroll = true;
+  };
+  drawer.querySelector('#rv-export').onclick = exportMd;
+  var fileIn = document.createElement('input');
+  fileIn.type = 'file'; fileIn.accept = '.md,text/markdown'; fileIn.style.display = 'none';
+  fileIn.onchange = function(){ if (fileIn.files[0]) importMd(fileIn.files[0]); };
+  drawer.appendChild(fileIn);
+  drawer.querySelector('#rv-import').onclick = function(){ fileIn.click(); };
+
+  function drawerItem(c){
+    var div = document.createElement('div');
+    div.className = 'rv-item' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var where = document.createElement('div'); where.className = 'rv-where';
+    where.textContent = titleFor(c.section);
+    var text = document.createElement('div'); text.className = 'rv-text';
+    text.textContent = c.body;
+    var meta = document.createElement('div'); meta.className = 'rv-meta';
+    meta.textContent = (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(e){ e.stopPropagation(); remove(c);
+      upsert(Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'})); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(e){ e.stopPropagation();
+      if (confirm('Delete this comment?')) remove(c); };
+    meta.appendChild(tog); meta.appendChild(del);
+    div.appendChild(where); div.appendChild(text); div.appendChild(meta);
+    div.onclick = function(){
+      var el = c.section && document.getElementById(c.section);
+      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+    return div;
+  }
+
+  function refresh(){
+    document.querySelectorAll('.rv-comment:not(.rv-editor)').forEach(function(el){ el.remove(); });
+    var all = allComments();
+    var mine = all.filter(function(c){ return c.page === PAGE; });
+    mine.forEach(function(c){
+      var target = c.section && document.getElementById(c.section);
+      var anchor = target || mainH1 || document.body.querySelector('main') || document.body;
+      anchor.insertAdjacentElement('afterend', commentBox(c));
+    });
+    var open = all.filter(function(c){ return c.status !== 'resolved'; }).length;
+    toggle.textContent = '💬 Review (' + open + ')';
+    drawer.querySelector('.rv-count').textContent =
+      open + ' open / ' + all.length + ' total';
+    var list = drawer.querySelector('.rv-list');
+    list.innerHTML = '';
+    mine.slice().reverse().forEach(function(c){ list.appendChild(drawerItem(c)); });
+    var others = {};
+    all.forEach(function(c){ if (c.page !== PAGE) others[c.page] = (others[c.page]||0) + 1; });
+    var otherKeys = Object.keys(others);
+    drawer.querySelector('.rv-otherpages').textContent = otherKeys.length
+      ? 'Other pages: ' + otherKeys.map(function(k){ return k + ' (' + others[k] + ')'; }).join(', ')
+      : '';
+  }
+  refresh();
+  var s0 = currentSection();
+  if (s0) sel.value = s0;
+})();
+</script>
+</body>
+</html>

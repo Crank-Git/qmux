@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QMux — Feature: Embedded recovery demonstration</title>
+<style>
+:root { --bg:#ffffff; --fg:#1a1a24; --muted:#5a5a68; --line:#e3e3ea; --accent:#3452c8;
+        --card:#f6f6f9; --warn-bg:#fff7e8; --warn-line:#e8b34a; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#14141b; --fg:#e8e8ee; --muted:#9a9aa8; --line:#2c2c38; --accent:#8ea6ff;
+          --card:#1c1c26; --warn-bg:#2a2318; --warn-line:#a87c2a; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+       font:16px/1.6 system-ui,-apple-system,sans-serif; }
+.layout { display:flex; min-height:100vh; }
+aside.site { width:17rem; flex:none; border-right:1px solid var(--line);
+             padding:1.2rem 1rem 3rem; position:sticky; top:0; height:100vh;
+             overflow-y:auto; background:var(--card); }
+aside.site h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em;
+                color:var(--muted); margin:1.2rem 0 .3rem; border:none; padding:0; }
+aside.site ul { list-style:none; margin:0; padding:0; }
+aside.site li { margin:.15rem 0; }
+aside.site a { text-decoration:none; color:var(--fg); font-size:.92rem;
+               display:block; padding:.15rem .5rem; border-radius:6px; }
+aside.site a:hover { background:var(--bg); }
+aside.site a.current { background:var(--accent); color:#fff; }
+aside.site a.sub { padding-left:1.3rem; font-size:.84rem; color:var(--muted); }
+aside.site .brand { font-weight:700; font-size:1.05rem; }
+main { max-width:60rem; margin:0 auto; padding:2rem 1.5rem 6rem; min-width:0; flex:1; }
+h1,h2,h3,h4 { line-height:1.25; }
+h1 { font-size:2rem; margin:.2rem 0; }
+h2 { border-bottom:1px solid var(--line); padding-bottom:.3rem; margin-top:2.5rem; }
+a { color:var(--accent); }
+code { background:var(--card); padding:.1em .35em; border-radius:4px; font-size:.9em; }
+pre.code { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; overflow-x:auto; }
+pre.code code { background:none; padding:0; }
+.table-wrap { overflow-x:auto; }
+table { border-collapse:collapse; margin:1rem 0; min-width:50%; }
+th,td { border:1px solid var(--line); padding:.4rem .7rem; text-align:left; }
+th { background:var(--card); }
+blockquote { border-left:3px solid var(--accent); margin:1rem 0; padding:.2rem 1rem;
+             color:var(--muted); }
+.meta { color:var(--muted); margin-bottom:2rem; }
+.badge { display:inline-block; padding:.1rem .6rem; border-radius:999px;
+         border:1px solid var(--accent); color:var(--accent); font-size:.85rem; }
+.diagram { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; margin:1rem 0; overflow-x:auto; }
+.diagram pre.mermaid { margin:0; }
+.diagram.raw::before { content:"diagram source (assets/mermaid.min.js not vendored)";
+                       display:block; color:var(--muted); font-size:.8rem;
+                       margin-bottom:.5rem; }
+.callout-h, .callout-h ~ p, .callout-h ~ ul { background:var(--warn-bg); }
+.callout-h { border-left:4px solid var(--warn-line); padding:.3rem .8rem; }
+.mockup { margin:1.5rem 0; }
+.mockup iframe { width:100%; height:32rem; border:1px solid var(--line);
+                 border-radius:8px; background:#fff; }
+nav.pager { display:flex; justify-content:space-between; margin-top:3rem;
+            border-top:1px solid var(--line); padding-top:1rem; }
+@media (max-width: 900px) {
+  .layout { display:block; }
+  aside.site { width:auto; height:auto; position:static; border-right:none;
+               border-bottom:1px solid var(--line); }
+}
+h1[id]:hover .rv-add, h2[id]:hover .rv-add, h3[id]:hover .rv-add,
+h4[id]:hover .rv-add { opacity:1; }
+.rv-add { opacity:0; margin-left:.5rem; font-size:.75rem; cursor:pointer;
+          border:1px solid var(--accent); color:var(--accent); background:none;
+          border-radius:6px; padding:0 .45rem; vertical-align:middle;
+          transition:opacity .15s; }
+.rv-comment { border:1px solid var(--warn-line); border-left-width:4px;
+              background:var(--warn-bg); border-radius:8px; padding:.6rem .9rem;
+              margin:.8rem 0; font-size:.92rem; }
+.rv-comment.rv-resolved { opacity:.6; border-left-color:var(--line); }
+.rv-comment .rv-head { display:flex; gap:.6rem; align-items:center;
+                       color:var(--muted); font-size:.8rem; margin-bottom:.3rem; }
+.rv-comment .rv-head button { font-size:.75rem; cursor:pointer; background:none;
+                              border:1px solid var(--line); border-radius:6px;
+                              color:var(--muted); padding:0 .4rem; }
+.rv-comment .rv-body { white-space:pre-wrap; }
+.rv-editor textarea { width:100%; min-height:5rem; background:var(--bg);
+                      color:var(--fg); border:1px solid var(--line);
+                      border-radius:6px; padding:.5rem; font:inherit; }
+.rv-editor .rv-actions { margin-top:.4rem; display:flex; gap:.5rem; }
+.rv-editor button { cursor:pointer; border-radius:6px; padding:.2rem .8rem;
+                    border:1px solid var(--accent); background:var(--accent);
+                    color:#fff; }
+.rv-editor button.rv-cancel { background:none; color:var(--accent); }
+#rv-toggle { position:fixed; right:1rem; bottom:1rem; z-index:60;
+             background:var(--accent); color:#fff; border:none; cursor:pointer;
+             border-radius:999px; padding:.5rem 1rem; font-size:.85rem;
+             box-shadow:0 2px 10px rgba(0,0,0,.2); }
+#rv-drawer { position:fixed; top:0; right:0; bottom:0; width:21rem; z-index:55;
+             background:var(--card); border-left:1px solid var(--line);
+             display:flex; flex-direction:column; transform:translateX(100%);
+             transition:transform .2s ease; box-shadow:-4px 0 16px rgba(0,0,0,.12); }
+body.rv-open #rv-drawer { transform:none; }
+body.rv-open .layout { padding-right:21rem; }
+#rv-drawer header { padding:.8rem 1rem .5rem; border-bottom:1px solid var(--line); }
+#rv-drawer header .rv-count { color:var(--muted); font-size:.8rem; }
+#rv-drawer .rv-compose { padding:.8rem 1rem; border-bottom:1px solid var(--line); }
+#rv-drawer .rv-compose label { display:block; font-size:.75rem;
+                               color:var(--muted); margin-bottom:.25rem; }
+#rv-drawer .rv-compose select { width:100%; margin-bottom:.4rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.3rem; font:inherit; font-size:.85rem; }
+#rv-drawer .rv-compose textarea { width:100%; min-height:5.5rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.5rem; font:inherit; font-size:.9rem; }
+#rv-drawer .rv-compose .rv-live { font-size:.72rem; color:var(--muted); }
+#rv-drawer .rv-list { flex:1; overflow-y:auto; padding:.6rem 1rem; }
+#rv-drawer .rv-item { border:1px solid var(--line); border-left:3px solid
+             var(--warn-line); border-radius:8px; padding:.45rem .6rem;
+             margin-bottom:.6rem; font-size:.82rem; cursor:pointer; }
+#rv-drawer .rv-item.rv-resolved { opacity:.55; border-left-color:var(--line); }
+#rv-drawer .rv-item .rv-where { color:var(--accent); font-size:.72rem; }
+#rv-drawer .rv-item .rv-meta { color:var(--muted); font-size:.72rem;
+                               display:flex; gap:.5rem; align-items:center; }
+#rv-drawer .rv-item .rv-meta button { font-size:.7rem; cursor:pointer;
+             background:none; border:1px solid var(--line); border-radius:5px;
+             color:var(--muted); padding:0 .35rem; }
+#rv-drawer .rv-item .rv-text { white-space:pre-wrap; margin:.15rem 0; }
+#rv-drawer footer { padding:.6rem 1rem; border-top:1px solid var(--line);
+                    display:flex; gap:.5rem; flex-wrap:wrap; }
+#rv-drawer footer button, #rv-drawer .rv-compose button {
+  cursor:pointer; border:1px solid var(--accent); background:none;
+  color:var(--accent); border-radius:6px; padding:.2rem .7rem; font-size:.8rem; }
+#rv-drawer .rv-compose button.rv-primary { background:var(--accent); color:#fff; }
+#rv-drawer .rv-otherpages { color:var(--muted); font-size:.75rem;
+                            margin:.4rem 0 0; }
+@media (max-width: 1200px) { body.rv-open .layout { padding-right:0; } }
+</style>
+</head>
+<body data-page="feature-embedded-recovery" data-rvkey="qmux">
+<div class="layout">
+<aside class="site"><a class="brand" href="../spec.html">QMux</a>
+<h2>Spec</h2><ul>
+<li><a href="../spec.html">Overview &amp; index</a></li>
+</ul>
+<h2>Features</h2><ul>
+<li><a href="feature-foundation.html">Foundation</a></li>
+<li><a href="feature-protocol-registry.html">Protocol registry</a></li>
+<li><a href="feature-authoritative-server.html">Authoritative server</a></li>
+<li><a href="feature-client-sdk.html">Client SDK</a></li>
+<li><a href="feature-envelope-codec.html">Envelope codec</a></li>
+<li><a href="feature-discovery.html">Discovery and version negotiation</a></li>
+<li><a href="feature-signing-and-freshness.html">Signing and freshness</a></li>
+<li><a class="current" href="feature-embedded-recovery.html">Embedded recovery demonstration</a></li>
+<li><a href="feature-qmuxd-daemon.html">qmuxd daemon</a></li>
+<li><a href="feature-interop-harness.html">Interop harness</a></li>
+<li><a href="feature-baseline-benchmarks.html">Baseline benchmarks</a></li>
+<li><a href="feature-documentation.html">Documentation</a></li>
+</ul></aside>
+<main>
+<h1>Feature: Embedded recovery demonstration</h1>
+<p class="meta">Epic 7: Embedded recovery demonstration &nbsp; <span class="badge">planned</span></p>
+<h3 id="embedded-recovery-purpose">Purpose</h3>
+<p>This feature shows QMux in a realistic setting. An industrial controller (the device) reconnects after an extended outage. It must find its management endpoint, the current approved configuration generation, and the latest authorized firmware release. The device uses three independent protocols on three private classes. It downloads a resource only when verified remote metadata shows a change.</p>
+<p>The demonstration is one Go program. It starts an authoritative server, a mock HTTPS service and the device in one process. It does not use <code>qmuxd</code>. It does not flash firmware.</p>
+<h3 id="embedded-recovery-user-stories">User stories</h3>
+<ul>
+<li>As a device integrator, I want to see a stale device reconcile with one command, so
+</li>
+</ul>
+<p>that I can judge whether QMux fits a recovery path.</p>
+<ul>
+<li>As a device integrator, I want the device to refuse tampered metadata and tampered
+</li>
+</ul>
+<p>resources, so that I can see the security model work.</p>
+<ul>
+<li>As a researcher, I want the demonstration to run as a test, so that CI proves it still
+</li>
+</ul>
+<p>works after each batch.</p>
+<ul>
+<li>As a protocol developer, I want three small payload schemas as a model, so that I can
+</li>
+</ul>
+<p>write my own protocol schema the same way.</p>
+<h3 id="embedded-recovery-functional-requirements">Functional requirements</h3>
+<h4 id="embedded-recovery-payload-schemas">Payload schemas</h4>
+<ul>
+<li>FR-demo-1 — The package <code>examples/embedded-bootstrap/schema</code> defines the bootstrap
+</li>
+</ul>
+<p>payload version 1 as a CBOR map with uint keys: <code>1</code> = management endpoint URL (text), <code>2</code> = management transport (text).</p>
+<ul>
+<li>FR-demo-2 — The package defines the configuration payload version 1 as a CBOR map: <code>1</code> =
+</li>
+</ul>
+<p>configuration generation (uint), <code>2</code> = SHA-256 digest (bytes, length 32), <code>3</code> = retrieval URL (text).</p>
+<ul>
+<li>FR-demo-3 — The package defines the firmware payload version 1 as a CBOR map: <code>1</code> =
+</li>
+</ul>
+<p>firmware version (text, <code>MAJOR.MINOR.PATCH</code>), <code>2</code> = SHA-256 digest (bytes, length 32), <code>3</code> = download URL (text), <code>4</code> = firmware signing key ID (bytes, length 8).</p>
+<ul>
+<li>FR-demo-4 — The schema package encodes each payload with the deterministic options of
+</li>
+</ul>
+<p><code>pkg/codec</code>.</p>
+<ul>
+<li>FR-demo-5 — The schema package decodes each payload strictly. It rejects an unknown key,
+</li>
+</ul>
+<p>a missing key, a wrong CBOR type and a digest that is not 32 bytes.</p>
+<ul>
+<li>FR-demo-6 — Each payload type implements the registry schema interface of
+</li>
+</ul>
+<p><code>pkg/protocol</code>, so the server validates handler payloads before it encodes them.</p>
+<h4 id="embedded-recovery-demonstration-server-and-mock-https-service">Demonstration server and mock HTTPS service</h4>
+<ul>
+<li>FR-demo-7 — The program starts an authoritative server on a loopback UDP and TCP port
+</li>
+</ul>
+<p>that the operating system selects.</p>
+<ul>
+<li>FR-demo-8 — The server is authoritative for the zone <code>fleet.example.</code>
+</li>
+<li>FR-demo-9 — The server registers discovery at the discovery key <code>(65280, 65534)</code>.
+</li>
+<li>FR-demo-10 — The server registers <code>org.qmux.bootstrap</code> at <code>(65280, 65280)</code>,
+</li>
+</ul>
+<p><code>org.qmux.configuration</code> at <code>(65281, 65280)</code> and <code>org.qmux.firmware</code> at <code>(65282, 65280)</code>, each with version 1.</p>
+<ul>
+<li>FR-demo-11 — The program generates a new Ed25519 signing key at each start. The server
+</li>
+</ul>
+<p>signs every envelope with it.</p>
+<ul>
+<li>FR-demo-12 — The program gives the device one in-memory trust anchor: the public key of
+</li>
+</ul>
+<p>that signing key.</p>
+<ul>
+<li>FR-demo-13 — The program starts a mock HTTPS service with <code>net/http/httptest</code>
+</li>
+</ul>
+<p><code>NewTLSServer</code> on loopback.</p>
+<ul>
+<li>FR-demo-14 — The device trusts only the certificate of the mock HTTPS service.
+</li>
+<li>FR-demo-15 — The mock HTTPS service serves one configuration bundle and one firmware
+</li>
+</ul>
+<p>image. The handlers for QNAME <code>device42.fleet.example.</code> return their URLs and SHA-256 digests.</p>
+<ul>
+<li>FR-demo-16 — The mock HTTPS service counts the resource requests it receives.
+</li>
+<li>FR-demo-17 — The <code>--remote-generation</code> flag sets the remote configuration generation.
+</li>
+</ul>
+<p>The default is <code>7</code>.</p>
+<ul>
+<li>FR-demo-18 — The <code>--remote-firmware</code> flag sets the remote firmware version. The default
+</li>
+</ul>
+<p>is <code>2.4.1</code>.</p>
+<h4 id="embedded-recovery-device-reconcile">Device reconcile</h4>
+<ul>
+<li>FR-demo-19 — The device reads the device state from the <code>--state</code> path.
+</li>
+<li>FR-demo-20 — If the device state file does not exist, the device uses configuration
+</li>
+</ul>
+<p>generation <code>0</code> and firmware version <code>0.0.0</code>.</p>
+<ul>
+<li>FR-demo-21 — The device runs discovery for the zone <code>fleet.example.</code> and accepts only a
+</li>
+</ul>
+<p>verified manifest.</p>
+<ul>
+<li>FR-demo-22 — The device negotiates version 1 for each of the three protocols from the
+</li>
+</ul>
+<p>manifest.</p>
+<ul>
+<li>FR-demo-23 — The device sends each query for the QNAME <code>device42.fleet.example.</code> to the
+</li>
+</ul>
+<p>protocol key that the manifest gives.</p>
+<ul>
+<li>FR-demo-24 — The device records the management endpoint and the management transport
+</li>
+</ul>
+<p>from the bootstrap result.</p>
+<ul>
+<li>FR-demo-25 — If the remote configuration generation is greater than the local one, the
+</li>
+</ul>
+<p>device downloads the configuration bundle from the retrieval URL.</p>
+<ul>
+<li>FR-demo-26 — If the remote configuration generation is less than the local one, the
+</li>
+</ul>
+<p>device refuses the rollback and keeps the local generation.</p>
+<ul>
+<li>FR-demo-27 — If the remote configuration generation equals the local one, the device
+</li>
+</ul>
+<p>sends no HTTPS request for the configuration bundle.</p>
+<ul>
+<li>FR-demo-28 — If the remote firmware version is greater than the local one, and the
+</li>
+</ul>
+<p>firmware signing key ID is in the allowed firmware key IDs of the device, the device downloads the firmware image.</p>
+<ul>
+<li>FR-demo-29 — If the firmware signing key ID is not allowed, the device skips the
+</li>
+</ul>
+<p>firmware image and prints the reason.</p>
+<ul>
+<li>FR-demo-30 — If the remote firmware version is not greater than the local one, the
+</li>
+</ul>
+<p>device sends no HTTPS request for the firmware image.</p>
+<ul>
+<li>FR-demo-31 — The device compares the SHA-256 digest of each downloaded resource with
+</li>
+</ul>
+<p>the digest in the verified metadata.</p>
+<ul>
+<li>FR-demo-32 — If a digest does not match, the device discards the resource and stops
+</li>
+</ul>
+<p>with exit code 1.</p>
+<ul>
+<li>FR-demo-33 — The device writes each accepted resource to the <code>--data-dir</code> directory.
+</li>
+<li>FR-demo-34 — The device writes the new device state only after every check passes.
+</li>
+<li>FR-demo-35 — The device writes the device state atomically: it writes a temporary file
+</li>
+</ul>
+<p>in the same directory, then renames it.</p>
+<ul>
+<li>FR-demo-36 — The device stores the firmware image and never flashes it.
+</li>
+</ul>
+<h4 id="embedded-recovery-output-and-tamper-flags">Output and tamper flags</h4>
+<ul>
+<li>FR-demo-37 — The program prints one log line per step to standard output, in the format
+</li>
+</ul>
+<p>that § Screens &amp; states shows.</p>
+<ul>
+<li>FR-demo-38 — The program exits with code 0 when the device reconciles or is already
+</li>
+</ul>
+<p>current.</p>
+<ul>
+<li>FR-demo-39 — The program exits with code 1 when any step fails.
+</li>
+<li>FR-demo-40 — The <code>--tamper-dns</code> flag makes the server change one byte of the
+</li>
+</ul>
+<p>configuration envelope after it signs it.</p>
+<ul>
+<li>FR-demo-41 — With <code>--tamper-dns</code>, the device reports a verification failure and sends
+</li>
+</ul>
+<p>no HTTPS request.</p>
+<ul>
+<li>FR-demo-42 — The <code>--tamper-https</code> flag makes the mock HTTPS service serve a
+</li>
+</ul>
+<p>configuration bundle whose bytes differ from the signed digest.</p>
+<ul>
+<li>FR-demo-43 — With <code>--tamper-https</code>, the device reports a digest mismatch and leaves the
+</li>
+</ul>
+<p>device state unchanged.</p>
+<ul>
+<li>FR-demo-44 — The target <code>make demo</code> runs the program with a state file and a data
+</li>
+</ul>
+<p>directory under a temporary directory.</p>
+<h4 id="embedded-recovery-demonstration-test">Demonstration test</h4>
+<ul>
+<li>FR-demo-45 — <code>examples/embedded-bootstrap</code> contains a Go test that runs the stale
+</li>
+</ul>
+<p>case, the current case, the rollback case and both tamper cases.</p>
+<h3 id="embedded-recovery-user-flows">User flows</h3>
+<h4 id="embedded-recovery-flow-1-a-stale-device-reconciles">Flow 1 — A stale device reconciles</h4>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+    participant D as device
+    participant S as authoritative server
+    participant H as mock HTTPS service
+    D-&gt;&gt;D: read device state
+    D-&gt;&gt;S: query _qmux.fleet.example. (65280, 65534)
+    S--&gt;&gt;D: signed manifest
+    D-&gt;&gt;D: verify manifest and negotiate version 1
+    D-&gt;&gt;S: query device42 bootstrap (65280, 65280)
+    S--&gt;&gt;D: signed management endpoint
+    D-&gt;&gt;S: query device42 configuration (65281, 65280)
+    S--&gt;&gt;D: signed generation, digest, URL
+    alt remote generation greater than local
+        D-&gt;&gt;H: GET configuration bundle
+        H--&gt;&gt;D: bundle bytes
+        D-&gt;&gt;D: compare SHA-256 with signed digest
+    else remote generation less than local
+        D-&gt;&gt;D: refuse rollback
+    end
+    D-&gt;&gt;S: query device42 firmware (65282, 65280)
+    S--&gt;&gt;D: signed version, digest, URL, key ID
+    alt newer version and allowed key ID
+        D-&gt;&gt;H: GET firmware image
+        H--&gt;&gt;D: image bytes
+        D-&gt;&gt;D: compare SHA-256 with signed digest
+    end
+    D-&gt;&gt;D: write device state atomically</pre></div>
+<ol>
+<li>The device reads the device state.
+</li>
+<li>The device queries the discovery name <code>_qmux.fleet.example.</code> at the discovery key.
+</li>
+<li>The device verifies the manifest.
+</li>
+<li>The device negotiates version 1 for the three protocols.
+</li>
+<li>The device queries the bootstrap protocol and records the management endpoint.
+</li>
+<li>The device queries the configuration protocol.
+</li>
+<li>If the remote generation is greater than the local one, the device downloads the
+</li>
+</ol>
+<p>configuration bundle and compares its digest.</p>
+<ol>
+<li>If the remote generation is less than the local one, the device refuses the rollback.
+</li>
+<li>The device queries the firmware protocol.
+</li>
+<li>If the version is newer and the key ID is allowed, the device downloads the firmware
+</li>
+</ol>
+<p>image and compares its digest.</p>
+<ol>
+<li>The device writes the device state atomically.
+</li>
+</ol>
+<h4 id="embedded-recovery-flow-2-tampered-metadata-or-a-tampered-resource">Flow 2 — Tampered metadata or a tampered resource</h4>
+<div class="diagram"><pre class="mermaid">flowchart TD
+    A[device receives envelope] --&gt; B{signature verifies?}
+    B -- no --&gt; C[report verification failure, exit 1, no HTTPS request]
+    B -- yes --&gt; D[download resource]
+    D --&gt; E{SHA-256 equals signed digest?}
+    E -- no --&gt; F[discard resource, keep device state, exit 1]
+    E -- yes --&gt; G[write resource and device state, exit 0]</pre></div>
+<ol>
+<li>The device receives an envelope.
+</li>
+<li>If the signature does not verify, the device reports the failure and exits with code 1.
+</li>
+</ol>
+<p>It sends no HTTPS request.</p>
+<ol>
+<li>If the signature verifies, the device downloads the resource.
+</li>
+<li>If the digest does not match, the device discards the resource, keeps the device
+</li>
+</ol>
+<p>state, and exits with code 1.</p>
+<ol>
+<li>If the digest matches, the device writes the resource and the device state, and exits
+</li>
+</ol>
+<p>with code 0.</p>
+<h3 id="embedded-recovery-screens-states">Screens &amp; states</h3>
+<p>QMux has no graphical screens. The program writes to standard output.</p>
+<p>Stale device (populated):</p>
+<pre class="code"><code>[server]  zone fleet.example. on 127.0.0.1:53412 (udp, tcp), key id 3f9a0c1d2e4b5a67
+[https]   mock service on https://127.0.0.1:53413
+[device]  state: config_generation=3 firmware_version=2.3.0
+[device]  discovery: verified manifest, 4 protocols, expires 2026-11-20T15:04:05Z
+[device]  negotiate: org.qmux.bootstrap v1, org.qmux.configuration v1, org.qmux.firmware v1
+[device]  bootstrap: management https://127.0.0.1:53413/mgmt (transport https)
+[device]  configuration: remote generation 7 &gt; local 3, downloading
+[device]  configuration: digest ok, wrote config-7.bin
+[device]  firmware: remote 2.4.1 &gt; local 2.3.0, key id 9c1e44a0b2d37f15 allowed, downloading
+[device]  firmware: digest ok, stored firmware-2.4.1.img (not flashed)
+[device]  state written: config_generation=7 firmware_version=2.4.1
+[device]  result: reconciled (2 downloads)</code></pre>
+<p>Current device: the configuration and firmware lines say <code>up to date</code>, and the result is <code>result: up to date (0 downloads)</code>.</p>
+<p>Error states:</p>
+<ul>
+<li>Verification failure: <code>[device]  configuration: verification failed: bad signature</code> and
+</li>
+</ul>
+<p><code>result: failed</code>.</p>
+<ul>
+<li>Digest mismatch: <code>[device]  configuration: digest mismatch, resource discarded</code> and
+</li>
+</ul>
+<p><code>result: failed, state unchanged</code>.</p>
+<ul>
+<li>Rollback: <code>[device]  configuration: remote generation 2 &lt; local 3, rollback refused</code>.
+</li>
+</ul>
+<h3 id="embedded-recovery-behaviour-rules">Behaviour rules</h3>
+<ul>
+<li>Version comparison for firmware uses the three integer fields of <code>MAJOR.MINOR.PATCH</code> in
+</li>
+</ul>
+<p>order. A version that does not parse is a failure.</p>
+<ul>
+<li>The allowed firmware key IDs are a list in the program. The default list holds the key
+</li>
+</ul>
+<p>ID of the mock firmware signing key.</p>
+<ul>
+<li>The device uses the client defaults of the spec: attempt timeout 1 s, 3 attempts.
+</li>
+<li>The device state file and the data directory are created with mode 0600 and 0700.
+</li>
+<li>Each query uses the verified client. An unverified result is never accepted.
+</li>
+</ul>
+<h3 id="embedded-recovery-data-touched">Data touched</h3>
+<ul>
+<li>Device state (read and written).
+</li>
+<li>Files in the data directory: <code>config-&lt;generation&gt;.bin</code>, <code>firmware-&lt;version&gt;.img</code>.
+</li>
+<li>No other persistent data.
+</li>
+</ul>
+<h3 id="embedded-recovery-interfaces">Interfaces</h3>
+<p>Command:</p>
+<pre class="code"><code>go run ./examples/embedded-bootstrap --state ./device-state.json --data-dir ./device-data</code></pre>
+<div class="table-wrap"><table>
+<tr><th>Flag</th><th>Default</th><th>Meaning</th></tr>
+<tr><td><code>--state</code></td><td><code>./device-state.json</code></td><td>Path of the device state file.</td></tr>
+<tr><td><code>--data-dir</code></td><td><code>./device-data</code></td><td>Directory for downloaded resources.</td></tr>
+<tr><td><code>--remote-generation</code></td><td><code>7</code></td><td>Configuration generation that the server publishes.</td></tr>
+<tr><td><code>--remote-firmware</code></td><td><code>2.4.1</code></td><td>Firmware version that the server publishes.</td></tr>
+<tr><td><code>--tamper-dns</code></td><td>false</td><td>Change one byte of the configuration envelope after signing.</td></tr>
+<tr><td><code>--tamper-https</code></td><td>false</td><td>Serve a configuration bundle that does not match its digest.</td></tr>
+</table></div>
+<p>External interface: <code>net/http/httptest.NewTLSServer</code> and <code>Server.Client()</code> from the Go standard library, https://pkg.go.dev/net/http/httptest (Go 1.25).</p>
+<h3 id="embedded-recovery-edge-cases-failures">Edge cases &amp; failures</h3>
+<ul>
+<li>The device state file holds invalid JSON: the device stops with exit code 1 and does
+</li>
+</ul>
+<p>not overwrite the file.</p>
+<ul>
+<li>The data directory is not writable: the device stops before it changes the device
+</li>
+</ul>
+<p>state.</p>
+<ul>
+<li>The mock HTTPS service returns a status other than 200: the device stops with exit
+</li>
+</ul>
+<p>code 1.</p>
+<ul>
+<li>A manifest does not list one of the three protocols: the device stops with
+</li>
+</ul>
+<p><code>protocol not found</code>.</p>
+<ul>
+<li>A process crash during the write leaves the old device state in place, because of the
+</li>
+</ul>
+<p>rename.</p>
+<h3 id="embedded-recovery-acceptance-criteria">Acceptance criteria</h3>
+<ul>
+<li>FR-demo-1 to FR-demo-3: a round-trip test of each schema returns the same field values.
+</li>
+<li>FR-demo-4: encoding the same payload twice gives identical bytes.
+</li>
+<li>FR-demo-5: a test decodes a payload with an extra key and gets an error. A test decodes
+</li>
+</ul>
+<p>a 31-byte digest and gets an error.</p>
+<ul>
+<li>FR-demo-6: a handler that returns an invalid configuration payload causes <code>SERVFAIL</code>.
+</li>
+<li>FR-demo-7 and FR-demo-8: the first log line names the zone <code>fleet.example.</code> and a
+</li>
+</ul>
+<p>loopback address.</p>
+<ul>
+<li>FR-demo-9 and FR-demo-10: the manifest in the test lists the four protocol IDs at the
+</li>
+</ul>
+<p>stated protocol keys.</p>
+<ul>
+<li>FR-demo-11: two starts print two different key IDs.
+</li>
+<li>FR-demo-12: an envelope that a different key signs fails verification in the device.
+</li>
+<li>FR-demo-13 and FR-demo-14: a device client with the system certificate pool cannot
+</li>
+</ul>
+<p>connect to the mock HTTPS service.</p>
+<ul>
+<li>FR-demo-15: the configuration result for <code>device42.fleet.example.</code> holds the URL and
+</li>
+</ul>
+<p>digest of the served bundle.</p>
+<ul>
+<li>FR-demo-16: the test reads the request count from the mock HTTPS service.
+</li>
+<li>FR-demo-17 and FR-demo-18: with <code>--remote-generation 9</code>, the log shows
+</li>
+</ul>
+<p><code>remote generation 9</code>.</p>
+<ul>
+<li>FR-demo-19 and FR-demo-20: with no state file, the log shows
+</li>
+</ul>
+<p><code>config_generation=0 firmware_version=0.0.0</code>.</p>
+<ul>
+<li>FR-demo-21: with <code>--tamper-dns</code>, the device does not reach the configuration download.
+</li>
+<li>FR-demo-22: the log shows <code>v1</code> for each of the three protocols.
+</li>
+<li>FR-demo-23: each query in the test has the QNAME <code>device42.fleet.example.</code>
+</li>
+<li>FR-demo-24: the log shows the management endpoint URL.
+</li>
+<li>FR-demo-25: the stale case writes <code>config-7.bin</code>.
+</li>
+<li>FR-demo-26: with a local generation of 9 and a remote generation of 7, the log shows
+</li>
+</ul>
+<p><code>rollback refused</code> and the device state keeps generation 9.</p>
+<ul>
+<li>FR-demo-27 and FR-demo-30: the current case makes 0 HTTPS requests.
+</li>
+<li>FR-demo-28: the stale case writes <code>firmware-2.4.1.img</code>.
+</li>
+<li>FR-demo-29: with an empty allowed key list, the log shows the skip reason and no
+</li>
+</ul>
+<p>firmware request occurs.</p>
+<ul>
+<li>FR-demo-31 and FR-demo-32: with <code>--tamper-https</code>, the program exits with code 1.
+</li>
+<li>FR-demo-33: the data directory holds both files after the stale case.
+</li>
+<li>FR-demo-34 and FR-demo-43: after each tamper case, the device state file has the same
+</li>
+</ul>
+<p>bytes as before the run.</p>
+<ul>
+<li>FR-demo-35: the code writes a temporary file and renames it. A test finds no temporary
+</li>
+</ul>
+<p>file after a run.</p>
+<ul>
+<li>FR-demo-36: the code holds no call that writes outside the data directory and the state
+</li>
+</ul>
+<p>file.</p>
+<ul>
+<li>FR-demo-37: the stale case output matches the line prefixes in § Screens &amp; states.
+</li>
+<li>FR-demo-38: the stale case and the current case exit with code 0.
+</li>
+<li>FR-demo-39: each tamper case exits with code 1.
+</li>
+<li>FR-demo-40 and FR-demo-41: with <code>--tamper-dns</code>, the log shows <code>verification failed</code>,
+</li>
+</ul>
+<p>and the mock HTTPS service counts 0 requests.</p>
+<ul>
+<li>FR-demo-42: with <code>--tamper-https</code>, the log shows <code>digest mismatch</code>.
+</li>
+<li>FR-demo-44: <code>make demo</code> exits with code 0 on a clean checkout.
+</li>
+<li>FR-demo-45: the stale case counts 2 HTTPS requests, and <code>go test ./examples/...</code> passes.
+</li>
+</ul>
+<h3 id="embedded-recovery-out-of-scope">Out of scope</h3>
+<ul>
+<li>Firmware flashing, a boot loader, or an A/B partition scheme.
+</li>
+<li>Verification of the firmware image signature. The device checks only the key ID and
+</li>
+</ul>
+<p>the digest.</p>
+<ul>
+<li>A real management protocol behind the management endpoint.
+</li>
+<li>Separate processes for the server, the mock HTTPS service and the device.
+</li>
+</ul>
+<h3 id="embedded-recovery-open-questions" class="callout-h">Open questions</h3><nav class="pager">
+<a href="feature-signing-and-freshness.html">&larr; Feature: Signing and freshness</a>
+<a href="feature-qmuxd-daemon.html">Feature: qmuxd daemon &rarr;</a>
+</nav>
+</main>
+</div>
+<script src="../assets/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'default'});</script>
+<script type="application/json" id="rv-embedded">[]</script>
+<script>
+(function(){
+  'use strict';
+  var PAGE = document.body.getAttribute('data-page');
+  // storage key carries the spec's slug: file:// pages can share one
+  // localStorage pool, and two specs must never share a comment store
+  var RVKEY = 'spec-review:' + (document.body.getAttribute('data-rvkey') || 'spec');
+  var EMBED = [];
+  var embedEl = document.getElementById('rv-embedded');
+  if (embedEl) { try { EMBED = JSON.parse(embedEl.textContent); } catch(e){} }
+  function loadLocal(){ try { return JSON.parse(localStorage.getItem(RVKEY)) || {comments:[], deleted:[]}; } catch(e){ return {comments:[], deleted:[]}; } }
+  function saveLocal(s){ try { localStorage.setItem(RVKEY, JSON.stringify(s)); } catch(e){} }
+  function cid(c){ return c.page + '|' + c.section + '|' + (c.date||'') + '|' + c.body.slice(0,24); }
+  function allComments(){
+    var s = loadLocal(), map = {};
+    EMBED.forEach(function(c){ map[cid(c)] = c; });
+    s.comments.forEach(function(c){ map[cid(c)] = c; });
+    s.deleted.forEach(function(id){ delete map[id]; });
+    return Object.keys(map).map(function(k){ return map[k]; });
+  }
+  function upsert(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    s.comments.push(c);
+    s.deleted = s.deleted.filter(function(x){ return x !== id; });
+    saveLocal(s); refresh();
+  }
+  function remove(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    if (EMBED.some(function(x){ return cid(x) === id; })) s.deleted.push(id);
+    saveLocal(s); refresh();
+  }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function exportMd(){
+    var lines = ['# Review comments', '',
+      '<!-- Exported from the spec review layer. Save this file as',
+      '     docs/specs/review-comments.md and re-run render-spec.py to embed',
+      '     every comment under its section for the next review round. -->', ''];
+    allComments().sort(function(a,b){
+      return (a.page+a.section).localeCompare(b.page+b.section);
+    }).forEach(function(c){
+      lines.push('## [' + c.page + '] ' + (c.section||''));
+      lines.push('status: ' + (c.status||'open'));
+      lines.push('date: ' + (c.date||today()));
+      lines.push(c.body); lines.push('');
+    });
+    var blob = new Blob([lines.join('\n')], {type:'text/markdown'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'review-comments.md';
+    a.click(); URL.revokeObjectURL(a.href);
+  }
+  function importMd(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      var text = String(reader.result);
+      var blocks = text.split(/^## /m).slice(1);
+      blocks.forEach(function(b){
+        var head = b.match(/^\[([^\]]+)\]\s*(\S*)/);
+        if (!head) return;
+        var status = (b.match(/^status:\s*(\S+)/m)||[])[1] || 'open';
+        var date = (b.match(/^date:\s*(\S+)/m)||[])[1] || today();
+        var body = b.replace(/^\[[^\]]*\]\s*\S*\s*\n/, '')
+                    .replace(/^status:.*\n?/m,'').replace(/^date:.*\n?/m,'').trim();
+        if (body) upsert({page:head[1], section:head[2]||'', status:status, date:date, body:body});
+      });
+      refresh();
+    };
+    reader.readAsText(file);
+  }
+  function commentBox(c){
+    var div = document.createElement('div');
+    div.className = 'rv-comment' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var head = document.createElement('div'); head.className = 'rv-head';
+    head.textContent = '💬 ' + (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(){ remove(c); c = Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'}); upsert(c); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(){ if (confirm('Delete this comment?')) remove(c); };
+    head.appendChild(tog); head.appendChild(del);
+    var body = document.createElement('div'); body.className = 'rv-body';
+    body.textContent = c.body;
+    div.appendChild(head); div.appendChild(body);
+    return div;
+  }
+  function editor(section, after){
+    var wrap = document.createElement('div');
+    wrap.className = 'rv-comment rv-editor';
+    var ta = document.createElement('textarea');
+    ta.placeholder = 'Comment on this section…';
+    var actions = document.createElement('div'); actions.className = 'rv-actions';
+    var save = document.createElement('button'); save.textContent = 'Save';
+    save.onclick = function(){
+      if (ta.value.trim()) upsert({page:PAGE, section:section, status:'open', date:today(), body:ta.value.trim()});
+      wrap.remove();
+    };
+    var cancel = document.createElement('button'); cancel.textContent = 'Cancel';
+    cancel.className = 'rv-cancel'; cancel.onclick = function(){ wrap.remove(); };
+    actions.appendChild(save); actions.appendChild(cancel);
+    wrap.appendChild(ta); wrap.appendChild(actions);
+    after.insertAdjacentElement('afterend', wrap);
+    ta.focus();
+  }
+  // --- headings, inline buttons ---
+  var mainH1 = document.querySelector('main h1');
+  if (mainH1 && !mainH1.id) { mainH1.id = 'page-title'; }
+  var headings = Array.prototype.slice.call(
+    document.querySelectorAll('main h1[id], main h2[id], main h3[id], main h4[id]'));
+  headings.forEach(function(h){
+    var b = document.createElement('button');
+    b.className = 'rv-add'; b.textContent = '💬 comment'; b.title = 'Comment on this section';
+    b.onclick = function(){ editor(h.id, h); };
+    h.appendChild(b);
+  });
+  function headingTitle(h){
+    var t = h.childNodes[0] ? h.childNodes[0].textContent : h.textContent;
+    return t.trim();
+  }
+  function titleFor(section){
+    var el = section && document.getElementById(section);
+    return el ? headingTitle(el) : (section || '(page)');
+  }
+
+  // --- drawer ---
+  var drawer = document.createElement('div');
+  drawer.id = 'rv-drawer';
+  drawer.innerHTML =
+    '<header><strong>Review</strong> <span class="rv-count"></span></header>' +
+    '<div class="rv-compose">' +
+    '<div class="rv-live">Commenting on the section in view:</div>' +
+    '<label for="rv-sec"></label><select id="rv-sec"></select>' +
+    '<textarea id="rv-text" placeholder="Type as you read… (Ctrl+Enter saves)"></textarea>' +
+    '<div style="margin-top:.4rem; display:flex; gap:.5rem;">' +
+    '<button class="rv-primary" id="rv-save">Save comment</button>' +
+    '<button id="rv-clear">Clear</button></div></div>' +
+    '<div class="rv-list"></div>' +
+    '<footer><button id="rv-export">Export .md</button>' +
+    '<button id="rv-import">Import</button>' +
+    '<span class="rv-otherpages"></span></footer>';
+  document.body.appendChild(drawer);
+  var toggle = document.createElement('button');
+  toggle.id = 'rv-toggle';
+  toggle.onclick = function(){
+    document.body.classList.toggle('rv-open');
+    try { localStorage.setItem(RVKEY + ':open', document.body.classList.contains('rv-open') ? '1' : ''); } catch(e){}
+  };
+  document.body.appendChild(toggle);
+  try { if (localStorage.getItem(RVKEY + ':open')) document.body.classList.add('rv-open'); } catch(e){}
+
+  var sel = drawer.querySelector('#rv-sec');
+  headings.forEach(function(h){
+    var opt = document.createElement('option');
+    opt.value = h.id; opt.textContent = headingTitle(h);
+    sel.appendChild(opt);
+  });
+  var followScroll = true;
+  sel.onchange = function(){ followScroll = false; };
+
+  // scroll spy: pick the last heading above the upper third of the viewport
+  function currentSection(){
+    var line = window.innerHeight * 0.33, best = headings[0];
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].getBoundingClientRect().top <= line) best = headings[i];
+    }
+    return best ? best.id : '';
+  }
+  window.addEventListener('scroll', function(){
+    if (!followScroll) return;
+    var s = currentSection();
+    if (s && sel.value !== s) sel.value = s;
+  }, {passive:true});
+  // typing pins the target section so a stray scroll can't retarget the comment
+  drawer.querySelector('#rv-text').addEventListener('input', function(){
+    if (this.value.trim()) followScroll = false;
+    else followScroll = true;
+  });
+
+  function saveFromDrawer(){
+    var ta = drawer.querySelector('#rv-text');
+    if (!ta.value.trim()) return;
+    upsert({page:PAGE, section:sel.value, status:'open', date:today(), body:ta.value.trim()});
+    ta.value = ''; followScroll = true;
+  }
+  drawer.querySelector('#rv-save').onclick = saveFromDrawer;
+  drawer.querySelector('#rv-text').addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') saveFromDrawer();
+  });
+  drawer.querySelector('#rv-clear').onclick = function(){
+    drawer.querySelector('#rv-text').value = ''; followScroll = true;
+  };
+  drawer.querySelector('#rv-export').onclick = exportMd;
+  var fileIn = document.createElement('input');
+  fileIn.type = 'file'; fileIn.accept = '.md,text/markdown'; fileIn.style.display = 'none';
+  fileIn.onchange = function(){ if (fileIn.files[0]) importMd(fileIn.files[0]); };
+  drawer.appendChild(fileIn);
+  drawer.querySelector('#rv-import').onclick = function(){ fileIn.click(); };
+
+  function drawerItem(c){
+    var div = document.createElement('div');
+    div.className = 'rv-item' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var where = document.createElement('div'); where.className = 'rv-where';
+    where.textContent = titleFor(c.section);
+    var text = document.createElement('div'); text.className = 'rv-text';
+    text.textContent = c.body;
+    var meta = document.createElement('div'); meta.className = 'rv-meta';
+    meta.textContent = (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(e){ e.stopPropagation(); remove(c);
+      upsert(Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'})); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(e){ e.stopPropagation();
+      if (confirm('Delete this comment?')) remove(c); };
+    meta.appendChild(tog); meta.appendChild(del);
+    div.appendChild(where); div.appendChild(text); div.appendChild(meta);
+    div.onclick = function(){
+      var el = c.section && document.getElementById(c.section);
+      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+    return div;
+  }
+
+  function refresh(){
+    document.querySelectorAll('.rv-comment:not(.rv-editor)').forEach(function(el){ el.remove(); });
+    var all = allComments();
+    var mine = all.filter(function(c){ return c.page === PAGE; });
+    mine.forEach(function(c){
+      var target = c.section && document.getElementById(c.section);
+      var anchor = target || mainH1 || document.body.querySelector('main') || document.body;
+      anchor.insertAdjacentElement('afterend', commentBox(c));
+    });
+    var open = all.filter(function(c){ return c.status !== 'resolved'; }).length;
+    toggle.textContent = '💬 Review (' + open + ')';
+    drawer.querySelector('.rv-count').textContent =
+      open + ' open / ' + all.length + ' total';
+    var list = drawer.querySelector('.rv-list');
+    list.innerHTML = '';
+    mine.slice().reverse().forEach(function(c){ list.appendChild(drawerItem(c)); });
+    var others = {};
+    all.forEach(function(c){ if (c.page !== PAGE) others[c.page] = (others[c.page]||0) + 1; });
+    var otherKeys = Object.keys(others);
+    drawer.querySelector('.rv-otherpages').textContent = otherKeys.length
+      ? 'Other pages: ' + otherKeys.map(function(k){ return k + ' (' + others[k] + ')'; }).join(', ')
+      : '';
+  }
+  refresh();
+  var s0 = currentSection();
+  if (s0) sel.value = s0;
+})();
+</script>
+</body>
+</html>

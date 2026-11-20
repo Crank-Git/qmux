@@ -1,0 +1,1146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QMux</title>
+<style>
+:root { --bg:#ffffff; --fg:#1a1a24; --muted:#5a5a68; --line:#e3e3ea; --accent:#3452c8;
+        --card:#f6f6f9; --warn-bg:#fff7e8; --warn-line:#e8b34a; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#14141b; --fg:#e8e8ee; --muted:#9a9aa8; --line:#2c2c38; --accent:#8ea6ff;
+          --card:#1c1c26; --warn-bg:#2a2318; --warn-line:#a87c2a; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+       font:16px/1.6 system-ui,-apple-system,sans-serif; }
+.layout { display:flex; min-height:100vh; }
+aside.site { width:17rem; flex:none; border-right:1px solid var(--line);
+             padding:1.2rem 1rem 3rem; position:sticky; top:0; height:100vh;
+             overflow-y:auto; background:var(--card); }
+aside.site h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em;
+                color:var(--muted); margin:1.2rem 0 .3rem; border:none; padding:0; }
+aside.site ul { list-style:none; margin:0; padding:0; }
+aside.site li { margin:.15rem 0; }
+aside.site a { text-decoration:none; color:var(--fg); font-size:.92rem;
+               display:block; padding:.15rem .5rem; border-radius:6px; }
+aside.site a:hover { background:var(--bg); }
+aside.site a.current { background:var(--accent); color:#fff; }
+aside.site a.sub { padding-left:1.3rem; font-size:.84rem; color:var(--muted); }
+aside.site .brand { font-weight:700; font-size:1.05rem; }
+main { max-width:60rem; margin:0 auto; padding:2rem 1.5rem 6rem; min-width:0; flex:1; }
+h1,h2,h3,h4 { line-height:1.25; }
+h1 { font-size:2rem; margin:.2rem 0; }
+h2 { border-bottom:1px solid var(--line); padding-bottom:.3rem; margin-top:2.5rem; }
+a { color:var(--accent); }
+code { background:var(--card); padding:.1em .35em; border-radius:4px; font-size:.9em; }
+pre.code { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; overflow-x:auto; }
+pre.code code { background:none; padding:0; }
+.table-wrap { overflow-x:auto; }
+table { border-collapse:collapse; margin:1rem 0; min-width:50%; }
+th,td { border:1px solid var(--line); padding:.4rem .7rem; text-align:left; }
+th { background:var(--card); }
+blockquote { border-left:3px solid var(--accent); margin:1rem 0; padding:.2rem 1rem;
+             color:var(--muted); }
+.meta { color:var(--muted); margin-bottom:2rem; }
+.badge { display:inline-block; padding:.1rem .6rem; border-radius:999px;
+         border:1px solid var(--accent); color:var(--accent); font-size:.85rem; }
+.diagram { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; margin:1rem 0; overflow-x:auto; }
+.diagram pre.mermaid { margin:0; }
+.diagram.raw::before { content:"diagram source (assets/mermaid.min.js not vendored)";
+                       display:block; color:var(--muted); font-size:.8rem;
+                       margin-bottom:.5rem; }
+.callout-h, .callout-h ~ p, .callout-h ~ ul { background:var(--warn-bg); }
+.callout-h { border-left:4px solid var(--warn-line); padding:.3rem .8rem; }
+.mockup { margin:1.5rem 0; }
+.mockup iframe { width:100%; height:32rem; border:1px solid var(--line);
+                 border-radius:8px; background:#fff; }
+nav.pager { display:flex; justify-content:space-between; margin-top:3rem;
+            border-top:1px solid var(--line); padding-top:1rem; }
+@media (max-width: 900px) {
+  .layout { display:block; }
+  aside.site { width:auto; height:auto; position:static; border-right:none;
+               border-bottom:1px solid var(--line); }
+}
+h1[id]:hover .rv-add, h2[id]:hover .rv-add, h3[id]:hover .rv-add,
+h4[id]:hover .rv-add { opacity:1; }
+.rv-add { opacity:0; margin-left:.5rem; font-size:.75rem; cursor:pointer;
+          border:1px solid var(--accent); color:var(--accent); background:none;
+          border-radius:6px; padding:0 .45rem; vertical-align:middle;
+          transition:opacity .15s; }
+.rv-comment { border:1px solid var(--warn-line); border-left-width:4px;
+              background:var(--warn-bg); border-radius:8px; padding:.6rem .9rem;
+              margin:.8rem 0; font-size:.92rem; }
+.rv-comment.rv-resolved { opacity:.6; border-left-color:var(--line); }
+.rv-comment .rv-head { display:flex; gap:.6rem; align-items:center;
+                       color:var(--muted); font-size:.8rem; margin-bottom:.3rem; }
+.rv-comment .rv-head button { font-size:.75rem; cursor:pointer; background:none;
+                              border:1px solid var(--line); border-radius:6px;
+                              color:var(--muted); padding:0 .4rem; }
+.rv-comment .rv-body { white-space:pre-wrap; }
+.rv-editor textarea { width:100%; min-height:5rem; background:var(--bg);
+                      color:var(--fg); border:1px solid var(--line);
+                      border-radius:6px; padding:.5rem; font:inherit; }
+.rv-editor .rv-actions { margin-top:.4rem; display:flex; gap:.5rem; }
+.rv-editor button { cursor:pointer; border-radius:6px; padding:.2rem .8rem;
+                    border:1px solid var(--accent); background:var(--accent);
+                    color:#fff; }
+.rv-editor button.rv-cancel { background:none; color:var(--accent); }
+#rv-toggle { position:fixed; right:1rem; bottom:1rem; z-index:60;
+             background:var(--accent); color:#fff; border:none; cursor:pointer;
+             border-radius:999px; padding:.5rem 1rem; font-size:.85rem;
+             box-shadow:0 2px 10px rgba(0,0,0,.2); }
+#rv-drawer { position:fixed; top:0; right:0; bottom:0; width:21rem; z-index:55;
+             background:var(--card); border-left:1px solid var(--line);
+             display:flex; flex-direction:column; transform:translateX(100%);
+             transition:transform .2s ease; box-shadow:-4px 0 16px rgba(0,0,0,.12); }
+body.rv-open #rv-drawer { transform:none; }
+body.rv-open .layout { padding-right:21rem; }
+#rv-drawer header { padding:.8rem 1rem .5rem; border-bottom:1px solid var(--line); }
+#rv-drawer header .rv-count { color:var(--muted); font-size:.8rem; }
+#rv-drawer .rv-compose { padding:.8rem 1rem; border-bottom:1px solid var(--line); }
+#rv-drawer .rv-compose label { display:block; font-size:.75rem;
+                               color:var(--muted); margin-bottom:.25rem; }
+#rv-drawer .rv-compose select { width:100%; margin-bottom:.4rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.3rem; font:inherit; font-size:.85rem; }
+#rv-drawer .rv-compose textarea { width:100%; min-height:5.5rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.5rem; font:inherit; font-size:.9rem; }
+#rv-drawer .rv-compose .rv-live { font-size:.72rem; color:var(--muted); }
+#rv-drawer .rv-list { flex:1; overflow-y:auto; padding:.6rem 1rem; }
+#rv-drawer .rv-item { border:1px solid var(--line); border-left:3px solid
+             var(--warn-line); border-radius:8px; padding:.45rem .6rem;
+             margin-bottom:.6rem; font-size:.82rem; cursor:pointer; }
+#rv-drawer .rv-item.rv-resolved { opacity:.55; border-left-color:var(--line); }
+#rv-drawer .rv-item .rv-where { color:var(--accent); font-size:.72rem; }
+#rv-drawer .rv-item .rv-meta { color:var(--muted); font-size:.72rem;
+                               display:flex; gap:.5rem; align-items:center; }
+#rv-drawer .rv-item .rv-meta button { font-size:.7rem; cursor:pointer;
+             background:none; border:1px solid var(--line); border-radius:5px;
+             color:var(--muted); padding:0 .35rem; }
+#rv-drawer .rv-item .rv-text { white-space:pre-wrap; margin:.15rem 0; }
+#rv-drawer footer { padding:.6rem 1rem; border-top:1px solid var(--line);
+                    display:flex; gap:.5rem; flex-wrap:wrap; }
+#rv-drawer footer button, #rv-drawer .rv-compose button {
+  cursor:pointer; border:1px solid var(--accent); background:none;
+  color:var(--accent); border-radius:6px; padding:.2rem .7rem; font-size:.8rem; }
+#rv-drawer .rv-compose button.rv-primary { background:var(--accent); color:#fff; }
+#rv-drawer .rv-otherpages { color:var(--muted); font-size:.75rem;
+                            margin:.4rem 0 0; }
+@media (max-width: 1200px) { body.rv-open .layout { padding-right:0; } }
+</style>
+</head>
+<body data-page="index" data-rvkey="qmux">
+<div class="layout">
+<aside class="site"><a class="brand" href="spec.html">QMux</a>
+<h2>Spec</h2><ul>
+<li><a class="current" href="spec.html">Overview &amp; index</a></li>
+<li><a class="sub" href="#overview">Overview</a></li>
+<li><a class="sub" href="#terms">Terms</a></li>
+<li><a class="sub" href="#goals">Goals</a></li>
+<li><a class="sub" href="#non-goals">Non-goals</a></li>
+<li><a class="sub" href="#users-personas">Users &amp; personas</a></li>
+<li><a class="sub" href="#feature-map">Feature map</a></li>
+<li><a class="sub" href="#architecture-stack">Architecture &amp; stack</a></li>
+<li><a class="sub" href="#data-model">Data model</a></li>
+<li><a class="sub" href="#cross-cutting-concerns">Cross-cutting concerns</a></li>
+<li><a class="sub" href="#environments-config">Environments &amp; config</a></li>
+<li><a class="sub" href="#testing-strategy">Testing strategy</a></li>
+<li><a class="sub" href="#epics">Epics</a></li>
+<li><a class="sub" href="#milestones">Milestones</a></li>
+<li><a class="sub" href="#assumptions">Assumptions</a></li>
+<li><a class="sub" href="#risks-open-questions">Risks &amp; open questions</a></li>
+<li><a class="sub" href="#changelog">Changelog</a></li>
+</ul>
+<h2>Features</h2><ul>
+<li><a href="html/feature-foundation.html">Foundation</a></li>
+<li><a href="html/feature-protocol-registry.html">Protocol registry</a></li>
+<li><a href="html/feature-authoritative-server.html">Authoritative server</a></li>
+<li><a href="html/feature-client-sdk.html">Client SDK</a></li>
+<li><a href="html/feature-envelope-codec.html">Envelope codec</a></li>
+<li><a href="html/feature-discovery.html">Discovery and version negotiation</a></li>
+<li><a href="html/feature-signing-and-freshness.html">Signing and freshness</a></li>
+<li><a href="html/feature-embedded-recovery.html">Embedded recovery demonstration</a></li>
+<li><a href="html/feature-qmuxd-daemon.html">qmuxd daemon</a></li>
+<li><a href="html/feature-interop-harness.html">Interop harness</a></li>
+<li><a href="html/feature-baseline-benchmarks.html">Baseline benchmarks</a></li>
+<li><a href="html/feature-documentation.html">Documentation</a></li>
+</ul></aside>
+<main>
+<p class="meta"><span class="badge">approved</span> &nbsp; created 2026-11-20 &nbsp; rendered 2026-11-20</p>
+<h1>QMux</h1>
+<h1 id="qmux">QMux</h1>
+<h2 id="overview">Overview</h2>
+<p>QMux is a Go framework that runs independent application protocols over DNS. Each protocol owns a <code>(QCLASS, QTYPE)</code> pair, and the <code>QNAME</code> identifies the resource. A developer registers a handler for a protocol key. QMux does all DNS packet processing, the envelope encoding, and the signatures.</p>
+<p>QMux has three parts. The library is importable: an authoritative server, a client SDK, a protocol registry, a CBOR envelope codec, discovery, and Ed25519 signing. The three command-line tools are <code>qmuxd</code>, <code>qmuxctl</code> and <code>qmux-probe</code>. The research harness holds an embedded-device recovery demonstration, a resolver interop matrix, and benchmarks against IN-class DNS, CoAP and HTTPS.</p>
+<p>The project exists to answer one research question. The user stated it as follows:</p>
+<blockquote>"The central research question is whether multiple DNS classes provide a measurable benefit for application protocol multiplexing compared with conventional IN-class DNS. Design the implementation so that this question can be answered objectively."</blockquote>
+<p>Every design choice below keeps that question measurable. The class is the only variable between the private-class path and the IN-class baseline. The payload bytes, the signatures and the server code are the same on both paths.</p>
+<p>QMux is not a DNS tunnel. It is not a replacement for conventional DNS. It is not a TCP-over-DNS transport. The source brief is the user's pasted "QMux — Implementation Specification" (2026-11-20). This spec restates it and adds the decisions from the planning interview.</p>
+<h2 id="terms">Terms</h2>
+<div class="table-wrap"><table>
+<tr><th>Term</th><th>Part of speech</th><th>Meaning in this project</th><th>Do not use</th></tr>
+<tr><td>QMux</td><td>noun</td><td>The whole framework: library, command-line tools and research harness.</td><td>the system, the app</td></tr>
+<tr><td>DNS</td><td>noun</td><td>Domain Name System, the wire protocol QMux uses.</td><td>—</td></tr>
+<tr><td>QNAME</td><td>noun</td><td>The domain name in the DNS question. It identifies the resource.</td><td>query name, hostname</td></tr>
+<tr><td>QCLASS</td><td>noun</td><td>The class field of the DNS question.</td><td>query class</td></tr>
+<tr><td>QTYPE</td><td>noun</td><td>The type field of the DNS question.</td><td>query type, record type</td></tr>
+<tr><td>RDATA</td><td>noun</td><td>The data field of a DNS resource record.</td><td>record data, rdata blob</td></tr>
+<tr><td>RR</td><td>noun</td><td>A DNS resource record.</td><td>entry</td></tr>
+<tr><td>RCODE</td><td>noun</td><td>The DNS response code, for example <code>NOERROR</code> or <code>REFUSED</code>.</td><td>DNS status, DNS error code</td></tr>
+<tr><td>EDNS(0)</td><td>noun</td><td>The DNS extension (RFC 6891) that carries a larger UDP size in an OPT RR.</td><td>EDNS0 option, extended DNS</td></tr>
+<tr><td>TTL</td><td>noun</td><td>The DNS time-to-live of an RR, in seconds. It controls caching only.</td><td>expiry, lifetime</td></tr>
+<tr><td>CBOR</td><td>noun</td><td>Concise Binary Object Representation (RFC 8949).</td><td>binary JSON</td></tr>
+<tr><td>private class</td><td>noun</td><td>A QCLASS value in the IANA private-use range 65280–65534.</td><td>custom class, app class</td></tr>
+<tr><td>private type</td><td>noun</td><td>A QTYPE value in the IANA private-use range 65280–65534.</td><td>custom type, app type</td></tr>
+<tr><td>reserved class</td><td>noun</td><td>QCLASS <code>CH</code> (3) or <code>HS</code> (4). QMux accepts it only when the configuration enables it.</td><td>legacy class</td></tr>
+<tr><td>protocol</td><td>noun</td><td>One application protocol that QMux carries, for example <code>org.qmux.firmware</code>.</td><td>service, app, namespace</td></tr>
+<tr><td>protocol ID</td><td>noun</td><td>The stable reverse-DNS string that names a protocol. It does not depend on a class or type number.</td><td>protocol name, identifier</td></tr>
+<tr><td>protocol version</td><td>noun</td><td>An unsigned integer that names one schema of a protocol.</td><td>revision, schema version</td></tr>
+<tr><td>protocol key</td><td>noun</td><td>The <code>(QCLASS, QTYPE)</code> pair that a protocol occupies on one server. Go type <code>ProtocolKey</code>.</td><td>mapping, slot, route</td></tr>
+<tr><td>registration</td><td>noun</td><td>One protocol key bound to one handler and one protocol ID with its supported versions.</td><td>binding, entry</td></tr>
+<tr><td>registry</td><td>noun</td><td>The concurrency-safe set of registrations in one server.</td><td>router, table</td></tr>
+<tr><td>register</td><td>verb</td><td>To add a registration to the registry.</td><td>bind, add, mount</td></tr>
+<tr><td>unregister</td><td>verb</td><td>To remove a registration from the registry.</td><td>unbind, remove</td></tr>
+<tr><td>remap</td><td>verb</td><td>To move a protocol ID to a different protocol key.</td><td>reassign, renumber</td></tr>
+<tr><td>handler</td><td>noun</td><td>The application code that answers requests for one registration. Go interface <code>Handler</code>.</td><td>callback, plugin, controller</td></tr>
+<tr><td>request</td><td>noun</td><td>The parsed DNS question plus source and metadata that QMux passes to a handler.</td><td>call, message</td></tr>
+<tr><td>response</td><td>noun</td><td>What a handler returns: payload, TTL, application status and protocol version.</td><td>reply, result</td></tr>
+<tr><td>query</td><td>noun</td><td>One DNS question that a client sends.</td><td>lookup (except in benchmarks), call</td></tr>
+<tr><td>result</td><td>noun</td><td>What the client SDK returns for a successful query.</td><td>answer, reply</td></tr>
+<tr><td>zone</td><td>noun</td><td>A domain suffix for which a server is authoritative, for example <code>fleet.example.</code></td><td>domain, origin</td></tr>
+<tr><td>authoritative server</td><td>noun</td><td>A QMux server that answers from its registry. It never recurses.</td><td>nameserver, daemon</td></tr>
+<tr><td>resolver</td><td>noun</td><td>A recursive DNS server between a client and the authoritative server, for example BIND or Unbound.</td><td>proxy, forwarder, stub</td></tr>
+<tr><td>direct query</td><td>noun</td><td>A query that the client sends to the authoritative server with no resolver.</td><td>authoritative query</td></tr>
+<tr><td>transport</td><td>noun</td><td>UDP or TCP, as a DNS carrier.</td><td>channel, protocol</td></tr>
+<tr><td>truncation</td><td>noun</td><td>The authoritative server sets the TC bit because the answer does not fit the UDP size limit.</td><td>overflow, cut</td></tr>
+<tr><td>TCP fallback</td><td>noun</td><td>The client repeats a truncated UDP query over TCP.</td><td>retry over TCP, upgrade</td></tr>
+<tr><td>UDP size limit</td><td>noun</td><td>The largest UDP response the authoritative server sends for one query.</td><td>MTU, buffer size</td></tr>
+<tr><td>envelope</td><td>noun</td><td>The CBOR map that every QMux answer RR carries as its RDATA.</td><td>wrapper, frame, container</td></tr>
+<tr><td>payload</td><td>noun</td><td>The protocol-specific bytes inside an envelope.</td><td>body, data, content</td></tr>
+<tr><td>message type</td><td>noun</td><td>The envelope field that names the kind of envelope, for example <code>record</code> or <code>manifest</code>.</td><td>kind, op</td></tr>
+<tr><td>application status</td><td>noun</td><td>The envelope field that states the application outcome, separate from the RCODE.</td><td>app error, status code</td></tr>
+<tr><td>signature block</td><td>noun</td><td>The envelope field that holds the key ID, the validity window and the Ed25519 signature.</td><td>sig, signature metadata</td></tr>
+<tr><td>signing input</td><td>noun</td><td>The deterministic CBOR bytes that a signature covers.</td><td>signed data, canonical form</td></tr>
+<tr><td>sign</td><td>verb</td><td>To compute an Ed25519 signature over a signing input.</td><td>—</td></tr>
+<tr><td>verify</td><td>verb</td><td>To check a signature against a trust anchor and check freshness.</td><td>validate (for signatures), check</td></tr>
+<tr><td>key ID</td><td>noun</td><td>The first 8 bytes of the SHA-256 digest of an Ed25519 public key.</td><td>key fingerprint, kid</td></tr>
+<tr><td>trust anchor</td><td>noun</td><td>A provisioned Ed25519 public key that a client accepts signatures from.</td><td>root key, trusted key</td></tr>
+<tr><td>validity window</td><td>noun</td><td>The interval from <code>issued_at</code> to <code>expires_at</code> in a signature block.</td><td>lifetime, TTL</td></tr>
+<tr><td>freshness</td><td>noun</td><td>The property that a verified envelope is inside its validity window and is not older than one the client already accepted.</td><td>recency</td></tr>
+<tr><td>freshness store</td><td>noun</td><td>The client-side record of the newest <code>issued_at</code> per protocol ID and QNAME.</td><td>replay cache, nonce store</td></tr>
+<tr><td>discovery</td><td>noun</td><td>The mechanism by which a client learns the protocols a server supports.</td><td>probing (not the probe), lookup</td></tr>
+<tr><td>discovery name</td><td>noun</td><td>The QNAME <code>_qmux.&lt;zone&gt;</code> that carries the manifest.</td><td>discovery QNAME, well-known name</td></tr>
+<tr><td>discovery key</td><td>noun</td><td>The protocol key that carries the manifest. The default is <code>(65280, 65534)</code>.</td><td>bootstrap key</td></tr>
+<tr><td>manifest</td><td>noun</td><td>The signed discovery payload that lists every registration of one server.</td><td>catalog, directory</td></tr>
+<tr><td>negotiate</td><td>verb</td><td>To pick the highest protocol version that both the client and the manifest support.</td><td>agree, select</td></tr>
+<tr><td>version label</td><td>noun</td><td>The optional leftmost QNAME label <code>_v&lt;N&gt;</code> that names the requested protocol version.</td><td>version prefix</td></tr>
+<tr><td>configuration file</td><td>noun</td><td>The JSON file that <code>qmuxd</code> reads at start.</td><td>config, settings file</td></tr>
+<tr><td>static record</td><td>noun</td><td>A payload for one QNAME that the configuration file declares.</td><td>fixture, entry</td></tr>
+<tr><td>observation log</td><td>noun</td><td>The JSONL file in which <code>qmuxd</code> writes one line per received query.</td><td>query log, access log</td></tr>
+<tr><td>probe</td><td>noun</td><td>One query that <code>qmux-probe</code> sends for one combination of path, transport, class and type.</td><td>test case, check</td></tr>
+<tr><td>probe protocol</td><td>noun</td><td>The echo protocol <code>org.qmux.probe</code> that <code>qmuxd</code> serves for interop runs.</td><td>test protocol</td></tr>
+<tr><td>path</td><td>noun</td><td>The route of a probe: direct, through BIND, or through Unbound.</td><td>route, hop</td></tr>
+<tr><td>interop matrix</td><td>noun</td><td>The table of probe outcomes over every path, transport, class and type.</td><td>compatibility table</td></tr>
+<tr><td>baseline</td><td>noun</td><td>One of the comparison implementations: IN-class DNS, IN + TXT, CoAP or HTTPS.</td><td>alternative, competitor</td></tr>
+<tr><td>lookup</td><td>noun</td><td>One retrieval of the firmware metadata in a benchmark run.</td><td>fetch, request (in benchmarks)</td></tr>
+<tr><td>benchmark run</td><td>noun</td><td>One execution of N lookups for one baseline at one loss level.</td><td>trial, session</td></tr>
+<tr><td>loss level</td><td>noun</td><td>The packet-loss percentage that netem applies in a benchmark run.</td><td>drop rate</td></tr>
+<tr><td>device</td><td>noun</td><td>The simulated industrial controller in the embedded demonstration.</td><td>node, client device, agent</td></tr>
+<tr><td>device state</td><td>noun</td><td>The JSON file that holds the device's installed configuration generation and firmware version.</td><td>local state, inventory</td></tr>
+<tr><td>reconcile</td><td>verb</td><td>To compare the device state with verified remote metadata and download only the resources that changed.</td><td>sync, update, refresh</td></tr>
+<tr><td>resource</td><td>noun</td><td>A configuration bundle or a firmware image that the mock HTTPS service serves.</td><td>artifact, file, blob</td></tr>
+<tr><td>configuration generation</td><td>noun</td><td>The unsigned integer that names one approved configuration bundle.</td><td>config version, revision</td></tr>
+<tr><td>management endpoint</td><td>noun</td><td>The URL that the bootstrap protocol returns for device management.</td><td>management URL, control endpoint</td></tr>
+<tr><td>firmware signing key ID</td><td>noun</td><td>The key ID of the key that signed a firmware image. The firmware payload carries it.</td><td>firmware key, image signer</td></tr>
+<tr><td>data directory</td><td>noun</td><td>The directory where the device stores downloaded resources.</td><td>download folder, storage dir</td></tr>
+<tr><td>signing key</td><td>noun</td><td>The Ed25519 private key with which the authoritative server signs envelopes.</td><td>private key file, server key</td></tr>
+<tr><td>token bucket</td><td>noun</td><td>The per-source rate-limit counter in the authoritative server.</td><td>throttle, limiter bucket</td></tr>
+<tr><td>cache file</td><td>noun</td><td>One file in the manifest cache that holds the raw envelope of one zone.</td><td>cache entry</td></tr>
+<tr><td>golden vector</td><td>noun</td><td>A committed CBOR file that a compatibility test decodes and encodes again.</td><td>fixture, test vector</td></tr>
+<tr><td>reference row</td><td>noun</td><td>A benchmark row that is measured for comparison only, for example IN + TXT.</td><td>control row</td></tr>
+<tr><td>client footprint</td><td>noun</td><td>The binary size, maximum RSS and CPU time of a minimal client binary.</td><td>client overhead</td></tr>
+<tr><td>ADR</td><td>noun</td><td>Architecture Decision Record, one file in <code>docs/adr/</code>.</td><td>design note</td></tr>
+<tr><td>CI</td><td>noun</td><td>Continuous Integration: the GitHub Actions workflows of the repository.</td><td>pipeline</td></tr>
+<tr><td>FR</td><td>noun</td><td>A functional requirement, numbered <code>FR-&lt;feature&gt;-&lt;n&gt;</code>.</td><td>requirement item</td></tr>
+</table></div>
+<h2 id="goals">Goals</h2>
+<ol>
+<li>Two or more protocols answer through independent private classes on one authoritative
+</li>
+</ol>
+<p>server, over UDP and over TCP.</p>
+<ol>
+<li>A client discovers the protocols of a server, negotiates a protocol version, and queries
+</li>
+</ol>
+<p>each protocol with no hard-coded class numbers other than the discovery key.</p>
+<ol>
+<li>Every answer RR carries a deterministic CBOR envelope, and the client decodes it strictly.
+</li>
+<li>A client with trust anchors rejects each tampered, expired, replayed, mis-bound or
+</li>
+</ol>
+<p>unsigned envelope, and reports the reason.</p>
+<ol>
+<li>The embedded demonstration reconciles a stale device end to end with one command.
+</li>
+<li>The interop matrix is reproducible with one command on any host with Docker, and CI runs it.
+</li>
+<li>The benchmark measures QMux private classes against IN + private type, IN + TXT, CoAP and
+</li>
+</ol>
+<p>HTTPS with equal payloads. The results separate measured values from assumptions.</p>
+<ol>
+<li><code>go test ./...</code>, <code>go test -race ./...</code>, <code>go vet ./...</code> and the linter pass on every batch PR.
+</li>
+<li>The library module depends on two third-party modules only: miekg/dns and fxamacker/cbor.
+</li>
+</ol>
+<h2 id="non-goals">Non-goals</h2>
+<ul>
+<li>DNS tunnels, payload fragmentation, or DNS-based file transfer.
+</li>
+<li>Recursive resolution, delegation, zone transfer, DNSSEC signing, or dynamic update.
+</li>
+<li>A DNS management platform, a web frontend, a database, or Kubernetes.
+</li>
+<li>State-changing operations: remote command execution, arbitrary RPC, device control.
+</li>
+<li>Firmware flashing in the demonstration.
+</li>
+<li>Public-resolver compatibility claims. QMux tests BIND and Unbound only.
+</li>
+<li>Confidentiality. DNS carries the envelope in clear text. Signatures give integrity and
+</li>
+</ul>
+<p>origin authentication only.</p>
+<ul>
+<li>A packaged release, a container registry push, or a hosted deployment in v1.
+</li>
+<li>An EDNS option that carries the protocol version. Version 1 uses the version label only.
+</li>
+<li>Private-class resolution through Unbound with custom root hints.
+</li>
+</ul>
+<h2 id="users-personas">Users &amp; personas</h2>
+<div class="table-wrap"><table>
+<tr><th>Persona</th><th>Needs</th><th>Allowed to</th></tr>
+<tr><td>Protocol developer</td><td>Registers a handler for a protocol and gets DNS handling, envelopes and signatures from QMux.</td><td>Import the library, run <code>qmuxd</code>, define protocol IDs, choose private classes and types.</td></tr>
+<tr><td>Device integrator</td><td>Embeds the client SDK in a device and needs verified, small metadata answers after an outage.</td><td>Provision trust anchors, run the client, read results.</td></tr>
+<tr><td>Operator</td><td>Runs <code>qmuxd</code> with a configuration file and a signing key.</td><td>Edit the configuration file, generate keys with <code>qmuxctl keygen</code>, read the observation log.</td></tr>
+<tr><td>Researcher</td><td>Runs the interop matrix and the benchmark and reads the results.</td><td>Run <code>make interop</code> and <code>make bench</code>, edit loss levels and sample counts.</td></tr>
+</table></div>
+<h2 id="feature-map">Feature map</h2>
+<div class="table-wrap"><table>
+<tr><th>Feature set</th><th>Spec file</th><th>Epic</th><th>Mockups</th></tr>
+<tr><td>Foundation</td><td><a href="html/feature-foundation.html">features/00-foundation.md</a></td><td>Epic 0: Foundation</td><td>—</td></tr>
+<tr><td>Protocol registry</td><td><a href="html/feature-protocol-registry.html">features/01-protocol-registry.md</a></td><td>Epic 1: Protocol registry</td><td>—</td></tr>
+<tr><td>Authoritative server</td><td><a href="html/feature-authoritative-server.html">features/02-authoritative-server.md</a></td><td>Epic 2: Authoritative server</td><td>—</td></tr>
+<tr><td>Client SDK</td><td><a href="html/feature-client-sdk.html">features/03-client-sdk.md</a></td><td>Epic 3: Client SDK</td><td>—</td></tr>
+<tr><td>Envelope codec</td><td><a href="html/feature-envelope-codec.html">features/04-envelope-codec.md</a></td><td>Epic 4: Envelope codec</td><td>—</td></tr>
+<tr><td>Discovery</td><td><a href="html/feature-discovery.html">features/05-discovery.md</a></td><td>Epic 5: Discovery and version negotiation</td><td>—</td></tr>
+<tr><td>Signing and freshness</td><td><a href="html/feature-signing-and-freshness.html">features/06-signing-and-freshness.md</a></td><td>Epic 6: Signing and freshness</td><td>—</td></tr>
+<tr><td>Embedded recovery</td><td><a href="html/feature-embedded-recovery.html">features/07-embedded-recovery.md</a></td><td>Epic 7: Embedded recovery demonstration</td><td>—</td></tr>
+<tr><td>qmuxd daemon</td><td><a href="html/feature-qmuxd-daemon.html">features/08-qmuxd-daemon.md</a></td><td>Epic 8: qmuxd daemon</td><td>—</td></tr>
+<tr><td>Interop harness</td><td><a href="html/feature-interop-harness.html">features/09-interop-harness.md</a></td><td>Epic 9: Interop harness</td><td>—</td></tr>
+<tr><td>Baseline benchmarks</td><td><a href="html/feature-baseline-benchmarks.html">features/10-baseline-benchmarks.md</a></td><td>Epic 10: Baseline benchmarks</td><td>—</td></tr>
+<tr><td>Documentation</td><td><a href="html/feature-documentation.html">features/11-documentation.md</a></td><td>Epic 11: Documentation</td><td>—</td></tr>
+</table></div>
+<p>QMux has no graphical screens, so the spec has no mockups. Each feature file states the command-line output in place of screens.</p>
+<h2 id="architecture-stack">Architecture &amp; stack</h2>
+<div class="diagram"><pre class="mermaid">flowchart LR
+    subgraph lib["Library module github.com/Crank-Git/qmux"]
+        facade["qmux (root facade)"]
+        protocol["pkg/protocol"]
+        registry["pkg/registry"]
+        codec["pkg/codec"]
+        security["pkg/security"]
+        transport["pkg/transport"]
+        server["pkg/server"]
+        client["pkg/client"]
+        discovery["pkg/discovery"]
+    end
+    subgraph cmds["Command-line tools"]
+        qmuxd["cmd/qmuxd"]
+        qmuxctl["cmd/qmuxctl"]
+        probe["cmd/qmux-probe"]
+    end
+    subgraph harness["Module tests/interoperability"]
+        bench["qmux-bench + baseline servers"]
+        compose["Docker Compose: BIND, Unbound, netem"]
+    end
+    demo["examples/embedded-bootstrap"]
+
+    registry --&gt; protocol
+    codec --&gt; protocol
+    transport --&gt; protocol
+    security --&gt; codec
+    server --&gt; registry
+    server --&gt; transport
+    server --&gt; security
+    client --&gt; transport
+    client --&gt; security
+    discovery --&gt; registry
+    discovery --&gt; client
+    facade --&gt; server
+    facade --&gt; client
+    qmuxd --&gt; server
+    qmuxd --&gt; discovery
+    qmuxctl --&gt; client
+    qmuxctl --&gt; discovery
+    probe --&gt; client
+    demo --&gt; facade
+    demo --&gt; discovery
+    bench --&gt; client
+    compose --&gt; qmuxd
+    compose --&gt; probe</pre></div>
+<p>The arrows show Go import direction. No package imports a package to its left in the list below, so the graph has no cycles.</p>
+<div class="table-wrap"><table>
+<tr><th>Package</th><th>Purpose</th><th>Imports (QMux only)</th></tr>
+<tr><td><code>pkg/protocol</code></td><td>Core types: <code>ProtocolKey</code>, <code>Info</code>, <code>Request</code>, <code>Response</code>, <code>Handler</code>, <code>Status</code>, <code>MessageType</code>, range checks.</td><td>none</td></tr>
+<tr><td><code>pkg/registry</code></td><td>Concurrency-safe registrations, conflict checks, remap, list.</td><td>protocol</td></tr>
+<tr><td><code>pkg/codec</code></td><td>Envelope encode and decode, deterministic CBOR options, size limits.</td><td>protocol</td></tr>
+<tr><td><code>pkg/transport</code></td><td>The only package that imports miekg/dns. Builds queries, packs opaque RDATA, applies EDNS(0) and the UDP size limit, matches answers.</td><td>protocol</td></tr>
+<tr><td><code>pkg/security</code></td><td>Key IDs, signer, verifier, trust anchors, freshness store, key files.</td><td>protocol, codec</td></tr>
+<tr><td><code>pkg/server</code></td><td>The authoritative server: listeners, validation, dispatch, envelopes, signing, rate limits, logging, shutdown.</td><td>protocol, registry, codec, transport, security</td></tr>
+<tr><td><code>pkg/client</code></td><td>The client SDK: UDP, TCP fallback, retries, matching, decoding, verification.</td><td>protocol, codec, transport, security</td></tr>
+<tr><td><code>pkg/discovery</code></td><td>Manifest schema, the discovery handler, client-side discovery, negotiation and manifest cache.</td><td>protocol, registry, codec, security, client</td></tr>
+<tr><td><code>qmux</code> (root)</td><td>Type aliases and constructors so the brief's API compiles as written: <code>qmux.NewServer</code>, <code>qmux.ProtocolKey</code>, <code>qmux.NewClient</code>, <code>qmux.Query</code>.</td><td>server, client, protocol</td></tr>
+</table></div>
+<p>Stack decisions:</p>
+<div class="table-wrap"><table>
+<tr><th>Choice</th><th>Pinned version</th><th>Why it beat the alternative</th><th>Documentation</th></tr>
+<tr><td>Go</td><td>module directive <code>go 1.25</code>, CI on Go 1.25 and the latest stable Go</td><td>The brief requires Go 1.24 or newer. miekg/dns v1.1.73 declares <code>go 1.25.0</code>.</td><td>https://go.dev/doc/devel/release</td></tr>
+<tr><td><code>github.com/miekg/dns</code></td><td>v1.1.73</td><td>The brief names it. Its API is stable. It has <code>RFC3597</code> and <code>PrivateHandle</code> for opaque RDATA. The successor <code>codeberg.org/miekg/dns</code> is v0.6.x, allows API breaks, needs Go 1.27, and has no confirmed private-type API. v1 gets fixes only, so <code>pkg/transport</code> is the only importer. See ADR 0001.</td><td>https://github.com/miekg/dns (README, v1.1.73), verified with <code>go doc</code> and a pack/unpack test on 2026-11-20</td></tr>
+<tr><td><code>github.com/fxamacker/cbor/v2</code></td><td>v2.10.0</td><td>It has RFC 8949 core deterministic encoding (<code>CoreDetEncOptions</code>) and strict decode limits. Its go.mod declares <code>go 1.24</code>.</td><td>https://pkg.go.dev/github.com/fxamacker/cbor/v2@v2.10.0</td></tr>
+<tr><td>Ed25519</td><td>Go standard library <code>crypto/ed25519</code></td><td>Standard library, fixed 32-byte keys and 64-byte signatures.</td><td>https://pkg.go.dev/crypto/ed25519</td></tr>
+<tr><td>Logging</td><td><code>log/slog</code></td><td>Standard library structured logging.</td><td>https://pkg.go.dev/log/slog</td></tr>
+<tr><td>CoAP baseline</td><td><code>github.com/plgd-dev/go-coap/v3</code> v3.8.2, in the <code>tests/interoperability</code> module only</td><td>It is maintained. Its go.mod declares <code>go 1.26.0</code>, so it stays out of the library module. See ADR 0002.</td><td>https://github.com/plgd-dev/go-coap (README, v3.8.2)</td></tr>
+<tr><td>BIND</td><td>Docker image <code>internetsystemsconsortium/bind9:9.20</code></td><td>Official ISC image.</td><td>https://hub.docker.com/r/internetsystemsconsortium/bind9</td></tr>
+<tr><td>Unbound</td><td>Docker image <code>klutchell/unbound:1.26.2</code></td><td>NLnet Labs publishes no official image. This image is maintained and matches upstream 1.26.2. <code>mvance/unbound</code> stopped at 1.22.0 in 2024.</td><td>https://hub.docker.com/r/klutchell/unbound</td></tr>
+<tr><td>Packet loss</td><td>Linux <code>tc netem</code> in Docker containers with <code>NET_ADMIN</code></td><td>It applies the same loss to UDP and TCP, so the HTTPS baseline is fair. See ADR 0003.</td><td>https://man7.org/linux/man-pages/man8/tc-netem.8.html</td></tr>
+<tr><td>Lint</td><td><code>golangci-lint</code> v2, version pinned by Epic 0</td><td>It runs <code>gocyclo</code>, <code>nestif</code>, <code>unused</code> and <code>errcheck</code> in one tool.</td><td>https://golangci-lint.run/</td></tr>
+<tr><td>CI</td><td>GitHub Actions</td><td>The repository is on GitHub.</td><td>https://docs.github.com/actions</td></tr>
+</table></div>
+<p>Two Go modules exist:</p>
+<ul>
+<li>The library module <code>github.com/Crank-Git/qmux</code> at the repository root holds <code>pkg/</code>,
+</li>
+</ul>
+<p><code>cmd/</code>, <code>examples/</code> and <code>tests/integration/</code>.</p>
+<ul>
+<li>The harness module at <code>tests/interoperability/</code> holds the baselines and <code>qmux-bench</code>.
+</li>
+</ul>
+<p>It uses a <code>replace</code> directive to the root module. It keeps go-coap out of the library dependency graph.</p>
+<p>QMux has no deploy target. Nothing runs in production. CI is the only automated environment.</p>
+<h2 id="data-model">Data model</h2>
+<p>QMux has no database. The entities below are wire structures, files and in-memory records.</p>
+<div class="diagram"><pre class="mermaid">erDiagram
+    REGISTRATION ||--|| PROTOCOL_KEY : occupies
+    REGISTRATION ||--|| HANDLER : "is answered by"
+    REGISTRATION }o--|| MANIFEST : "is listed in"
+    ENVELOPE ||--o| SIGNATURE_BLOCK : carries
+    ENVELOPE ||--|| PAYLOAD : carries
+    MANIFEST ||--|| PAYLOAD : "is encoded as"
+    SIGNATURE_BLOCK }o--|| TRUST_ANCHOR : "is verified by"
+    FRESHNESS_ENTRY }o--|| ENVELOPE : "records issued_at of"
+    CONFIGURATION_FILE ||--o{ STATIC_RECORD : declares
+    CONFIGURATION_FILE ||--o{ REGISTRATION : declares
+    DEVICE_STATE ||--o{ RESOURCE : "names installed"
+
+    PROTOCOL_KEY {
+        uint16 class
+        uint16 type
+    }
+    REGISTRATION {
+        string protocol_id
+        uint_list versions
+    }
+    ENVELOPE {
+        uint format
+        string protocol_id
+        uint version
+        uint message_type
+        uint status
+    }
+    SIGNATURE_BLOCK {
+        bytes key_id
+        int alg
+        uint issued_at
+        uint expires_at
+        bytes signature
+    }
+    TRUST_ANCHOR {
+        bytes key_id
+        bytes public_key
+        string_list protocols
+    }
+    FRESHNESS_ENTRY {
+        string protocol_id
+        string qname
+        uint issued_at
+    }
+    DEVICE_STATE {
+        uint config_generation
+        string firmware_version
+    }</pre></div>
+<h3 id="envelope-rdata-of-every-answer-rr-from-epic-4">Envelope (RDATA of every answer RR, from Epic 4)</h3>
+<p>A CBOR map with unsigned integer keys, encoded with <code>cbor.CoreDetEncOptions()</code>.</p>
+<div class="table-wrap"><table>
+<tr><th>Key</th><th>Field</th><th>CBOR type</th><th>Constraint</th></tr>
+<tr><td>0</td><td>format</td><td>uint</td><td>Must be <code>1</code>.</td></tr>
+<tr><td>1</td><td>protocol ID</td><td>text</td><td>1–128 bytes, reverse-DNS form, lowercase <code>[a-z0-9.-]</code>.</td></tr>
+<tr><td>2</td><td>protocol version</td><td>uint</td><td>1–65535.</td></tr>
+<tr><td>3</td><td>message type</td><td>uint</td><td><code>1</code> = record, <code>2</code> = manifest. 256–65535 are protocol-specific.</td></tr>
+<tr><td>4</td><td>application status</td><td>uint</td><td>See the status table.</td></tr>
+<tr><td>5</td><td>payload</td><td>bytes</td><td>Length 0 to the payload limit.</td></tr>
+<tr><td>6</td><td>signature block</td><td>map</td><td>Optional on the wire. Required when the client has trust anchors.</td></tr>
+</table></div>
+<p>Envelope limits: the envelope is at most 16384 bytes by default. The configured maximum is never above 65000 bytes. The decoder rejects unknown keys, duplicate keys, indefinite lengths, tags, invalid UTF-8, and nesting deeper than 8 levels.</p>
+<p>Application status:</p>
+<div class="table-wrap"><table>
+<tr><th>Value</th><th>Name</th><th>Meaning</th></tr>
+<tr><td>0</td><td><code>ok</code></td><td>The payload holds the requested resource.</td></tr>
+<tr><td>1</td><td><code>not-found</code></td><td>The protocol has no resource for the QNAME.</td></tr>
+<tr><td>2</td><td><code>bad-request</code></td><td>The QNAME labels do not parse for this protocol.</td></tr>
+<tr><td>3</td><td><code>version-unsupported</code></td><td>The version label names a version the registration does not support.</td></tr>
+<tr><td>4</td><td><code>unavailable</code></td><td>The handler cannot answer now.</td></tr>
+<tr><td>256–65535</td><td>protocol-specific</td><td>The protocol defines the meaning.</td></tr>
+</table></div>
+<h3 id="signature-block-envelope-key-6-from-epic-6">Signature block (envelope key 6, from Epic 6)</h3>
+<div class="table-wrap"><table>
+<tr><th>Key</th><th>Field</th><th>CBOR type</th><th>Constraint</th></tr>
+<tr><td>1</td><td>key ID</td><td>bytes</td><td>Exactly 8 bytes.</td></tr>
+<tr><td>2</td><td>algorithm</td><td>int</td><td><code>-8</code> (EdDSA, RFC 9053). Other values are rejected.</td></tr>
+<tr><td>3</td><td>issued_at</td><td>uint</td><td>Unix seconds.</td></tr>
+<tr><td>4</td><td>expires_at</td><td>uint</td><td>Unix seconds. Greater than <code>issued_at</code>.</td></tr>
+<tr><td>5</td><td>signature</td><td>bytes</td><td>Exactly 64 bytes.</td></tr>
+</table></div>
+<p>The signing input is the deterministic CBOR encoding of this array:</p>
+<pre class="code"><code>["qmux-sig/1", qname, qclass, qtype, format, protocol_id, version,
+ message_type, status, payload, key_id, alg, issued_at, expires_at]</code></pre>
+<p><code>qname</code> is the lowercase fully qualified QNAME. The signature binds the resource name, the class, the type and the protocol ID. A valid envelope copied to another QNAME or another protocol key fails verification.</p>
+<h3 id="manifest-payload-message-type-2-from-epic-5">Manifest payload (message type 2, from Epic 5)</h3>
+<div class="table-wrap"><table>
+<tr><th>Key</th><th>Field</th><th>CBOR type</th></tr>
+<tr><td>1</td><td>framework version</td><td>uint, <code>1</code></td></tr>
+<tr><td>2</td><td>zone</td><td>text</td></tr>
+<tr><td>3</td><td>protocols</td><td>array of maps: <code>{1: protocol ID, 2: [versions], 3: class, 4: type}</code></td></tr>
+</table></div>
+<h3 id="files">Files</h3>
+<div class="table-wrap"><table>
+<tr><th>File</th><th>Format</th><th>Owner</th></tr>
+<tr><td>Configuration file</td><td>JSON, read by <code>qmuxd</code>. Schema in features/08-qmuxd-daemon.md.</td><td>Operator</td></tr>
+<tr><td>Signing key</td><td>PKCS#8 PEM, Ed25519, mode 0600, written by <code>qmuxctl keygen</code>.</td><td>Operator</td></tr>
+<tr><td>Trust anchor file</td><td>JSON <code>{"anchors":[{"key_id":"&lt;hex&gt;","public_key":"&lt;base64&gt;","protocols":["&lt;protocol ID&gt;"]}]}</code>. An empty <code>protocols</code> list allows every protocol ID.</td><td>Device integrator</td></tr>
+<tr><td>Manifest cache</td><td>One file per zone that holds the raw envelope bytes. The client verifies the file again on load.</td><td>Client SDK</td></tr>
+<tr><td>Observation log</td><td>JSONL, one object per received query.</td><td><code>qmuxd</code></td></tr>
+<tr><td>Device state</td><td>JSON <code>{"config_generation":N,"firmware_version":"x.y.z"}</code>.</td><td>Demonstration</td></tr>
+<tr><td>Interop results</td><td>JSON, one object per probe.</td><td><code>qmux-probe</code></td></tr>
+<tr><td>Benchmark results</td><td>JSON plus a generated markdown table.</td><td><code>qmux-bench</code></td></tr>
+</table></div>
+<h2 id="cross-cutting-concerns">Cross-cutting concerns</h2>
+<h3 id="protocol-key-allocation">Protocol key allocation</h3>
+<ul>
+<li>The registry accepts private classes 65280–65534 and IN (1).
+</li>
+<li>The registry accepts a reserved class only when <code>AllowReservedClasses</code> is true.
+</li>
+<li>The registry rejects every other class, for example 0, 254 (NONE) and 255 (ANY).
+</li>
+<li>The registry accepts private types 65280–65534.
+</li>
+<li>The registry accepts a non-private type only when <code>AllowNonPrivateTypes</code> is true. That
+</li>
+</ul>
+<p>option exists for the TXT reference row of the benchmark and probe.</p>
+<ul>
+<li>The registry always rejects the meta-types OPT (41), TSIG (250), IXFR (251), AXFR (252)
+</li>
+</ul>
+<p>and ANY (255).</p>
+<ul>
+<li>Class and type numbers are local to one server. A protocol ID is the stable name. The
+</li>
+</ul>
+<p>manifest maps protocol IDs to protocol keys.</p>
+<p>The demonstration uses these defaults:</p>
+<div class="table-wrap"><table>
+<tr><th>Protocol ID</th><th>QCLASS</th><th>QTYPE</th></tr>
+<tr><td><code>org.qmux.discovery</code></td><td>65280</td><td>65534</td></tr>
+<tr><td><code>org.qmux.bootstrap</code></td><td>65280</td><td>65280</td></tr>
+<tr><td><code>org.qmux.configuration</code></td><td>65281</td><td>65280</td></tr>
+<tr><td><code>org.qmux.firmware</code></td><td>65282</td><td>65280</td></tr>
+<tr><td><code>org.qmux.probe</code></td><td>as the interop configuration lists</td><td>as the interop configuration lists</td></tr>
+</table></div>
+<h3 id="error-semantics">Error semantics</h3>
+<p>The RCODE reports DNS-level outcomes. The application status reports application outcomes. They never overlap.</p>
+<div class="table-wrap"><table>
+<tr><th>Condition</th><th>RCODE</th><th>Answer</th></tr>
+<tr><td>A registration answers, with any application status</td><td><code>NOERROR</code>, AA set</td><td>One RR with the envelope</td></tr>
+<tr><td>The question count is not 1, or the packet does not parse</td><td><code>FORMERR</code></td><td>none</td></tr>
+<tr><td>The opcode is not QUERY</td><td><code>NOTIMP</code></td><td>none</td></tr>
+<tr><td>No registration for the protocol key</td><td><code>REFUSED</code></td><td>none</td></tr>
+<tr><td>The QNAME is outside every configured zone</td><td><code>REFUSED</code></td><td>none</td></tr>
+<tr><td>The source exceeds its rate limit</td><td><code>REFUSED</code></td><td>none</td></tr>
+<tr><td>The handler returns an error, times out, or the envelope exceeds limits</td><td><code>SERVFAIL</code></td><td>none</td></tr>
+<tr><td>The EDNS version is above 0</td><td><code>BADVERS</code></td><td>none</td></tr>
+</table></div>
+<p>The client returns three separate Go error types:</p>
+<ul>
+<li><code>*client.DNSError</code> for an RCODE that is not <code>NOERROR</code>, a transport failure, a timeout,
+</li>
+</ul>
+<p>or a mismatch between the question and the answer.</p>
+<ul>
+<li><code>*client.AppError</code> for an application status that is not <code>ok</code>.
+</li>
+<li><code>*client.VerifyError</code> for a signature or freshness failure.
+</li>
+</ul>
+<h3 id="security-posture">Security posture</h3>
+<ul>
+<li>DNS gives no confidentiality, no integrity and no authentication. QMux assumes an
+</li>
+</ul>
+<p>on-path attacker can read, drop, replay and forge packets.</p>
+<ul>
+<li>A client with trust anchors verifies every envelope before it returns any field.
+</li>
+<li>A client with trust anchors never returns an unsigned or unverifiable envelope. No
+</li>
+</ul>
+<p>silent fallback exists.</p>
+<ul>
+<li>A client with no trust anchors returns results with <code>Verified: false</code>. Discovery
+</li>
+</ul>
+<p>refuses to run without trust anchors unless the caller sets <code>InsecureSkipVerify</code>.</p>
+<ul>
+<li>The TTL is never a security expiry. Only <code>expires_at</code> is.
+</li>
+<li>QMux supports read-only operations only.
+</li>
+<li>The server enforces a maximum query size of 512 bytes without EDNS(0) and 1232 bytes
+</li>
+</ul>
+<p>with it. It enforces the envelope limit and an optional per-source rate limit.</p>
+<ul>
+<li>Fuzz tests cover the envelope decoder, the server request path and the verifier.
+</li>
+</ul>
+<h3 id="logging">Logging</h3>
+<p>The server and <code>qmuxd</code> log with <code>log/slog</code>. One record per query carries <code>qname</code>, <code>qclass</code>, <code>qtype</code>, <code>transport</code>, <code>source</code>, <code>rcode</code>, <code>status</code>, <code>bytes_in</code>, <code>bytes_out</code> and <code>duration_ms</code>. The default level is <code>info</code>. The library never logs payload bytes or private keys.</p>
+<h3 id="performance-targets">Performance targets</h3>
+<ul>
+<li>A direct UDP query on loopback completes in under 2 ms at the median. This is a
+</li>
+</ul>
+<p>target, not a claim. The benchmark measures it.</p>
+<ul>
+<li>A normal response fits in 1232 bytes, so it travels over UDP with no truncation.
+</li>
+<li>The server handles 100 concurrent queries with no data race under <code>go test -race</code>.
+</li>
+</ul>
+<h3 id="timeouts-and-defaults">Timeouts and defaults</h3>
+<div class="table-wrap"><table>
+<tr><th>Setting</th><th>Default</th></tr>
+<tr><td>Server UDP size limit with EDNS(0)</td><td>1232 bytes</td></tr>
+<tr><td>Server UDP size limit without EDNS(0)</td><td>512 bytes</td></tr>
+<tr><td>Handler timeout</td><td>2 s</td></tr>
+<tr><td>Server read and write timeout</td><td>2 s</td></tr>
+<tr><td>Graceful shutdown grace period</td><td>5 s</td></tr>
+<tr><td>Default response TTL</td><td>60 s</td></tr>
+<tr><td>Signature validity</td><td>1 h</td></tr>
+<tr><td>Client attempt timeout</td><td>1 s</td></tr>
+<tr><td>Client attempts over UDP</td><td>3</td></tr>
+<tr><td>Client advertised UDP size</td><td>1232 bytes</td></tr>
+<tr><td>Allowed clock skew</td><td>60 s</td></tr>
+<tr><td>Longest validity window a client accepts</td><td>24 h</td></tr>
+</table></div>
+<h2 id="environments-config">Environments &amp; config</h2>
+<div class="table-wrap"><table>
+<tr><th>Environment</th><th>Purpose</th></tr>
+<tr><td>Local</td><td>A developer runs <code>make test</code>, <code>make interop</code>, <code>make bench</code> and the demonstration.</td></tr>
+<tr><td>CI</td><td>GitHub Actions runs the test, race, vet and lint jobs on every PR to <code>dev</code> and <code>main</code>. A second workflow runs the interop matrix.</td></tr>
+</table></div>
+<p>QMux reads no environment variables. Every setting is a Go config struct field or a command-line flag. <code>qmuxd</code> reads its configuration file from <code>--config</code>.</p>
+<p>Secrets:</p>
+<ul>
+<li>Signing keys are generated with <code>qmuxctl keygen</code> and are never committed.
+</li>
+<li><code>.gitignore</code> excludes <code>*.key</code>.
+</li>
+<li>Tests derive keys from fixed seeds in test code with <code>ed25519.NewKeyFromSeed</code>.
+</li>
+<li>The demonstration generates a fresh key at each start.
+</li>
+</ul>
+<p>Seed data:</p>
+<ul>
+<li><code>examples/qmuxd.json</code> is a working configuration file for the three demonstration
+</li>
+</ul>
+<p>protocols.</p>
+<ul>
+<li><code>tests/interoperability/qmuxd.json</code> is the probe configuration.
+</li>
+</ul>
+<h2 id="testing-strategy">Testing strategy</h2>
+<div class="table-wrap"><table>
+<tr><th>Layer</th><th>Location</th><th>What it covers</th></tr>
+<tr><td>Unit</td><td><code>pkg/**/*_test.go</code></td><td>Every FR in the library packages. Table tests.</td></tr>
+<tr><td>Fuzz</td><td><code>pkg/codec</code>, <code>pkg/server</code>, <code>pkg/security</code></td><td><code>FuzzDecodeEnvelope</code>, <code>FuzzServeMessage</code>, <code>FuzzVerify</code>. CI runs the seed corpus. <code>make fuzz</code> runs each target for <code>FUZZTIME</code> (default 30s).</td></tr>
+<tr><td>Integration</td><td><code>tests/integration/</code></td><td>Real UDP and TCP listeners on loopback: two protocols, truncation and TCP fallback, concurrency, shutdown under load, discovery, verification failures.</td></tr>
+<tr><td>Example</td><td><code>example_test.go</code>, <code>examples/embedded-bootstrap</code></td><td>Go <code>Example</code> functions that the README quotes. The demonstration runs as a test.</td></tr>
+<tr><td>Interop</td><td><code>tests/interoperability/</code></td><td>Docker Compose matrix through BIND and Unbound. CI asserts that the direct path passes. It records resolver outcomes as data.</td></tr>
+<tr><td>Benchmark</td><td><code>tests/interoperability/</code></td><td><code>make bench</code>. Local only, because shared runners give unstable timings.</td></tr>
+</table></div>
+<p>A change is done when these commands pass:</p>
+<pre class="code"><code>go vet ./...
+go test ./...
+go test -race ./...
+golangci-lint run</code></pre>
+<p>A change that touches <code>tests/interoperability/</code> also passes <code>make interop</code>.</p>
+<h2 id="epics">Epics</h2>
+<p>Every epic is one batch, one PR into <code>dev</code>, and one CI run.</p>
+<div class="table-wrap"><table>
+<tr><th>Epic</th><th>Goal</th><th>Feature file</th><th>Depends on</th><th>Exit criteria</th></tr>
+<tr><td>Epic 0: Foundation</td><td>The repository builds, tests and lints. The DNS library is proven for private classes and opaque RDATA.</td><td>00-foundation</td><td>—</td><td>A fresh clone passes <code>make check</code>. The wire-format test passes. CI runs on a PR to <code>dev</code>.</td></tr>
+<tr><td>Epic 1: Protocol registry</td><td>Protocol keys, protocol IDs and registrations exist and are safe for concurrency.</td><td>01-protocol-registry</td><td>Epic 0</td><td>Conflict, remap and range tests pass under <code>-race</code>.</td></tr>
+<tr><td>Epic 2: Authoritative server</td><td>The server answers registered protocol keys with opaque RDATA over UDP and TCP.</td><td>02-authoritative-server</td><td>Epic 1</td><td>The RCODE table tests pass. Truncation and shutdown tests pass.</td></tr>
+<tr><td>Epic 3: Client SDK</td><td>The client queries over UDP with TCP fallback, and <code>qmuxctl query</code> works.</td><td>03-client-sdk</td><td>Epic 2</td><td>Phase 1 deliverable: two protocols answer through two private classes in an integration test.</td></tr>
+<tr><td>Epic 4: Envelope codec</td><td>Every answer carries a strict deterministic CBOR envelope.</td><td>04-envelope-codec</td><td>Epic 3</td><td>Golden vectors and fuzz seeds pass. Server and client use the envelope.</td></tr>
+<tr><td>Epic 5: Discovery and version negotiation</td><td>A client discovers protocols and negotiates versions. <code>qmuxctl discover</code> works.</td><td>05-discovery</td><td>Epic 4</td><td>Phase 2 deliverable: an integration test discovers and queries every registration.</td></tr>
+<tr><td>Epic 6: Signing and freshness</td><td>Envelopes are signed, and clients reject bad ones.</td><td>06-signing-and-freshness</td><td>Epic 5</td><td>Phase 3 deliverable: tampered, expired, replayed, mis-bound and unsigned envelopes fail with distinct errors.</td></tr>
+<tr><td>Epic 7: Embedded recovery demonstration</td><td>A stale device reconciles through three protocols and a mock HTTPS service.</td><td>07-embedded-recovery</td><td>Epic 6</td><td>Phase 4 deliverable: the demonstration test passes for the stale, current and tampered cases.</td></tr>
+<tr><td>Epic 8: qmuxd daemon</td><td><code>qmuxd serve</code> runs from a configuration file, with rate limits and an observation log.</td><td>08-qmuxd-daemon</td><td>Epic 7</td><td><code>qmuxd</code> serves <code>examples/qmuxd.json</code>, and <code>qmuxctl</code> verifies every protocol.</td></tr>
+<tr><td>Epic 9: Interop harness</td><td><code>qmux-probe</code> and the Docker Compose matrix record outcomes over every path.</td><td>09-interop-harness</td><td>Epic 8</td><td><code>make interop</code> writes <code>results.json</code>. The CI interop workflow passes.</td></tr>
+<tr><td>Epic 10: Baseline benchmarks</td><td>The private-class path is measured against the four baselines.</td><td>10-baseline-benchmarks</td><td>Epic 9</td><td>Phase 5 deliverable: <code>make bench</code> writes results, and <code>docs/interoperability.md</code> holds a measured table.</td></tr>
+<tr><td>Epic 11: Documentation</td><td>README and every doc in <code>docs/</code> are complete, and every example runs.</td><td>11-documentation</td><td>Epic 10</td><td>The docs example test passes. Each acceptance criterion in § 15 of the brief maps to a test or a doc section.</td></tr>
+</table></div>
+<p>Epic 8 depends on Epic 7, because <code>examples/qmuxd.json</code> uses the payload schemas that Epic 7 defines.</p>
+<h2 id="milestones">Milestones</h2>
+<div class="table-wrap"><table>
+<tr><th>Milestone</th><th>After</th><th>Shippable means</th></tr>
+<tr><td>M0</td><td>Epic 0</td><td>Green CI on an empty but structured module.</td></tr>
+<tr><td>M1 — Phase 1</td><td>Epic 3</td><td>Raw binary exchange over two private classes, UDP and TCP.</td></tr>
+<tr><td>M2 — Phase 2</td><td>Epic 5</td><td>Envelopes, discovery and version negotiation.</td></tr>
+<tr><td>M3 — Phase 3</td><td>Epic 6</td><td>Signed envelopes, verified by default when trust anchors exist.</td></tr>
+<tr><td>M4 — Phase 4</td><td>Epics 7 and 8</td><td>The demonstration and the daemon work end to end.</td></tr>
+<tr><td>M5 — Phase 5</td><td>Epics 9 and 10</td><td>Reproducible interop matrix and benchmark results.</td></tr>
+<tr><td>M6</td><td>Epic 11</td><td>Every acceptance criterion of the brief holds. <code>dev</code> is promoted to <code>main</code>.</td></tr>
+</table></div>
+<h2 id="assumptions" class="callout-h">Assumptions</h2>
+<ol>
+<li>The module path is <code>github.com/Crank-Git/qmux</code>, and the license is MIT.
+</li>
+<li>A root package <code>qmux</code> holds type aliases and constructors, so the brief's API examples
+</li>
+</ol>
+<p>compile without change. The real code lives in <code>pkg/</code>. See ADR 0004.</p>
+<ol>
+<li><code>pkg/transport</code> is the DNS wire layer and the only importer of miekg/dns.
+</li>
+<li>Discovery uses the protocol key <code>(65280, 65534)</code> and the discovery name <code>_qmux.&lt;zone&gt;</code>.
+</li>
+</ol>
+<p>The IN option uses <code>(1, 65534)</code> with the same discovery name.</p>
+<ol>
+<li>A request names its protocol version with an optional leftmost QNAME label <code>_v&lt;N&gt;</code>. With no
+</li>
+</ol>
+<p>version label, the server uses the highest version of the registration. A QNAME label passes through every resolver, but an EDNS option can be stripped.</p>
+<ol>
+<li>The authoritative server signs each envelope at answer time (online signing). Handlers
+</li>
+</ol>
+<p>never sign.</p>
+<ol>
+<li>Replay protection uses the validity window plus a monotonic <code>issued_at</code> check per
+</li>
+</ol>
+<p>protocol ID and QNAME in the freshness store. QMux uses no nonces, because a DNS question carries no client nonce through a resolver cache.</p>
+<ol>
+<li>The decoder enforces deterministic encoding for signed data: it decodes the envelope,
+</li>
+</ol>
+<p>encodes it again, and compares the bytes. fxamacker/cbor has no decode option that rejects non-deterministic input.</p>
+<ol>
+<li>The IN-class baseline uses QCLASS IN, QTYPE 65280, and a protocol label in the QNAME
+</li>
+</ol>
+<p>(<code>_fw.device42.fleet.example.</code>). The class is then the only variable.</p>
+<ol>
+<li>The IN + TXT reference row splits the same envelope bytes into TXT character-strings
+</li>
+</ol>
+<p>of at most 255 bytes. QMux protocols never use TXT.</p>
+<ol>
+<li>Each benchmark lookup is cold: a new UDP socket, TCP connection or TLS session. HTTPS
+</li>
+</ol>
+<p>with connection reuse is a second, labeled row.</p>
+<ol>
+<li>Rate limiting is a per-source-IP token bucket written in QMux. The library default is
+</li>
+</ol>
+<p>off. The <code>qmuxd</code> default is 50 queries per second with a burst of 100.</p>
+<ol>
+<li>Version 1 has no release process. Promotion of <code>dev</code> to <code>main</code> is the release.
+</li>
+</ol>
+<h2 id="risks-open-questions" class="callout-h">Risks &amp; open questions</h2>
+<ul>
+<li><strong>Resolvers drop private classes (measured risk, not blocking).</strong> BIND 9.20 disables
+</li>
+</ul>
+<p>recursion for every non-IN view (<code>server.c</code>, <code>bind-9.20</code> branch). A planner test on 2026-11-20 confirmed it: BIND loads a class-65281 view, logs <code>recursion will be disabled for non-IN view 'priv'</code>, and answers a class-65281 query with <code>NOTIMP</code>. Unbound 1.26.2 documents "Class IN is assumed" for <code>stub-zone</code> and <code>forward-zone</code>. Private-class probes through both resolvers will most likely fail. The interop matrix records the result. The docs state it as a finding. Only direct queries can carry private classes. Sources:</p>
+<ul>
+<li>https://gitlab.isc.org/isc-projects/bind9 (<code>bind-9.20</code>)
+<ul>
+<li>https://github.com/NLnetLabs/unbound (<code>release-1.26.2</code>)
+</li>
+<li>https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html
+</li>
+</ul>
+</li>
+<li><strong>The BIND image is amd64 only.</strong> On an arm64 host it runs under emulation, so its
+</li>
+</ul>
+<p>latency is not comparable. Each probe record labels the architecture. The CI run on amd64 is the reference run. The benchmark does not use BIND.</p>
+<ul>
+<li><strong>Unbound serves expired answers by default</strong> (<code>serve-expired: yes</code> in the image). The
+</li>
+</ul>
+<p>interop configuration sets <code>serve-expired: no</code>.</p>
+<ul>
+<li><strong>DNSSEC validation in the resolvers.</strong> Both resolvers validate by default. The
+</li>
+</ul>
+<p>interop configuration marks <code>fleet.example.</code> as insecure (<code>domain-insecure</code> in Unbound, <code>validate-except</code> in BIND), so validation does not hide the class result.</p>
+<ul>
+<li><strong>miekg/dns v1 is in maintenance mode.</strong> It gets fixes only and will be archived. ADR 0001
+</li>
+</ul>
+<p>confines it to <code>pkg/transport</code>.</p>
+<ul>
+<li><strong>netem needs <code>NET_ADMIN</code>.</strong> Docker Desktop on macOS supports it inside its Linux VM.
+</li>
+</ul>
+<p>A host that refuses the capability cannot run <code>make bench</code>. The benchmark then exits with a clear error.</p>
+<ul>
+<li><strong>Retry timers are a confound in the benchmark.</strong> The go-coap defaults (2 s, factor 1.5)
+</li>
+</ul>
+<p>differ from the DNS client (1 s). The user chose equal timers for DNS and CoAP. HTTPS uses the Linux TCP defaults, and the results record them.</p>
+<p>No open question remains. Two items moved to the non-goals: an EDNS option for the protocol version, and Unbound root hints for a private class.</p>
+<h2 id="changelog">Changelog</h2>
+<ul>
+<li>2026-11-20 — First draft from the user's brief and three interview rounds:
+<ul>
+<li>GitHub <code>Crank-Git/qmux</code>, dev-and-live, public, MIT.
+</li>
+<li>The interop matrix runs in CI. The benchmark runs locally.
+</li>
+<li><code>qmuxd</code> serves a JSON configuration file. netem gives the packet loss.
+</li>
+<li>miekg/dns v1.1.73. The benchmark includes an IN + TXT reference row.
+</li>
+</ul>
+</li>
+<li>2026-11-20 — Feature files 00–11 written. Nine terms added from the feature files.
+</li>
+<li>2026-11-20 — Review round 1: the user asked to close the open questions before approval.
+<ul>
+<li>Closed by test: the BIND class-65281 view (<code>NOTIMP</code>), the Unbound configuration path,
+</li>
+</ul>
+</li>
+</ul>
+<p>the <code>eth0</code> name, and the go-coap defaults.</p>
+<ul>
+<li>The user chose equal DNS and CoAP retry timers.
+<ul>
+<li>The user chose the official amd64 BIND image, with an architecture label on each
+</li>
+</ul>
+</li>
+</ul>
+<p>record.</p>
+<ul>
+<li>Unbound <code>serve-expired: no</code>. The EDNS version option and Unbound root hints moved to
+</li>
+</ul>
+<p>the non-goals.</p>
+<ul>
+<li>2026-11-20 — The user approved the spec and the project scaffold.
+</li>
+</ul><nav class="pager">
+<span></span>
+<a href="html/feature-foundation.html">Feature: Foundation &rarr;</a>
+</nav>
+</main>
+</div>
+<script src="assets/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'default'});</script>
+<script type="application/json" id="rv-embedded">[]</script>
+<script>
+(function(){
+  'use strict';
+  var PAGE = document.body.getAttribute('data-page');
+  // storage key carries the spec's slug: file:// pages can share one
+  // localStorage pool, and two specs must never share a comment store
+  var RVKEY = 'spec-review:' + (document.body.getAttribute('data-rvkey') || 'spec');
+  var EMBED = [];
+  var embedEl = document.getElementById('rv-embedded');
+  if (embedEl) { try { EMBED = JSON.parse(embedEl.textContent); } catch(e){} }
+  function loadLocal(){ try { return JSON.parse(localStorage.getItem(RVKEY)) || {comments:[], deleted:[]}; } catch(e){ return {comments:[], deleted:[]}; } }
+  function saveLocal(s){ try { localStorage.setItem(RVKEY, JSON.stringify(s)); } catch(e){} }
+  function cid(c){ return c.page + '|' + c.section + '|' + (c.date||'') + '|' + c.body.slice(0,24); }
+  function allComments(){
+    var s = loadLocal(), map = {};
+    EMBED.forEach(function(c){ map[cid(c)] = c; });
+    s.comments.forEach(function(c){ map[cid(c)] = c; });
+    s.deleted.forEach(function(id){ delete map[id]; });
+    return Object.keys(map).map(function(k){ return map[k]; });
+  }
+  function upsert(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    s.comments.push(c);
+    s.deleted = s.deleted.filter(function(x){ return x !== id; });
+    saveLocal(s); refresh();
+  }
+  function remove(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    if (EMBED.some(function(x){ return cid(x) === id; })) s.deleted.push(id);
+    saveLocal(s); refresh();
+  }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function exportMd(){
+    var lines = ['# Review comments', '',
+      '<!-- Exported from the spec review layer. Save this file as',
+      '     docs/specs/review-comments.md and re-run render-spec.py to embed',
+      '     every comment under its section for the next review round. -->', ''];
+    allComments().sort(function(a,b){
+      return (a.page+a.section).localeCompare(b.page+b.section);
+    }).forEach(function(c){
+      lines.push('## [' + c.page + '] ' + (c.section||''));
+      lines.push('status: ' + (c.status||'open'));
+      lines.push('date: ' + (c.date||today()));
+      lines.push(c.body); lines.push('');
+    });
+    var blob = new Blob([lines.join('\n')], {type:'text/markdown'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'review-comments.md';
+    a.click(); URL.revokeObjectURL(a.href);
+  }
+  function importMd(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      var text = String(reader.result);
+      var blocks = text.split(/^## /m).slice(1);
+      blocks.forEach(function(b){
+        var head = b.match(/^\[([^\]]+)\]\s*(\S*)/);
+        if (!head) return;
+        var status = (b.match(/^status:\s*(\S+)/m)||[])[1] || 'open';
+        var date = (b.match(/^date:\s*(\S+)/m)||[])[1] || today();
+        var body = b.replace(/^\[[^\]]*\]\s*\S*\s*\n/, '')
+                    .replace(/^status:.*\n?/m,'').replace(/^date:.*\n?/m,'').trim();
+        if (body) upsert({page:head[1], section:head[2]||'', status:status, date:date, body:body});
+      });
+      refresh();
+    };
+    reader.readAsText(file);
+  }
+  function commentBox(c){
+    var div = document.createElement('div');
+    div.className = 'rv-comment' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var head = document.createElement('div'); head.className = 'rv-head';
+    head.textContent = '💬 ' + (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(){ remove(c); c = Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'}); upsert(c); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(){ if (confirm('Delete this comment?')) remove(c); };
+    head.appendChild(tog); head.appendChild(del);
+    var body = document.createElement('div'); body.className = 'rv-body';
+    body.textContent = c.body;
+    div.appendChild(head); div.appendChild(body);
+    return div;
+  }
+  function editor(section, after){
+    var wrap = document.createElement('div');
+    wrap.className = 'rv-comment rv-editor';
+    var ta = document.createElement('textarea');
+    ta.placeholder = 'Comment on this section…';
+    var actions = document.createElement('div'); actions.className = 'rv-actions';
+    var save = document.createElement('button'); save.textContent = 'Save';
+    save.onclick = function(){
+      if (ta.value.trim()) upsert({page:PAGE, section:section, status:'open', date:today(), body:ta.value.trim()});
+      wrap.remove();
+    };
+    var cancel = document.createElement('button'); cancel.textContent = 'Cancel';
+    cancel.className = 'rv-cancel'; cancel.onclick = function(){ wrap.remove(); };
+    actions.appendChild(save); actions.appendChild(cancel);
+    wrap.appendChild(ta); wrap.appendChild(actions);
+    after.insertAdjacentElement('afterend', wrap);
+    ta.focus();
+  }
+  // --- headings, inline buttons ---
+  var mainH1 = document.querySelector('main h1');
+  if (mainH1 && !mainH1.id) { mainH1.id = 'page-title'; }
+  var headings = Array.prototype.slice.call(
+    document.querySelectorAll('main h1[id], main h2[id], main h3[id], main h4[id]'));
+  headings.forEach(function(h){
+    var b = document.createElement('button');
+    b.className = 'rv-add'; b.textContent = '💬 comment'; b.title = 'Comment on this section';
+    b.onclick = function(){ editor(h.id, h); };
+    h.appendChild(b);
+  });
+  function headingTitle(h){
+    var t = h.childNodes[0] ? h.childNodes[0].textContent : h.textContent;
+    return t.trim();
+  }
+  function titleFor(section){
+    var el = section && document.getElementById(section);
+    return el ? headingTitle(el) : (section || '(page)');
+  }
+
+  // --- drawer ---
+  var drawer = document.createElement('div');
+  drawer.id = 'rv-drawer';
+  drawer.innerHTML =
+    '<header><strong>Review</strong> <span class="rv-count"></span></header>' +
+    '<div class="rv-compose">' +
+    '<div class="rv-live">Commenting on the section in view:</div>' +
+    '<label for="rv-sec"></label><select id="rv-sec"></select>' +
+    '<textarea id="rv-text" placeholder="Type as you read… (Ctrl+Enter saves)"></textarea>' +
+    '<div style="margin-top:.4rem; display:flex; gap:.5rem;">' +
+    '<button class="rv-primary" id="rv-save">Save comment</button>' +
+    '<button id="rv-clear">Clear</button></div></div>' +
+    '<div class="rv-list"></div>' +
+    '<footer><button id="rv-export">Export .md</button>' +
+    '<button id="rv-import">Import</button>' +
+    '<span class="rv-otherpages"></span></footer>';
+  document.body.appendChild(drawer);
+  var toggle = document.createElement('button');
+  toggle.id = 'rv-toggle';
+  toggle.onclick = function(){
+    document.body.classList.toggle('rv-open');
+    try { localStorage.setItem(RVKEY + ':open', document.body.classList.contains('rv-open') ? '1' : ''); } catch(e){}
+  };
+  document.body.appendChild(toggle);
+  try { if (localStorage.getItem(RVKEY + ':open')) document.body.classList.add('rv-open'); } catch(e){}
+
+  var sel = drawer.querySelector('#rv-sec');
+  headings.forEach(function(h){
+    var opt = document.createElement('option');
+    opt.value = h.id; opt.textContent = headingTitle(h);
+    sel.appendChild(opt);
+  });
+  var followScroll = true;
+  sel.onchange = function(){ followScroll = false; };
+
+  // scroll spy: pick the last heading above the upper third of the viewport
+  function currentSection(){
+    var line = window.innerHeight * 0.33, best = headings[0];
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].getBoundingClientRect().top <= line) best = headings[i];
+    }
+    return best ? best.id : '';
+  }
+  window.addEventListener('scroll', function(){
+    if (!followScroll) return;
+    var s = currentSection();
+    if (s && sel.value !== s) sel.value = s;
+  }, {passive:true});
+  // typing pins the target section so a stray scroll can't retarget the comment
+  drawer.querySelector('#rv-text').addEventListener('input', function(){
+    if (this.value.trim()) followScroll = false;
+    else followScroll = true;
+  });
+
+  function saveFromDrawer(){
+    var ta = drawer.querySelector('#rv-text');
+    if (!ta.value.trim()) return;
+    upsert({page:PAGE, section:sel.value, status:'open', date:today(), body:ta.value.trim()});
+    ta.value = ''; followScroll = true;
+  }
+  drawer.querySelector('#rv-save').onclick = saveFromDrawer;
+  drawer.querySelector('#rv-text').addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') saveFromDrawer();
+  });
+  drawer.querySelector('#rv-clear').onclick = function(){
+    drawer.querySelector('#rv-text').value = ''; followScroll = true;
+  };
+  drawer.querySelector('#rv-export').onclick = exportMd;
+  var fileIn = document.createElement('input');
+  fileIn.type = 'file'; fileIn.accept = '.md,text/markdown'; fileIn.style.display = 'none';
+  fileIn.onchange = function(){ if (fileIn.files[0]) importMd(fileIn.files[0]); };
+  drawer.appendChild(fileIn);
+  drawer.querySelector('#rv-import').onclick = function(){ fileIn.click(); };
+
+  function drawerItem(c){
+    var div = document.createElement('div');
+    div.className = 'rv-item' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var where = document.createElement('div'); where.className = 'rv-where';
+    where.textContent = titleFor(c.section);
+    var text = document.createElement('div'); text.className = 'rv-text';
+    text.textContent = c.body;
+    var meta = document.createElement('div'); meta.className = 'rv-meta';
+    meta.textContent = (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(e){ e.stopPropagation(); remove(c);
+      upsert(Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'})); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(e){ e.stopPropagation();
+      if (confirm('Delete this comment?')) remove(c); };
+    meta.appendChild(tog); meta.appendChild(del);
+    div.appendChild(where); div.appendChild(text); div.appendChild(meta);
+    div.onclick = function(){
+      var el = c.section && document.getElementById(c.section);
+      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+    return div;
+  }
+
+  function refresh(){
+    document.querySelectorAll('.rv-comment:not(.rv-editor)').forEach(function(el){ el.remove(); });
+    var all = allComments();
+    var mine = all.filter(function(c){ return c.page === PAGE; });
+    mine.forEach(function(c){
+      var target = c.section && document.getElementById(c.section);
+      var anchor = target || mainH1 || document.body.querySelector('main') || document.body;
+      anchor.insertAdjacentElement('afterend', commentBox(c));
+    });
+    var open = all.filter(function(c){ return c.status !== 'resolved'; }).length;
+    toggle.textContent = '💬 Review (' + open + ')';
+    drawer.querySelector('.rv-count').textContent =
+      open + ' open / ' + all.length + ' total';
+    var list = drawer.querySelector('.rv-list');
+    list.innerHTML = '';
+    mine.slice().reverse().forEach(function(c){ list.appendChild(drawerItem(c)); });
+    var others = {};
+    all.forEach(function(c){ if (c.page !== PAGE) others[c.page] = (others[c.page]||0) + 1; });
+    var otherKeys = Object.keys(others);
+    drawer.querySelector('.rv-otherpages').textContent = otherKeys.length
+      ? 'Other pages: ' + otherKeys.map(function(k){ return k + ' (' + others[k] + ')'; }).join(', ')
+      : '';
+  }
+  refresh();
+  var s0 = currentSection();
+  if (s0) sel.value = s0;
+})();
+</script>
+</body>
+</html>

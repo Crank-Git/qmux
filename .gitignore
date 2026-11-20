@@ -1,0 +1,19 @@
+# Claude Code
+.claude/settings.local.json
+.claude/worktrees/
+.claude/agent-memory-local/
+CLAUDE.local.md
+.claude.local.md
+.issue-flow.local.json
+
+# QMux
+bin/
+*.key
+coverage.out
+*.test
+tests/interoperability/results/
+device-state.json
+device-data/
+.DS_Store
+.idea/
+.vscode/

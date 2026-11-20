@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QMux — Feature: qmuxd daemon</title>
+<style>
+:root { --bg:#ffffff; --fg:#1a1a24; --muted:#5a5a68; --line:#e3e3ea; --accent:#3452c8;
+        --card:#f6f6f9; --warn-bg:#fff7e8; --warn-line:#e8b34a; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#14141b; --fg:#e8e8ee; --muted:#9a9aa8; --line:#2c2c38; --accent:#8ea6ff;
+          --card:#1c1c26; --warn-bg:#2a2318; --warn-line:#a87c2a; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+       font:16px/1.6 system-ui,-apple-system,sans-serif; }
+.layout { display:flex; min-height:100vh; }
+aside.site { width:17rem; flex:none; border-right:1px solid var(--line);
+             padding:1.2rem 1rem 3rem; position:sticky; top:0; height:100vh;
+             overflow-y:auto; background:var(--card); }
+aside.site h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em;
+                color:var(--muted); margin:1.2rem 0 .3rem; border:none; padding:0; }
+aside.site ul { list-style:none; margin:0; padding:0; }
+aside.site li { margin:.15rem 0; }
+aside.site a { text-decoration:none; color:var(--fg); font-size:.92rem;
+               display:block; padding:.15rem .5rem; border-radius:6px; }
+aside.site a:hover { background:var(--bg); }
+aside.site a.current { background:var(--accent); color:#fff; }
+aside.site a.sub { padding-left:1.3rem; font-size:.84rem; color:var(--muted); }
+aside.site .brand { font-weight:700; font-size:1.05rem; }
+main { max-width:60rem; margin:0 auto; padding:2rem 1.5rem 6rem; min-width:0; flex:1; }
+h1,h2,h3,h4 { line-height:1.25; }
+h1 { font-size:2rem; margin:.2rem 0; }
+h2 { border-bottom:1px solid var(--line); padding-bottom:.3rem; margin-top:2.5rem; }
+a { color:var(--accent); }
+code { background:var(--card); padding:.1em .35em; border-radius:4px; font-size:.9em; }
+pre.code { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; overflow-x:auto; }
+pre.code code { background:none; padding:0; }
+.table-wrap { overflow-x:auto; }
+table { border-collapse:collapse; margin:1rem 0; min-width:50%; }
+th,td { border:1px solid var(--line); padding:.4rem .7rem; text-align:left; }
+th { background:var(--card); }
+blockquote { border-left:3px solid var(--accent); margin:1rem 0; padding:.2rem 1rem;
+             color:var(--muted); }
+.meta { color:var(--muted); margin-bottom:2rem; }
+.badge { display:inline-block; padding:.1rem .6rem; border-radius:999px;
+         border:1px solid var(--accent); color:var(--accent); font-size:.85rem; }
+.diagram { background:var(--card); border:1px solid var(--line); border-radius:8px;
+           padding:1rem; margin:1rem 0; overflow-x:auto; }
+.diagram pre.mermaid { margin:0; }
+.diagram.raw::before { content:"diagram source (assets/mermaid.min.js not vendored)";
+                       display:block; color:var(--muted); font-size:.8rem;
+                       margin-bottom:.5rem; }
+.callout-h, .callout-h ~ p, .callout-h ~ ul { background:var(--warn-bg); }
+.callout-h { border-left:4px solid var(--warn-line); padding:.3rem .8rem; }
+.mockup { margin:1.5rem 0; }
+.mockup iframe { width:100%; height:32rem; border:1px solid var(--line);
+                 border-radius:8px; background:#fff; }
+nav.pager { display:flex; justify-content:space-between; margin-top:3rem;
+            border-top:1px solid var(--line); padding-top:1rem; }
+@media (max-width: 900px) {
+  .layout { display:block; }
+  aside.site { width:auto; height:auto; position:static; border-right:none;
+               border-bottom:1px solid var(--line); }
+}
+h1[id]:hover .rv-add, h2[id]:hover .rv-add, h3[id]:hover .rv-add,
+h4[id]:hover .rv-add { opacity:1; }
+.rv-add { opacity:0; margin-left:.5rem; font-size:.75rem; cursor:pointer;
+          border:1px solid var(--accent); color:var(--accent); background:none;
+          border-radius:6px; padding:0 .45rem; vertical-align:middle;
+          transition:opacity .15s; }
+.rv-comment { border:1px solid var(--warn-line); border-left-width:4px;
+              background:var(--warn-bg); border-radius:8px; padding:.6rem .9rem;
+              margin:.8rem 0; font-size:.92rem; }
+.rv-comment.rv-resolved { opacity:.6; border-left-color:var(--line); }
+.rv-comment .rv-head { display:flex; gap:.6rem; align-items:center;
+                       color:var(--muted); font-size:.8rem; margin-bottom:.3rem; }
+.rv-comment .rv-head button { font-size:.75rem; cursor:pointer; background:none;
+                              border:1px solid var(--line); border-radius:6px;
+                              color:var(--muted); padding:0 .4rem; }
+.rv-comment .rv-body { white-space:pre-wrap; }
+.rv-editor textarea { width:100%; min-height:5rem; background:var(--bg);
+                      color:var(--fg); border:1px solid var(--line);
+                      border-radius:6px; padding:.5rem; font:inherit; }
+.rv-editor .rv-actions { margin-top:.4rem; display:flex; gap:.5rem; }
+.rv-editor button { cursor:pointer; border-radius:6px; padding:.2rem .8rem;
+                    border:1px solid var(--accent); background:var(--accent);
+                    color:#fff; }
+.rv-editor button.rv-cancel { background:none; color:var(--accent); }
+#rv-toggle { position:fixed; right:1rem; bottom:1rem; z-index:60;
+             background:var(--accent); color:#fff; border:none; cursor:pointer;
+             border-radius:999px; padding:.5rem 1rem; font-size:.85rem;
+             box-shadow:0 2px 10px rgba(0,0,0,.2); }
+#rv-drawer { position:fixed; top:0; right:0; bottom:0; width:21rem; z-index:55;
+             background:var(--card); border-left:1px solid var(--line);
+             display:flex; flex-direction:column; transform:translateX(100%);
+             transition:transform .2s ease; box-shadow:-4px 0 16px rgba(0,0,0,.12); }
+body.rv-open #rv-drawer { transform:none; }
+body.rv-open .layout { padding-right:21rem; }
+#rv-drawer header { padding:.8rem 1rem .5rem; border-bottom:1px solid var(--line); }
+#rv-drawer header .rv-count { color:var(--muted); font-size:.8rem; }
+#rv-drawer .rv-compose { padding:.8rem 1rem; border-bottom:1px solid var(--line); }
+#rv-drawer .rv-compose label { display:block; font-size:.75rem;
+                               color:var(--muted); margin-bottom:.25rem; }
+#rv-drawer .rv-compose select { width:100%; margin-bottom:.4rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.3rem; font:inherit; font-size:.85rem; }
+#rv-drawer .rv-compose textarea { width:100%; min-height:5.5rem;
+             background:var(--bg); color:var(--fg); border:1px solid var(--line);
+             border-radius:6px; padding:.5rem; font:inherit; font-size:.9rem; }
+#rv-drawer .rv-compose .rv-live { font-size:.72rem; color:var(--muted); }
+#rv-drawer .rv-list { flex:1; overflow-y:auto; padding:.6rem 1rem; }
+#rv-drawer .rv-item { border:1px solid var(--line); border-left:3px solid
+             var(--warn-line); border-radius:8px; padding:.45rem .6rem;
+             margin-bottom:.6rem; font-size:.82rem; cursor:pointer; }
+#rv-drawer .rv-item.rv-resolved { opacity:.55; border-left-color:var(--line); }
+#rv-drawer .rv-item .rv-where { color:var(--accent); font-size:.72rem; }
+#rv-drawer .rv-item .rv-meta { color:var(--muted); font-size:.72rem;
+                               display:flex; gap:.5rem; align-items:center; }
+#rv-drawer .rv-item .rv-meta button { font-size:.7rem; cursor:pointer;
+             background:none; border:1px solid var(--line); border-radius:5px;
+             color:var(--muted); padding:0 .35rem; }
+#rv-drawer .rv-item .rv-text { white-space:pre-wrap; margin:.15rem 0; }
+#rv-drawer footer { padding:.6rem 1rem; border-top:1px solid var(--line);
+                    display:flex; gap:.5rem; flex-wrap:wrap; }
+#rv-drawer footer button, #rv-drawer .rv-compose button {
+  cursor:pointer; border:1px solid var(--accent); background:none;
+  color:var(--accent); border-radius:6px; padding:.2rem .7rem; font-size:.8rem; }
+#rv-drawer .rv-compose button.rv-primary { background:var(--accent); color:#fff; }
+#rv-drawer .rv-otherpages { color:var(--muted); font-size:.75rem;
+                            margin:.4rem 0 0; }
+@media (max-width: 1200px) { body.rv-open .layout { padding-right:0; } }
+</style>
+</head>
+<body data-page="feature-qmuxd-daemon" data-rvkey="qmux">
+<div class="layout">
+<aside class="site"><a class="brand" href="../spec.html">QMux</a>
+<h2>Spec</h2><ul>
+<li><a href="../spec.html">Overview &amp; index</a></li>
+</ul>
+<h2>Features</h2><ul>
+<li><a href="feature-foundation.html">Foundation</a></li>
+<li><a href="feature-protocol-registry.html">Protocol registry</a></li>
+<li><a href="feature-authoritative-server.html">Authoritative server</a></li>
+<li><a href="feature-client-sdk.html">Client SDK</a></li>
+<li><a href="feature-envelope-codec.html">Envelope codec</a></li>
+<li><a href="feature-discovery.html">Discovery and version negotiation</a></li>
+<li><a href="feature-signing-and-freshness.html">Signing and freshness</a></li>
+<li><a href="feature-embedded-recovery.html">Embedded recovery demonstration</a></li>
+<li><a class="current" href="feature-qmuxd-daemon.html">qmuxd daemon</a></li>
+<li><a href="feature-interop-harness.html">Interop harness</a></li>
+<li><a href="feature-baseline-benchmarks.html">Baseline benchmarks</a></li>
+<li><a href="feature-documentation.html">Documentation</a></li>
+</ul></aside>
+<main>
+<h1>Feature: qmuxd daemon</h1>
+<p class="meta">Epic 8: qmuxd daemon &nbsp; <span class="badge">planned</span></p>
+<h3 id="qmuxd-daemon-purpose">Purpose</h3>
+<p><code>qmuxd</code> is the standalone authoritative server. An operator runs it with a configuration file and a signing key, and it serves static records for any number of protocols. No Go code is necessary. <code>qmuxd</code> always signs. It adds two server capabilities that the library exposes too: a per-source rate limit and an observation log. Epic 9 runs <code>qmuxd</code> in Docker Compose and reads the observation log to find whether a probe reached the authoritative server.</p>
+<h3 id="qmuxd-daemon-user-stories">User stories</h3>
+<ul>
+<li>As an operator, I want to declare protocols and static records in one JSON file, so that
+</li>
+</ul>
+<p>I can serve QMux data with no Go code.</p>
+<ul>
+<li>As an operator, I want <code>qmuxd</code> to refuse an invalid configuration file before it
+</li>
+</ul>
+<p>listens, so that a typo never serves wrong data.</p>
+<ul>
+<li>As an operator, I want a per-source rate limit, so that one source cannot take all
+</li>
+</ul>
+<p>server capacity.</p>
+<ul>
+<li>As a researcher, I want one JSONL line per received query, so that I can prove which
+</li>
+</ul>
+<p>probes reached the authoritative server.</p>
+<ul>
+<li>As a protocol developer, I want a working example configuration file, so that I can start
+</li>
+</ul>
+<p>from it.</p>
+<h3 id="qmuxd-daemon-functional-requirements">Functional requirements</h3>
+<h4 id="qmuxd-daemon-command-line">Command line</h4>
+<ul>
+<li><strong>FR-qmuxd-1</strong> — <code>qmuxd serve</code> reads the configuration file at <code>--config</code>. The default is
+</li>
+</ul>
+<p><code>./qmuxd.json</code>.</p>
+<ul>
+<li><strong>FR-qmuxd-2</strong> — <code>qmuxd serve --listen &lt;addr&gt;</code> overrides the <code>listen</code> field of the
+</li>
+</ul>
+<p>configuration file.</p>
+<ul>
+<li><strong>FR-qmuxd-3</strong> — <code>qmuxd serve</code> listens on UDP and on TCP at the listen address.
+</li>
+<li><strong>FR-qmuxd-4</strong> — <code>qmuxd serve</code> logs one record at level <code>info</code> when both listeners are
+</li>
+</ul>
+<p>ready. The record holds the listen address, the zones, the key ID and the protocol count.</p>
+<ul>
+<li><strong>FR-qmuxd-5</strong> — On SIGINT or SIGTERM, <code>qmuxd serve</code> shuts down with the grace period and
+</li>
+</ul>
+<p>exits with code 0.</p>
+<ul>
+<li><strong>FR-qmuxd-6</strong> — <code>qmuxd version</code> prints the module version and the Go version.
+</li>
+<li><strong>FR-qmuxd-7</strong> — <code>qmuxd</code> exits with code 1 when a listener cannot bind.
+</li>
+</ul>
+<h4 id="qmuxd-daemon-configuration-file">Configuration file</h4>
+<ul>
+<li><strong>FR-qmuxd-8</strong> — <code>qmuxd</code> decodes the configuration file with <code>encoding/json</code> and
+</li>
+</ul>
+<p><code>DisallowUnknownFields</code>.</p>
+<ul>
+<li><strong>FR-qmuxd-9</strong> — The configuration file has the fields in the schema table below.
+</li>
+<li><strong>FR-qmuxd-10</strong> — <code>qmuxd</code> exits with code 2 before it listens when the configuration file
+</li>
+</ul>
+<p>is not valid. The message names the JSON path of the first error, for example <code>protocols[1].records["device42.fleet.example."].payload</code>.</p>
+<ul>
+<li><strong>FR-qmuxd-11</strong> — <code>qmuxd</code> exits with code 2 when <code>signing_key</code> is missing or does not load.
+</li>
+</ul>
+<p><code>qmuxd</code> never serves unsigned envelopes.</p>
+<ul>
+<li><strong>FR-qmuxd-12</strong> — <code>qmuxd</code> logs the warning from <code>security.LoadPrivateKey</code> at level <code>warn</code>.
+</li>
+<li><strong>FR-qmuxd-13</strong> — <code>qmuxd</code> registers each protocol through the registry, so the registry
+</li>
+</ul>
+<p>rules apply. A registry error exits with code 2.</p>
+<ul>
+<li><strong>FR-qmuxd-14</strong> — Each QNAME in <code>records</code> must be at or below one of the configured zones.
+</li>
+<li><strong>FR-qmuxd-15</strong> — When <code>discovery.enabled</code> is true, <code>qmuxd</code> calls <code>discovery.Register</code> for
+</li>
+</ul>
+<p>each zone. <code>discovery.in_class</code> sets <code>InClass</code>.</p>
+<h4 id="qmuxd-daemon-static-records-and-json-to-cbor-rule">Static records and JSON-to-CBOR rule</h4>
+<ul>
+<li><strong>FR-qmuxd-16</strong> — A static-record handler answers a QNAME listed in <code>records</code>, with a
+</li>
+</ul>
+<p>case-insensitive match, with the record payload and status.</p>
+<ul>
+<li><strong>FR-qmuxd-17</strong> — The static-record handler returns the status <code>not-found</code> for a QNAME not
+</li>
+</ul>
+<p>in <code>records</code>.</p>
+<ul>
+<li><strong>FR-qmuxd-18</strong> — A record with a <code>version</code> field answers only that version. For another
+</li>
+</ul>
+<p>requested version, the handler returns <code>not-found</code>.</p>
+<ul>
+<li><strong>FR-qmuxd-19</strong> — A record has exactly one of <code>payload</code> and <code>payload_hex</code>.
+</li>
+<li><strong>FR-qmuxd-20</strong> — <code>payload_hex</code> is decoded from hex into the payload bytes.
+</li>
+<li><strong>FR-qmuxd-21</strong> — <code>qmuxd</code> converts a <code>payload</code> JSON value into CBOR at load time with these
+</li>
+</ul>
+<p>rules:</p>
+<ul>
+<li>An object whose keys are all decimal integers becomes a map with unsigned integer keys.
+<ul>
+<li>Any other object becomes a map with text keys.
+</li>
+<li>An integral number becomes an unsigned integer, or a negative integer when below 0.
+</li>
+<li>A number with a fraction becomes a float.
+</li>
+<li>A string that starts with <code>hex:</code> becomes a byte string.
+</li>
+<li>Any other string becomes a text string.
+</li>
+<li>An array becomes an array. A boolean becomes a boolean.
+</li>
+<li><code>null</code> is a configuration error.
+</li>
+</ul>
+</li>
+<li><strong>FR-qmuxd-22</strong> — <code>qmuxd</code> encodes the converted value with <code>codec.Marshal</code>, so the payload
+</li>
+</ul>
+<p>is deterministic.</p>
+<ul>
+<li><strong>FR-qmuxd-23</strong> — When the record <code>status</code> field is absent, the status is <code>ok</code>.
+</li>
+</ul>
+<h4 id="qmuxd-daemon-rate-limit">Rate limit</h4>
+<ul>
+<li><strong>FR-qmuxd-24</strong> — <code>server.ServerConfig</code> gains the field <code>RateLimit</code> with <code>QPS</code> and <code>Burst</code>.
+</li>
+</ul>
+<p>A zero value disables the rate limit.</p>
+<ul>
+<li><strong>FR-qmuxd-25</strong> — The server keeps one token bucket per source IP address.
+</li>
+<li><strong>FR-qmuxd-26</strong> — The server returns <code>REFUSED</code> with no answer when the bucket of the source
+</li>
+</ul>
+<p>is empty.</p>
+<ul>
+<li><strong>FR-qmuxd-27</strong> — The server tracks at most 65536 source addresses. It removes a bucket
+</li>
+</ul>
+<p>that has been full for 60 s.</p>
+<ul>
+<li><strong>FR-qmuxd-28</strong> — When the table is full, the server applies one shared bucket to every
+</li>
+</ul>
+<p>new source.</p>
+<ul>
+<li><strong>FR-qmuxd-29</strong> — The <code>qmuxd</code> defaults are <code>qps</code> 50 and <code>burst</code> 100. <code>"qps": 0</code> disables
+</li>
+</ul>
+<p>the rate limit.</p>
+<ul>
+<li><strong>FR-qmuxd-30</strong> — The rate limiter uses no third-party module.
+</li>
+</ul>
+<h4 id="qmuxd-daemon-observation-log">Observation log</h4>
+<ul>
+<li><strong>FR-qmuxd-31</strong> — <code>server.ServerConfig</code> gains the field <code>ObservationLog</code> of type
+</li>
+</ul>
+<p><code>io.Writer</code>.</p>
+<ul>
+<li><strong>FR-qmuxd-32</strong> — When <code>ObservationLog</code> is set, the server writes one JSON object per
+</li>
+</ul>
+<p>received query, followed by a newline.</p>
+<ul>
+<li><strong>FR-qmuxd-33</strong> — Each line has the fields <code>ts</code> (RFC 3339 with nanoseconds), <code>transport</code>,
+</li>
+</ul>
+<p><code>source</code>, <code>qname</code>, <code>qclass</code>, <code>qtype</code>, <code>rcode</code>, <code>status</code>, <code>bytes_in</code>, <code>bytes_out</code> and <code>duration_us</code>.</p>
+<ul>
+<li><strong>FR-qmuxd-34</strong> — The server writes a line for every query it parses, including queries
+</li>
+</ul>
+<p>that end in <code>REFUSED</code>, <code>FORMERR</code> or <code>SERVFAIL</code>. <code>status</code> is <code>null</code> when no envelope exists.</p>
+<ul>
+<li><strong>FR-qmuxd-35</strong> — Writes to the observation log are serialized, so no two lines interleave.
+</li>
+<li><strong>FR-qmuxd-36</strong> — <code>qmuxd</code> opens the <code>observation_log</code> path in append mode with file mode
+</li>
+</ul>
+<p>0644.</p>
+<h4 id="qmuxd-daemon-example-configuration-container-and-integration-test">Example configuration, container and integration test</h4>
+<ul>
+<li><strong>FR-qmuxd-37</strong> — <code>examples/qmuxd.json</code> serves the zone <code>fleet.example.</code> with the three
+</li>
+</ul>
+<p>demonstration protocols at the protocol keys of <code>docs/specs/spec.md</code> § Protocol key allocation.</p>
+<ul>
+<li><strong>FR-qmuxd-38</strong> — <code>examples/qmuxd.json</code> has records for <code>device42.fleet.example.</code> that
+</li>
+</ul>
+<p>follow the payload schemas of <code>features/07-embedded-recovery.md</code>.</p>
+<ul>
+<li><strong>FR-qmuxd-39</strong> — <code>examples/qmuxd.json</code> uses <code>signing_key</code> <code>keys/qmuxd.key</code>. The README
+</li>
+</ul>
+<p>step before it is <code>qmuxctl keygen --out keys/qmuxd</code>.</p>
+<ul>
+<li><strong>FR-qmuxd-40</strong> — A <code>Dockerfile</code> at the repository root builds a static <code>qmuxd</code> binary in
+</li>
+</ul>
+<p>a build stage and copies it into a minimal final stage that runs as a non-root user.</p>
+<ul>
+<li><strong>FR-qmuxd-41</strong> — The container listens on port 53 inside the container and reads
+</li>
+</ul>
+<p><code>/etc/qmuxd/qmuxd.json</code>.</p>
+<ul>
+<li><strong>FR-qmuxd-42</strong> — An integration test builds <code>qmuxd</code> and <code>qmuxctl</code>, starts <code>qmuxd</code> on a
+</li>
+</ul>
+<p>free loopback port with a temporary configuration file, and checks that <code>qmuxctl</code> verifies every protocol with the trust anchor file.</p>
+<ul>
+<li><strong>FR-qmuxd-43</strong> — The integration test sends queries above the rate limit and receives
+</li>
+</ul>
+<p><code>REFUSED</code>.</p>
+<ul>
+<li><strong>FR-qmuxd-44</strong> — The integration test parses every observation log line as JSON with the
+</li>
+</ul>
+<p>fields of FR-qmuxd-33.</p>
+<h3 id="qmuxd-daemon-user-flows">User flows</h3>
+<h4 id="qmuxd-daemon-flow-1-the-operator-starts-qmuxd">Flow 1 — The operator starts qmuxd</h4>
+<div class="diagram"><pre class="mermaid">flowchart TD
+    A[qmuxd serve --config file] --&gt; B{File decodes with no unknown field?}
+    B -- no --&gt; X2[Exit 2, JSON path in message]
+    B -- yes --&gt; C{Fields valid and signing key loads?}
+    C -- no --&gt; X2
+    C -- yes --&gt; D{Every registration accepted?}
+    D -- no --&gt; X2
+    D -- yes --&gt; E{UDP and TCP listeners bind?}
+    E -- no --&gt; X1[Exit 1]
+    E -- yes --&gt; F[Log ready record, serve]
+    F --&gt; G[SIGINT or SIGTERM]
+    G --&gt; H[Graceful shutdown, exit 0]</pre></div>
+<ol>
+<li>The operator runs <code>qmuxd serve --config &lt;file&gt;</code>.
+</li>
+<li>If the file does not decode, <code>qmuxd</code> exits with code 2 and names the JSON path.
+</li>
+<li>If a field is not valid or the signing key does not load, <code>qmuxd</code> exits with code 2.
+</li>
+<li><code>qmuxd</code> registers every protocol and, when enabled, discovery.
+</li>
+<li>If the registry rejects a registration, <code>qmuxd</code> exits with code 2.
+</li>
+<li>If a listener does not bind, <code>qmuxd</code> exits with code 1.
+</li>
+<li><code>qmuxd</code> logs the ready record and serves.
+</li>
+<li>On SIGINT or SIGTERM, <code>qmuxd</code> shuts down and exits with code 0.
+</li>
+</ol>
+<h4 id="qmuxd-daemon-flow-2-the-server-handles-one-query-with-a-rate-limit-and-an-observation-log">Flow 2 — The server handles one query with a rate limit and an observation log</h4>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+    participant C as Client
+    participant S as qmuxd
+    participant RL as Rate limiter
+    participant OL as Observation log
+    C-&gt;&gt;S: Query
+    S-&gt;&gt;RL: Take a token for the source IP
+    alt Bucket empty
+        S--&gt;&gt;C: REFUSED
+    else Token taken
+        S-&gt;&gt;S: Dispatch, encode, sign
+        S--&gt;&gt;C: NOERROR, signed envelope
+    end
+    S-&gt;&gt;OL: One JSONL line</pre></div>
+<ol>
+<li>The client sends a query.
+</li>
+<li>The server takes a token from the bucket of the source IP address.
+</li>
+<li>If the bucket is empty, the server returns <code>REFUSED</code>.
+</li>
+<li>The server dispatches the query, encodes the envelope, signs it and returns it.
+</li>
+<li>The server writes one line to the observation log.
+</li>
+</ol>
+<h3 id="qmuxd-daemon-screens-states">Screens &amp; states</h3>
+<p>No graphical screens. Console output of <code>qmuxd serve</code> with the <code>text</code> log format:</p>
+<pre class="code"><code>time=2026-11-20T10:00:00Z level=INFO msg="qmuxd ready" listen=127.0.0.1:5353 zones=[fleet.example.] key_id=3f9a1c0b7d2e4a65 protocols=4</code></pre>
+<p>Configuration error:</p>
+<pre class="code"><code>qmuxd: config: protocols[1].class: 300 is not an allowed class</code></pre>
+<p>One observation log line:</p>
+<pre class="code"><code>{"ts":"2026-11-20T10:00:01.123456789Z","transport":"udp","source":"127.0.0.1:53000","qname":"_v1.device42.fleet.example.","qclass":65282,"qtype":65280,"rcode":"NOERROR","status":"ok","bytes_in":61,"bytes_out":214,"duration_us":180}</code></pre>
+<h3 id="qmuxd-daemon-behaviour-rules">Behaviour rules</h3>
+<h4 id="qmuxd-daemon-configuration-file-schema">Configuration file schema</h4>
+<div class="table-wrap"><table>
+<tr><th>Field</th><th>Type</th><th>Default</th><th>Rule</th></tr>
+<tr><td><code>listen</code></td><td>string</td><td><code>127.0.0.1:5353</code></td><td><code>host:port</code>.</td></tr>
+<tr><td><code>zones</code></td><td>array of string</td><td>—</td><td>Required. At least one fully qualified name.</td></tr>
+<tr><td><code>signing_key</code></td><td>string</td><td>—</td><td>Required. Path to a PKCS#8 PEM Ed25519 key. Relative to the configuration file directory.</td></tr>
+<tr><td><code>signature_validity</code></td><td>string</td><td><code>1h</code></td><td>Go duration, 1 min to 24 h.</td></tr>
+<tr><td><code>ttl</code></td><td>integer</td><td>60</td><td>0–86400 seconds.</td></tr>
+<tr><td><code>udp_size</code></td><td>integer</td><td>1232</td><td>512–4096.</td></tr>
+<tr><td><code>handler_timeout</code></td><td>string</td><td><code>2s</code></td><td>Go duration, 10 ms to 30 s.</td></tr>
+<tr><td><code>rate_limit</code></td><td>object <code>{qps, burst}</code></td><td><code>{50, 100}</code></td><td><code>qps</code> 0 disables. <code>burst</code> ≥ <code>qps</code> when <code>qps</code> &gt; 0.</td></tr>
+<tr><td><code>allow_reserved_classes</code></td><td>boolean</td><td>false</td><td>Passed to the registry.</td></tr>
+<tr><td><code>allow_non_private_types</code></td><td>boolean</td><td>false</td><td>Passed to the registry.</td></tr>
+<tr><td><code>discovery</code></td><td>object <code>{enabled, in_class}</code></td><td><code>{true, false}</code></td><td>—</td></tr>
+<tr><td><code>observation_log</code></td><td>string</td><td>none</td><td>Path. Absent disables the observation log.</td></tr>
+<tr><td><code>log_level</code></td><td>string</td><td><code>info</code></td><td><code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code>.</td></tr>
+<tr><td><code>log_format</code></td><td>string</td><td><code>text</code></td><td><code>text</code> or <code>json</code>.</td></tr>
+<tr><td><code>protocols</code></td><td>array</td><td>—</td><td>Required, at least one entry.</td></tr>
+<tr><td><code>protocols[].id</code></td><td>string</td><td>—</td><td>Protocol ID rules of FR-codec-12.</td></tr>
+<tr><td><code>protocols[].versions</code></td><td>array of integer</td><td>—</td><td>Sorted, unique, 1–65535.</td></tr>
+<tr><td><code>protocols[].class</code>, <code>protocols[].type</code></td><td>integer</td><td>—</td><td>Registry rules.</td></tr>
+<tr><td><code>protocols[].records</code></td><td>object</td><td>—</td><td>Keys are QNAMEs. Values are record objects.</td></tr>
+<tr><td>record <code>payload</code> / <code>payload_hex</code></td><td>JSON value / string</td><td>—</td><td>Exactly one.</td></tr>
+<tr><td>record <code>status</code></td><td>string</td><td><code>ok</code></td><td>A status name from the status table, or an integer 256–65535.</td></tr>
+<tr><td>record <code>version</code></td><td>integer</td><td>none</td><td>A version of the protocol.</td></tr>
+</table></div>
+<ul>
+<li>Relative paths in the configuration file resolve from the directory of the file.
+</li>
+<li><code>qmuxd</code> loads every record at start. It does not watch the file for changes.
+</li>
+</ul>
+<h3 id="qmuxd-daemon-data-touched">Data touched</h3>
+<ul>
+<li>New <code>cmd/qmuxd</code>.
+</li>
+<li><code>server.ServerConfig.RateLimit</code> and <code>server.ServerConfig.ObservationLog</code>.
+</li>
+<li>New <code>examples/qmuxd.json</code>, new <code>Dockerfile</code>, new <code>.dockerignore</code>.
+</li>
+<li>New <code>tests/integration/qmuxd_test.go</code>.
+</li>
+</ul>
+<h3 id="qmuxd-daemon-interfaces">Interfaces</h3>
+<pre class="code"><code>package server
+
+type RateLimit struct {
+    QPS   float64
+    Burst int
+}
+
+type ServerConfig struct {
+    // fields from Epics 2, 4 and 6 ...
+    RateLimit      RateLimit
+    ObservationLog io.Writer
+}</code></pre>
+<p><code>qmuxd</code> reads configuration with <code>encoding/json</code> <code>Decoder.DisallowUnknownFields</code>: https://pkg.go.dev/encoding/json#Decoder.DisallowUnknownFields (Go 1.25).</p>
+<h3 id="qmuxd-daemon-edge-cases-failures">Edge cases &amp; failures</h3>
+<div class="table-wrap"><table>
+<tr><th>Case</th><th>Result</th></tr>
+<tr><td>Two protocols use the same protocol key</td><td>Exit 2 with the registry conflict error.</td></tr>
+<tr><td>A record QNAME is outside every zone</td><td>Exit 2, the message names the record path.</td></tr>
+<tr><td><code>payload</code> holds <code>{"1": 2, "a": 3}</code></td><td>A map with text keys <code>"1"</code> and <code>"a"</code>.</td></tr>
+<tr><td><code>payload</code> holds <code>null</code></td><td>Exit 2.</td></tr>
+<tr><td>The payload makes the envelope larger than the limit</td><td>Exit 2 at load time, because <code>qmuxd</code> encodes every record once at start.</td></tr>
+<tr><td>The observation log disk is full</td><td>The server logs one error per minute and keeps answering.</td></tr>
+<tr><td>A source sends 200 queries in one second with defaults</td><td>About 100 answers, then <code>REFUSED</code>.</td></tr>
+</table></div>
+<h3 id="qmuxd-daemon-acceptance-criteria">Acceptance criteria</h3>
+<ul>
+<li>[ ] FR-qmuxd-1: <code>qmuxd serve</code> in a directory with <code>qmuxd.json</code> starts with no flag.
+</li>
+<li>[ ] FR-qmuxd-2: with <code>--listen</code> set to a free loopback port, <code>qmuxd</code> answers on that port and not on the <code>listen</code> value of the file.
+</li>
+<li>[ ] FR-qmuxd-3: a test receives answers over UDP and over TCP from one <code>qmuxd</code> process.
+</li>
+<li>[ ] FR-qmuxd-4: the ready record contains <code>listen</code>, <code>zones</code>, <code>key_id</code> and <code>protocols</code>.
+</li>
+<li>[ ] FR-qmuxd-5: SIGTERM makes <code>qmuxd</code> exit with code 0 within the grace period.
+</li>
+<li>[ ] FR-qmuxd-6: <code>qmuxd version</code> prints a line that contains <code>go1.</code>.
+</li>
+<li>[ ] FR-qmuxd-7: a second <code>qmuxd</code> on the same address exits with code 1.
+</li>
+<li>[ ] FR-qmuxd-8: a configuration file with the field <code>listn</code> exits with code 2.
+</li>
+<li>[ ] FR-qmuxd-9: <code>examples/qmuxd.json</code> decodes with every field of the schema table that it uses.
+</li>
+<li>[ ] FR-qmuxd-10: a configuration file with a bad payload exits with code 2 and prints the JSON path.
+</li>
+<li>[ ] FR-qmuxd-11: a configuration file without <code>signing_key</code> exits with code 2.
+</li>
+<li>[ ] FR-qmuxd-12: a 0644 key file produces one <code>warn</code> log record.
+</li>
+<li>[ ] FR-qmuxd-13: a class of 300 exits with code 2.
+</li>
+<li>[ ] FR-qmuxd-14: a record for <code>x.other.example.</code> exits with code 2.
+</li>
+<li>[ ] FR-qmuxd-15: <code>qmuxctl discover</code> against <code>qmuxd</code> lists every configured protocol and <code>org.qmux.discovery</code>.
+</li>
+<li>[ ] FR-qmuxd-16: a query for <code>DEVICE42.fleet.example.</code> returns the record of <code>device42.fleet.example.</code>
+</li>
+<li>[ ] FR-qmuxd-17: a query for <code>device99.fleet.example.</code> returns status <code>not-found</code>.
+</li>
+<li>[ ] FR-qmuxd-18: a record with <code>version</code> 1 returns <code>not-found</code> for <code>_v2</code> on a protocol with versions <code>[1, 2]</code>.
+</li>
+<li>[ ] FR-qmuxd-19: a record with both <code>payload</code> and <code>payload_hex</code> exits with code 2.
+</li>
+<li>[ ] FR-qmuxd-20: <code>payload_hex</code> <code>"0a0b"</code> gives the payload bytes <code>0a 0b</code>.
+</li>
+<li>[ ] FR-qmuxd-21: a table test converts each JSON value kind to the stated CBOR kind.
+</li>
+<li>[ ] FR-qmuxd-22: two <code>qmuxd</code> loads of one file give identical payload bytes.
+</li>
+<li>[ ] FR-qmuxd-23: a record without <code>status</code> returns status <code>ok</code>.
+</li>
+<li>[ ] FR-qmuxd-24, FR-qmuxd-25, FR-qmuxd-26: a server with <code>QPS</code> 1 and <code>Burst</code> 2 answers 2 queries from one source and returns <code>REFUSED</code> for the third.
+</li>
+<li>[ ] FR-qmuxd-27: a unit test with a fake clock removes an idle bucket after 60 s.
+</li>
+<li>[ ] FR-qmuxd-28: a unit test with 65537 sources applies the shared bucket to the last source.
+</li>
+<li>[ ] FR-qmuxd-29: <code>"qps": 0</code> answers 500 queries in one second from one source with no <code>REFUSED</code>.
+</li>
+<li>[ ] FR-qmuxd-30: <code>go list -m all</code> for the library module lists no rate-limit module.
+</li>
+<li>[ ] FR-qmuxd-31, FR-qmuxd-32: with <code>ObservationLog</code> set, 10 queries give 10 lines.
+</li>
+<li>[ ] FR-qmuxd-33: every line holds the 11 fields.
+</li>
+<li>[ ] FR-qmuxd-34: a <code>REFUSED</code> query writes a line with <code>status</code> null.
+</li>
+<li>[ ] FR-qmuxd-35: 100 concurrent queries give 100 lines that each parse as JSON.
+</li>
+<li>[ ] FR-qmuxd-36: a restart of <code>qmuxd</code> keeps the earlier lines of the observation log.
+</li>
+<li>[ ] FR-qmuxd-37, FR-qmuxd-38, FR-qmuxd-39: <code>qmuxd</code> serves <code>examples/qmuxd.json</code> after <code>qmuxctl keygen --out keys/qmuxd</code>, and each payload decodes with the Epic 7 payload types.
+</li>
+<li>[ ] FR-qmuxd-40, FR-qmuxd-41: <code>docker build .</code> succeeds, and the container runs as a user other than root and answers on port 53.
+</li>
+<li>[ ] FR-qmuxd-42: the integration test verifies every protocol through <code>qmuxctl</code>.
+</li>
+<li>[ ] FR-qmuxd-43: the integration test receives <code>REFUSED</code> above the rate limit.
+</li>
+<li>[ ] FR-qmuxd-44: the integration test parses every observation log line.
+</li>
+</ul>
+<h3 id="qmuxd-daemon-out-of-scope">Out of scope</h3>
+<ul>
+<li>Reload of the configuration file while <code>qmuxd</code> runs.
+</li>
+<li>Dynamic handlers, scripts or plugins in <code>qmuxd</code>.
+</li>
+<li>The probe protocol section of the configuration file (Epic 9).
+</li>
+<li>A metrics endpoint.
+</li>
+<li>Publication of the container image to a registry.
+</li>
+</ul>
+<h3 id="qmuxd-daemon-open-questions" class="callout-h">Open questions</h3><nav class="pager">
+<a href="feature-embedded-recovery.html">&larr; Feature: Embedded recovery demonstration</a>
+<a href="feature-interop-harness.html">Feature: Interop harness &rarr;</a>
+</nav>
+</main>
+</div>
+<script src="../assets/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'default'});</script>
+<script type="application/json" id="rv-embedded">[]</script>
+<script>
+(function(){
+  'use strict';
+  var PAGE = document.body.getAttribute('data-page');
+  // storage key carries the spec's slug: file:// pages can share one
+  // localStorage pool, and two specs must never share a comment store
+  var RVKEY = 'spec-review:' + (document.body.getAttribute('data-rvkey') || 'spec');
+  var EMBED = [];
+  var embedEl = document.getElementById('rv-embedded');
+  if (embedEl) { try { EMBED = JSON.parse(embedEl.textContent); } catch(e){} }
+  function loadLocal(){ try { return JSON.parse(localStorage.getItem(RVKEY)) || {comments:[], deleted:[]}; } catch(e){ return {comments:[], deleted:[]}; } }
+  function saveLocal(s){ try { localStorage.setItem(RVKEY, JSON.stringify(s)); } catch(e){} }
+  function cid(c){ return c.page + '|' + c.section + '|' + (c.date||'') + '|' + c.body.slice(0,24); }
+  function allComments(){
+    var s = loadLocal(), map = {};
+    EMBED.forEach(function(c){ map[cid(c)] = c; });
+    s.comments.forEach(function(c){ map[cid(c)] = c; });
+    s.deleted.forEach(function(id){ delete map[id]; });
+    return Object.keys(map).map(function(k){ return map[k]; });
+  }
+  function upsert(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    s.comments.push(c);
+    s.deleted = s.deleted.filter(function(x){ return x !== id; });
+    saveLocal(s); refresh();
+  }
+  function remove(c){
+    var s = loadLocal(), id = cid(c);
+    s.comments = s.comments.filter(function(x){ return cid(x) !== id; });
+    if (EMBED.some(function(x){ return cid(x) === id; })) s.deleted.push(id);
+    saveLocal(s); refresh();
+  }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function exportMd(){
+    var lines = ['# Review comments', '',
+      '<!-- Exported from the spec review layer. Save this file as',
+      '     docs/specs/review-comments.md and re-run render-spec.py to embed',
+      '     every comment under its section for the next review round. -->', ''];
+    allComments().sort(function(a,b){
+      return (a.page+a.section).localeCompare(b.page+b.section);
+    }).forEach(function(c){
+      lines.push('## [' + c.page + '] ' + (c.section||''));
+      lines.push('status: ' + (c.status||'open'));
+      lines.push('date: ' + (c.date||today()));
+      lines.push(c.body); lines.push('');
+    });
+    var blob = new Blob([lines.join('\n')], {type:'text/markdown'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'review-comments.md';
+    a.click(); URL.revokeObjectURL(a.href);
+  }
+  function importMd(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      var text = String(reader.result);
+      var blocks = text.split(/^## /m).slice(1);
+      blocks.forEach(function(b){
+        var head = b.match(/^\[([^\]]+)\]\s*(\S*)/);
+        if (!head) return;
+        var status = (b.match(/^status:\s*(\S+)/m)||[])[1] || 'open';
+        var date = (b.match(/^date:\s*(\S+)/m)||[])[1] || today();
+        var body = b.replace(/^\[[^\]]*\]\s*\S*\s*\n/, '')
+                    .replace(/^status:.*\n?/m,'').replace(/^date:.*\n?/m,'').trim();
+        if (body) upsert({page:head[1], section:head[2]||'', status:status, date:date, body:body});
+      });
+      refresh();
+    };
+    reader.readAsText(file);
+  }
+  function commentBox(c){
+    var div = document.createElement('div');
+    div.className = 'rv-comment' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var head = document.createElement('div'); head.className = 'rv-head';
+    head.textContent = '💬 ' + (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(){ remove(c); c = Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'}); upsert(c); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(){ if (confirm('Delete this comment?')) remove(c); };
+    head.appendChild(tog); head.appendChild(del);
+    var body = document.createElement('div'); body.className = 'rv-body';
+    body.textContent = c.body;
+    div.appendChild(head); div.appendChild(body);
+    return div;
+  }
+  function editor(section, after){
+    var wrap = document.createElement('div');
+    wrap.className = 'rv-comment rv-editor';
+    var ta = document.createElement('textarea');
+    ta.placeholder = 'Comment on this section…';
+    var actions = document.createElement('div'); actions.className = 'rv-actions';
+    var save = document.createElement('button'); save.textContent = 'Save';
+    save.onclick = function(){
+      if (ta.value.trim()) upsert({page:PAGE, section:section, status:'open', date:today(), body:ta.value.trim()});
+      wrap.remove();
+    };
+    var cancel = document.createElement('button'); cancel.textContent = 'Cancel';
+    cancel.className = 'rv-cancel'; cancel.onclick = function(){ wrap.remove(); };
+    actions.appendChild(save); actions.appendChild(cancel);
+    wrap.appendChild(ta); wrap.appendChild(actions);
+    after.insertAdjacentElement('afterend', wrap);
+    ta.focus();
+  }
+  // --- headings, inline buttons ---
+  var mainH1 = document.querySelector('main h1');
+  if (mainH1 && !mainH1.id) { mainH1.id = 'page-title'; }
+  var headings = Array.prototype.slice.call(
+    document.querySelectorAll('main h1[id], main h2[id], main h3[id], main h4[id]'));
+  headings.forEach(function(h){
+    var b = document.createElement('button');
+    b.className = 'rv-add'; b.textContent = '💬 comment'; b.title = 'Comment on this section';
+    b.onclick = function(){ editor(h.id, h); };
+    h.appendChild(b);
+  });
+  function headingTitle(h){
+    var t = h.childNodes[0] ? h.childNodes[0].textContent : h.textContent;
+    return t.trim();
+  }
+  function titleFor(section){
+    var el = section && document.getElementById(section);
+    return el ? headingTitle(el) : (section || '(page)');
+  }
+
+  // --- drawer ---
+  var drawer = document.createElement('div');
+  drawer.id = 'rv-drawer';
+  drawer.innerHTML =
+    '<header><strong>Review</strong> <span class="rv-count"></span></header>' +
+    '<div class="rv-compose">' +
+    '<div class="rv-live">Commenting on the section in view:</div>' +
+    '<label for="rv-sec"></label><select id="rv-sec"></select>' +
+    '<textarea id="rv-text" placeholder="Type as you read… (Ctrl+Enter saves)"></textarea>' +
+    '<div style="margin-top:.4rem; display:flex; gap:.5rem;">' +
+    '<button class="rv-primary" id="rv-save">Save comment</button>' +
+    '<button id="rv-clear">Clear</button></div></div>' +
+    '<div class="rv-list"></div>' +
+    '<footer><button id="rv-export">Export .md</button>' +
+    '<button id="rv-import">Import</button>' +
+    '<span class="rv-otherpages"></span></footer>';
+  document.body.appendChild(drawer);
+  var toggle = document.createElement('button');
+  toggle.id = 'rv-toggle';
+  toggle.onclick = function(){
+    document.body.classList.toggle('rv-open');
+    try { localStorage.setItem(RVKEY + ':open', document.body.classList.contains('rv-open') ? '1' : ''); } catch(e){}
+  };
+  document.body.appendChild(toggle);
+  try { if (localStorage.getItem(RVKEY + ':open')) document.body.classList.add('rv-open'); } catch(e){}
+
+  var sel = drawer.querySelector('#rv-sec');
+  headings.forEach(function(h){
+    var opt = document.createElement('option');
+    opt.value = h.id; opt.textContent = headingTitle(h);
+    sel.appendChild(opt);
+  });
+  var followScroll = true;
+  sel.onchange = function(){ followScroll = false; };
+
+  // scroll spy: pick the last heading above the upper third of the viewport
+  function currentSection(){
+    var line = window.innerHeight * 0.33, best = headings[0];
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].getBoundingClientRect().top <= line) best = headings[i];
+    }
+    return best ? best.id : '';
+  }
+  window.addEventListener('scroll', function(){
+    if (!followScroll) return;
+    var s = currentSection();
+    if (s && sel.value !== s) sel.value = s;
+  }, {passive:true});
+  // typing pins the target section so a stray scroll can't retarget the comment
+  drawer.querySelector('#rv-text').addEventListener('input', function(){
+    if (this.value.trim()) followScroll = false;
+    else followScroll = true;
+  });
+
+  function saveFromDrawer(){
+    var ta = drawer.querySelector('#rv-text');
+    if (!ta.value.trim()) return;
+    upsert({page:PAGE, section:sel.value, status:'open', date:today(), body:ta.value.trim()});
+    ta.value = ''; followScroll = true;
+  }
+  drawer.querySelector('#rv-save').onclick = saveFromDrawer;
+  drawer.querySelector('#rv-text').addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') saveFromDrawer();
+  });
+  drawer.querySelector('#rv-clear').onclick = function(){
+    drawer.querySelector('#rv-text').value = ''; followScroll = true;
+  };
+  drawer.querySelector('#rv-export').onclick = exportMd;
+  var fileIn = document.createElement('input');
+  fileIn.type = 'file'; fileIn.accept = '.md,text/markdown'; fileIn.style.display = 'none';
+  fileIn.onchange = function(){ if (fileIn.files[0]) importMd(fileIn.files[0]); };
+  drawer.appendChild(fileIn);
+  drawer.querySelector('#rv-import').onclick = function(){ fileIn.click(); };
+
+  function drawerItem(c){
+    var div = document.createElement('div');
+    div.className = 'rv-item' + (c.status === 'resolved' ? ' rv-resolved' : '');
+    var where = document.createElement('div'); where.className = 'rv-where';
+    where.textContent = titleFor(c.section);
+    var text = document.createElement('div'); text.className = 'rv-text';
+    text.textContent = c.body;
+    var meta = document.createElement('div'); meta.className = 'rv-meta';
+    meta.textContent = (c.date||'') + ' · ' + (c.status||'open');
+    var tog = document.createElement('button');
+    tog.textContent = c.status === 'resolved' ? 'reopen' : 'resolve';
+    tog.onclick = function(e){ e.stopPropagation(); remove(c);
+      upsert(Object.assign({}, c, {status: c.status === 'resolved' ? 'open' : 'resolved'})); };
+    var del = document.createElement('button'); del.textContent = 'delete';
+    del.onclick = function(e){ e.stopPropagation();
+      if (confirm('Delete this comment?')) remove(c); };
+    meta.appendChild(tog); meta.appendChild(del);
+    div.appendChild(where); div.appendChild(text); div.appendChild(meta);
+    div.onclick = function(){
+      var el = c.section && document.getElementById(c.section);
+      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+    return div;
+  }
+
+  function refresh(){
+    document.querySelectorAll('.rv-comment:not(.rv-editor)').forEach(function(el){ el.remove(); });
+    var all = allComments();
+    var mine = all.filter(function(c){ return c.page === PAGE; });
+    mine.forEach(function(c){
+      var target = c.section && document.getElementById(c.section);
+      var anchor = target || mainH1 || document.body.querySelector('main') || document.body;
+      anchor.insertAdjacentElement('afterend', commentBox(c));
+    });
+    var open = all.filter(function(c){ return c.status !== 'resolved'; }).length;
+    toggle.textContent = '💬 Review (' + open + ')';
+    drawer.querySelector('.rv-count').textContent =
+      open + ' open / ' + all.length + ' total';
+    var list = drawer.querySelector('.rv-list');
+    list.innerHTML = '';
+    mine.slice().reverse().forEach(function(c){ list.appendChild(drawerItem(c)); });
+    var others = {};
+    all.forEach(function(c){ if (c.page !== PAGE) others[c.page] = (others[c.page]||0) + 1; });
+    var otherKeys = Object.keys(others);
+    drawer.querySelector('.rv-otherpages').textContent = otherKeys.length
+      ? 'Other pages: ' + otherKeys.map(function(k){ return k + ' (' + others[k] + ')'; }).join(', ')
+      : '';
+  }
+  refresh();
+  var s0 = currentSection();
+  if (s0) sel.value = s0;
+})();
+</script>
+</body>
+</html>
