@@ -812,3 +812,4 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   answer with the status `ok` (#147). The discovery log line prints no expiry. A run with no
   download, the rollback case included, prints `result: up to date (0 downloads)`.
   `protocol.FoldName` is the one ASCII fold for DNS names (#142).
+- 2026-11-20 — Embedded recovery demonstration is `built` (#151).

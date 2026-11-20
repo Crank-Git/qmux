@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: Embedded recovery demonstration</h1>
-<p class="meta">Epic 7: Embedded recovery demonstration &nbsp; <span class="badge">issued</span></p>
+<p class="meta">Epic 7: Embedded recovery demonstration &nbsp; <span class="badge">built</span></p>
 <h3 id="embedded-recovery-purpose">Purpose</h3>
 <p>This feature shows QMux in a realistic setting. An industrial controller (the device) reconnects after an extended outage. It must find its management endpoint, the current approved configuration generation, and the latest authorized firmware release. The device uses three independent protocols on three private classes. It downloads a resource only when verified remote metadata shows a change.</p>
 <p>The demonstration is one Go program. It starts an authoritative server, a mock HTTPS service and the device in one process. It does not use <code>qmuxd</code>. It does not flash firmware.</p>
