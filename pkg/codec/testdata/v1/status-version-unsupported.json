@@ -1,0 +1,11 @@
+{
+  "description": "A record envelope with status 3 (version-unsupported).",
+  "envelope": {
+    "format": 1,
+    "protocol_id": "org.qmux.test",
+    "version": 1,
+    "message_type": 1,
+    "status": 3,
+    "payload_hex": ""
+  }
+}

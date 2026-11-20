@@ -1,0 +1,4 @@
+{
+  "description": "The last byte of the protocol ID is 0xff.",
+  "error": "cbor.SemanticError"
+}

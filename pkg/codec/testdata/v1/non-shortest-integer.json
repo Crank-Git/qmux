@@ -1,0 +1,4 @@
+{
+  "description": "The version 1 has the 2-byte encoding 0x18 0x01.",
+  "error": "ErrNotDeterministic"
+}
