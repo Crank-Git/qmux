@@ -41,7 +41,7 @@ const (
 var ErrMissingInfo = errors.New("server: handler does not implement protocol.Describer")
 
 // ServerConfig holds the settings of a Server. NewServer applies a default to each
-// zero field except Address, Zones and Registry.
+// zero field except Address, Zones, Registry, Signer and RateLimit.
 type ServerConfig struct {
 	// Address is the host and port of the UDP and TCP listeners, for example
 	// "127.0.0.1:5353". ListenAndServe uses it.
@@ -76,6 +76,9 @@ type ServerConfig struct {
 	// label. When signing fails, the server answers SERVFAIL. Nil means that the
 	// server returns unsigned envelopes. Handlers never sign.
 	Signer *security.Signer
+	// RateLimit sets the per-source token bucket. The zero value disables the rate
+	// limit.
+	RateLimit RateLimit
 }
 
 // Server is a QMux authoritative server. It answers each registered protocol key over
@@ -83,6 +86,8 @@ type ServerConfig struct {
 type Server struct {
 	cfg ServerConfig
 	reg *registry.Registry
+	// limiter is nil when cfg.RateLimit disables the rate limit.
+	limiter *rateLimiter
 
 	mu   sync.Mutex
 	addr net.Addr
@@ -118,7 +123,7 @@ func NewServer(cfg ServerConfig) *Server {
 		zones[i] = protocol.FoldName(z)
 	}
 	cfg.Zones = zones
-	return &Server{cfg: cfg, reg: registry.New(cfg.Registry)}
+	return &Server{cfg: cfg, reg: registry.New(cfg.Registry), limiter: newRateLimiter(cfg.RateLimit)}
 }
 
 // Register registers h for key with the Info that h.Info() returns.
@@ -209,6 +214,12 @@ func (s *Server) Addr() net.Addr {
 func (s *Server) serveQuery(ctx context.Context, q *transport.Query, w transport.Writer) {
 	// An answer to a response can start a loop between two servers.
 	if q.QR {
+		return
+	}
+	// The rate limit applies before every other check, so a source with an empty
+	// bucket costs the server no further work (FR-qmuxd-26).
+	if s.limiter != nil && !s.limiter.allow(q.Source.Addr(), q.ReceivedAt) {
+		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeRefused}, "")
 		return
 	}
 	if rcode, ok := s.checkHeader(q); !ok {
