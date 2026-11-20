@@ -21,7 +21,7 @@ import (
 // A query with a bad version label, or with a version that reg does not have, gets
 // an envelope with that application status. The server then does not call the handler.
 func (s *Server) dispatch(ctx context.Context, q *transport.Query, zone string, reg registry.Registration, w transport.Writer) {
-	qname := strings.ToLower(q.Name)
+	qname := protocol.FoldName(q.Name)
 	v, ok := splitQName(qname, zone)
 	if !ok {
 		s.answerStatus(ctx, q, reg, protocol.StatusBadRequest, w)

@@ -47,7 +47,7 @@ func signingInput(e codec.Envelope, qname string, key protocol.ProtocolKey) ([]b
 	}
 	b, err := sigEncMode.Marshal([]any{
 		signingInputLabel,
-		lowerASCII(qname),
+		protocol.FoldName(qname),
 		key.Class,
 		key.Type,
 		e.Format,
@@ -65,18 +65,4 @@ func signingInput(e codec.Envelope, qname string, key protocol.ProtocolKey) ([]b
 		return nil, fmt.Errorf("encode signing input: %w", err)
 	}
 	return b, nil
-}
-
-// lowerASCII returns name with each ASCII letter A to Z in lowercase and every
-// other byte unchanged. DNS case folding is ASCII only (RFC 4343 § 3). A Unicode
-// fold maps the Kelvin sign to k and each invalid UTF-8 byte to U+FFFD, so two
-// different names give one signing input.
-func lowerASCII(name string) string {
-	b := []byte(name)
-	for i, c := range b {
-		if 'A' <= c && c <= 'Z' {
-			b[i] = c + ('a' - 'A')
-		}
-	}
-	return string(b)
 }

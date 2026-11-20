@@ -82,7 +82,7 @@ func (c *Client) Discover(ctx context.Context, zone string) (*Manifest, error) {
 	if v == nil && !c.InsecureSkipVerify {
 		return nil, ErrInsecure
 	}
-	zone = strings.ToLower(zone)
+	zone = protocol.FoldName(zone)
 	if !strings.HasSuffix(zone, ".") {
 		zone += "."
 	}
