@@ -12,9 +12,11 @@ import (
 
 // Options holds the settings of Register.
 type Options struct {
-	// Key is the discovery key. The zero value selects DefaultKey.
+	// Key is the discovery key. The zero value selects DefaultKey. Register ignores
+	// Key when InClass is true.
 	Key protocol.ProtocolKey
-	// InClass also registers discovery at INKey.
+	// InClass registers discovery at INKey in place of Key. The registry holds one
+	// protocol key for each protocol ID, so discovery cannot hold both keys.
 	InClass bool
 }
 
@@ -22,11 +24,14 @@ type Options struct {
 // discovery handler answers the discovery name "_qmux.<zone>" with the manifest of
 // srv for zone. It returns status not-found for every other QNAME.
 //
-// When opts.InClass is true, Register also registers the discovery protocol at INKey.
-// Errors wrap the error of server.RegisterProtocol.
+// When opts.InClass is true, Register registers the discovery protocol at INKey and
+// not at opts.Key. Errors wrap the error of server.RegisterProtocol.
 func Register(srv *server.Server, zone string, opts Options) error {
 	key := opts.Key
-	if key == (protocol.ProtocolKey{}) {
+	switch {
+	case opts.InClass:
+		key = INKey
+	case key == (protocol.ProtocolKey{}):
 		key = DefaultKey
 	}
 	zone = strings.ToLower(zone)
@@ -37,11 +42,6 @@ func Register(srv *server.Server, zone string, opts Options) error {
 	info := protocol.Info{ID: ProtocolID, Versions: []uint16{1}}
 	if err := srv.RegisterProtocol(key, info, h); err != nil {
 		return fmt.Errorf("discovery: %w", err)
-	}
-	if opts.InClass {
-		if err := srv.RegisterProtocol(INKey, info, h); err != nil {
-			return fmt.Errorf("discovery: %w", err)
-		}
 	}
 	return nil
 }

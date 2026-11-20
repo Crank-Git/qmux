@@ -100,6 +100,47 @@ func TestRegisterUsesTheKeyOfTheOptions(t *testing.T) {
 	}
 }
 
+func TestRegisterWithInClassRegistersDiscoveryOnlyAtINKey(t *testing.T) {
+	for _, key := range []protocol.ProtocolKey{{}, {Class: 65290, Type: 65300}} {
+		srv := newServer()
+		if err := Register(srv, testZone, Options{Key: key, InClass: true}); err != nil {
+			t.Fatalf("Register with Key %s: %v", key, err)
+		}
+		regs := srv.Registry().List()
+		want := protocol.ProtocolKey{Class: 1, Type: 65534}
+		if len(regs) != 1 || regs[0].Key != want || regs[0].Info.ID != ProtocolID {
+			t.Fatalf("Register with Key %s: registry lists %+v, want only %s at %s", key, regs, ProtocolID, want)
+		}
+	}
+}
+
+func TestINKeyQueryReturnsManifestWithDiscoveryAtINKey(t *testing.T) {
+	srv := newServer()
+	if err := Register(srv, testZone, Options{InClass: true}); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	res, err := serve(t, srv).Query(context.Background(), client.Query{
+		Name: "_qmux." + testZone, Class: INKey.Class, Type: INKey.Type,
+	})
+	if err != nil {
+		t.Fatalf("Query at %s: %v", INKey, err)
+	}
+	if res.MessageType != protocol.MessageManifest {
+		t.Fatalf("message type = %d, want %d", res.MessageType, protocol.MessageManifest)
+	}
+	var m Manifest
+	if err := codec.Unmarshal(res.Payload, &m); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if err := m.validate(testZone); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	want := []Entry{{ID: ProtocolID, Versions: []uint16{1}, Class: 1, Type: 65534}}
+	if !reflect.DeepEqual(m.Protocols, want) {
+		t.Fatalf("manifest entries = %+v, want %+v", m.Protocols, want)
+	}
+}
+
 func TestRegisterReturnsTheRegistryError(t *testing.T) {
 	srv := newServer()
 	if err := srv.RegisterProtocol(DefaultKey, protocol.Info{ID: "other.qmux", Versions: []uint16{1}}, okHandler); err != nil {
