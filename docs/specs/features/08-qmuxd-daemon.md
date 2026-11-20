@@ -220,7 +220,7 @@ One observation log line:
 | `zones` | array of string | — | Required. At least one fully qualified name. |
 | `signing_key` | string | — | Required. Path to a PKCS#8 PEM Ed25519 key. Relative to the configuration file directory. |
 | `signature_validity` | string | `1h` | Go duration, 1 min to 24 h. |
-| `ttl` | integer | 60 | 0–86400 seconds. |
+| `ttl` | integer | 60 | 1–86400 seconds. |
 | `udp_size` | integer | 1232 | 512–4096. |
 | `handler_timeout` | string | `2s` | Go duration, 10 ms to 30 s. |
 | `rate_limit` | object `{qps, burst}` | `{50, 100}` | `qps` 0 disables. `burst` ≥ `qps` when `qps` > 0. |
