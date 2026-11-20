@@ -11,11 +11,14 @@ linters:
     - unused
     - gocyclo
     - nestif
-    - gofmt
-    - goimports
 
   settings:
     gocyclo:
       min: 15
     nestif:
       min: 4
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

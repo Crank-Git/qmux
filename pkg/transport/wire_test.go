@@ -87,7 +87,7 @@ func TestMultiClassRoundTrip(t *testing.T) {
 	hexStr := hex.EncodeToString(payload)
 
 	classes := []struct {
-		val uint16
+		val  uint16
 		name string
 	}{
 		{dns.ClassINET, "IN"},
