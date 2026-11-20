@@ -27,8 +27,8 @@ var (
 type Options struct {
 	// AllowReservedClasses accepts the reserved classes CH (3) and HS (4).
 	AllowReservedClasses bool
-	// AllowNonPrivateTypes accepts a type outside 65280–65534. The meta-types
-	// stay rejected.
+	// AllowNonPrivateTypes accepts a type outside 65280–65534. The types 0,
+	// 41, 250, 251, 252, 255 and 65535 stay rejected.
 	AllowNonPrivateTypes bool
 }
 
@@ -47,7 +47,8 @@ type Registry struct {
 	mu    sync.RWMutex
 	byKey map[protocol.ProtocolKey]Registration
 	// byID maps each protocol ID to the protocol key of its registration.
-	// Register and Unregister update byKey and byID under one write lock.
+	// Register, Unregister and Remap update byKey and byID under one write
+	// lock.
 	byID map[string]protocol.ProtocolKey
 }
 
@@ -126,6 +127,40 @@ func (r *Registry) Unregister(key protocol.ProtocolKey) error {
 	}
 	delete(r.byKey, key)
 	delete(r.byID, reg.Info.ID)
+	return nil
+}
+
+// Remap moves the registration of the protocol ID id to newKey and frees the
+// old protocol key. The registration keeps its info and its handler. Remap to
+// the protocol key that id already holds returns nil and changes nothing.
+//
+// It checks the rules in this order, and the first failed rule decides the
+// error. A failed Remap leaves the registry unchanged. Errors wrap one of
+// these sentinels:
+//   - ErrNotFound when id has no registration.
+//   - ErrInvalidKey when the options do not allow newKey.
+//   - ErrKeyConflict when another protocol ID holds newKey.
+func (r *Registry) Remap(id string, newKey protocol.ProtocolKey) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	oldKey, ok := r.byID[id]
+	if !ok {
+		return fmt.Errorf("remap %q to %s: %w", id, newKey, ErrNotFound)
+	}
+	if err := validKey(newKey, r.opts); err != nil {
+		return fmt.Errorf("remap %q to %s: %w", id, newKey, err)
+	}
+	if newKey == oldKey {
+		return nil
+	}
+	if held, ok := r.byKey[newKey]; ok {
+		return fmt.Errorf("remap %q to %s: held by %q: %w", id, newKey, held.Info.ID, ErrKeyConflict)
+	}
+	reg := r.byKey[oldKey]
+	reg.Key = newKey
+	delete(r.byKey, oldKey)
+	r.byKey[newKey] = reg
+	r.byID[id] = newKey
 	return nil
 }
 

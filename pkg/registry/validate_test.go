@@ -164,9 +164,9 @@ func TestRegisterAcceptsANonPrivateTypeOnlyWithAllowNonPrivateTypes(t *testing.T
 	}
 }
 
-func TestRegisterAlwaysRejectsTheMetaTypes(t *testing.T) {
+func TestRegisterAlwaysRejectsTheMetaTypesAndType65535(t *testing.T) {
 	opts := registry.Options{AllowReservedClasses: true, AllowNonPrivateTypes: true}
-	for _, typ := range []uint16{0, 41, 250, 251, 252, 255} {
+	for _, typ := range []uint16{0, 41, 250, 251, 252, 255, 65535} {
 		key := protocol.ProtocolKey{Class: 65280, Type: typ}
 		if err := register(opts, key, validInfo, okHandler); !errors.Is(err, registry.ErrInvalidKey) {
 			t.Errorf("Register(%s) with both options = %v, want ErrInvalidKey", key, err)
