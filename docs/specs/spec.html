@@ -1039,7 +1039,10 @@ golangci-lint run</code></pre>
 <ul>
 <li>2026-11-20 — Embedded recovery demonstration is <code>built</code> (#151).
 </li>
-</ul><nav class="pager">
+<li>2026-11-20 — qmuxd decisions (#9): one discovery registration serves every zone
+</li>
+</ul>
+<p>(<code>discovery.RegisterZones</code>). The <code>ttl</code> range is 1–86400, and 0 exits 2 (#155). A parsed query whose response write fails still writes an observation line. <code>qmuxd</code> checks each payload against the codec decode limits at load time (#159). <code>qmuxd</code> binds with <code>transport.Listen</code> (#158).</p><nav class="pager">
 <span></span>
 <a href="html/feature-foundation.html">Feature: Foundation &rarr;</a>
 </nav>
