@@ -773,3 +773,10 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
     the non-goals.
 - 2026-11-20 — The user approved the spec and the project scaffold.
 - 2026-11-20 — spec-to-issues created 12 epics (#1–#12) and 63 sub-issues (#13–#75). Every feature is now `issued`.
+- 2026-11-20 — An earlier session built #13–#23 outside the issue-flow process. The user
+  reset `dev` to the Epic 0 merge and chose to rebuild. The earlier work is on
+  `archive/qwen-dev` for reference only.
+- 2026-11-20 — The root module declares `go 1.25.0`, because miekg/dns v1.1.73 declares
+  `go 1.25.0` and the Go tool does not accept `go 1.25` next to it.
+- 2026-11-20 — The user accepted ADR 0005: `pkg/transport` runs its own UDP and TCP read
+  loops and exports only QMux types. #88 and #89 build it. Foundation is `built` (#91).
