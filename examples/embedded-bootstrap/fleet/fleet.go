@@ -115,7 +115,7 @@ func (r *Running) Requests() int64 {
 }
 
 // Close stops the server and the mock HTTPS service. It returns the error of
-// server.Server.Serve.
+// server.Server.Serve. Call Close once: a second call blocks.
 func (r *Running) Close() error {
 	r.cancel()
 	err := <-r.served
