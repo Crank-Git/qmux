@@ -91,7 +91,8 @@ the envelope. The server never recurses and never delegates.
 - FR-server-30 — The answer RR has the QNAME as received, and the class and type of the
   question.
 - FR-server-31 — The answer RR carries `Response.Payload` as opaque RDATA in a
-  `*dns.RFC3597` RR.
+  `*dns.RFC3597` RR. From Epic 4, FR-codec-29 replaces the raw payload: the RDATA is the
+  envelope that holds `Response.Payload`.
 - FR-server-32 — The answer RR TTL is `Response.TTL`, or `cfg.TTL` when `Response.TTL` is
   0.
 - FR-server-33 — The server answers `SERVFAIL` when the handler returns an error.
@@ -354,7 +355,8 @@ https://github.com/miekg/dns (v1.1.73) and `go doc` on 2026-11-20:
 - A handler response gives `NOERROR`, AA set, and an answer count of 1. (FR-server-29)
 - The answer RR for `Device42.fleet.example.` class 65281 type 65280 has that exact name,
   class 65281 and type 65280. (FR-server-30)
-- The answer RDATA bytes equal the handler's payload bytes. (FR-server-31)
+- The answer RDATA bytes equal the handler's payload bytes, and from Epic 4 the payload of
+  the decoded envelope. (FR-server-31, FR-codec-29)
 - A response with TTL 0 gives an RR TTL of 60. A response with TTL 5 gives 5.
   (FR-server-32)
 - A handler error gives `SERVFAIL`. (FR-server-33)
