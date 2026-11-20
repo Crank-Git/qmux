@@ -10,17 +10,6 @@ import (
 	"github.com/Crank-Git/qmux/pkg/server"
 )
 
-// ProtocolID is the protocol ID of the discovery registration.
-const ProtocolID = "org.qmux.discovery"
-
-// DefaultKey is the discovery key that Register and Client use when the options give
-// the zero protocol key.
-var DefaultKey = protocol.ProtocolKey{Class: 65280, Type: 65534}
-
-// INKey is the discovery key in class IN. A resolver that forwards only class IN can
-// carry discovery at this key.
-var INKey = protocol.ProtocolKey{Class: 1, Type: 65534}
-
 // Options holds the settings of Register.
 type Options struct {
 	// Key is the discovery key. The zero value selects DefaultKey.
@@ -70,7 +59,8 @@ type handler struct {
 // for every other QNAME. It returns the error of codec.Marshal when the manifest does
 // not encode.
 func (h *handler) Handle(_ context.Context, req *protocol.Request) (*protocol.Response, error) {
-	if req.QName != h.name {
+	// Name has no version label, so "_v1._qmux.<zone>" also gets the manifest.
+	if req.Name != h.name {
 		return &protocol.Response{Status: protocol.StatusNotFound}, nil
 	}
 	// The handler reads the registry at each request, so a registration made after the

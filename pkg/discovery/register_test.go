@@ -132,6 +132,22 @@ func TestDiscoveryNameQueryReturnsManifestEnvelope(t *testing.T) {
 	}
 }
 
+func TestDiscoveryNameWithVersionLabelReturnsManifestEnvelope(t *testing.T) {
+	srv := newServer()
+	if err := Register(srv, testZone, Options{}); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	res, err := serve(t, srv).Query(context.Background(), client.Query{
+		Name: "_qmux." + testZone, Class: DefaultKey.Class, Type: DefaultKey.Type, Version: 1,
+	})
+	if err != nil {
+		t.Fatalf("Query for _v1._qmux.%s: %v", testZone, err)
+	}
+	if res.MessageType != protocol.MessageManifest {
+		t.Fatalf("message type = %d, want %d", res.MessageType, protocol.MessageManifest)
+	}
+}
+
 func TestDiscoveryNameMatchIgnoresTheCaseOfTheRegisteredZone(t *testing.T) {
 	srv := newServer()
 	if err := Register(srv, "FLEET.Example.", Options{}); err != nil {
