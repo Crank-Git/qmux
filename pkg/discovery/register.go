@@ -27,6 +27,18 @@ type Options struct {
 // When opts.InClass is true, Register registers the discovery protocol at INKey and
 // not at opts.Key. Errors wrap the error of server.RegisterProtocol.
 func Register(srv *server.Server, zone string, opts Options) error {
+	return RegisterZones(srv, []string{zone}, opts)
+}
+
+// RegisterZones registers the discovery protocol, version 1, on srv at opts.Key one
+// time for all zones. The discovery handler answers the discovery name
+// "_qmux.<zone>" of each zone with the manifest of srv for that zone. It returns
+// status not-found for every other QNAME.
+//
+// The registry holds one protocol key for each protocol ID, so a server with two or
+// more zones calls RegisterZones and not Register for each zone. opts.InClass has the
+// same effect as in Register. Errors wrap the error of server.RegisterProtocol.
+func RegisterZones(srv *server.Server, zones []string, opts Options) error {
 	key := opts.Key
 	switch {
 	case opts.InClass:
@@ -34,11 +46,14 @@ func Register(srv *server.Server, zone string, opts Options) error {
 	case key == (protocol.ProtocolKey{}):
 		key = DefaultKey
 	}
-	zone = protocol.FoldName(zone)
-	if !strings.HasSuffix(zone, ".") {
-		zone += "."
+	h := &handler{srv: srv, zones: make(map[string]string, len(zones))}
+	for _, zone := range zones {
+		zone = protocol.FoldName(zone)
+		if !strings.HasSuffix(zone, ".") {
+			zone += "."
+		}
+		h.zones["_qmux."+zone] = zone
 	}
-	h := &handler{srv: srv, zone: zone, name: "_qmux." + zone}
 	info := protocol.Info{ID: ProtocolID, Versions: []uint16{1}}
 	if err := srv.RegisterProtocol(key, info, h); err != nil {
 		return fmt.Errorf("discovery: %w", err)
@@ -46,27 +61,27 @@ func Register(srv *server.Server, zone string, opts Options) error {
 	return nil
 }
 
-// handler is the discovery handler for one zone of one server.
+// handler is the discovery handler for the zones of one server.
 type handler struct {
 	srv *server.Server
-	// zone is lowercase and fully qualified.
-	zone string
-	// name is the discovery name of zone.
-	name string
+	// zones maps the discovery name of each zone to the zone. Both are lowercase and
+	// fully qualified.
+	zones map[string]string
 }
 
-// Handle returns the manifest envelope for the discovery name, and status not-found
-// for every other QNAME. It returns the error of codec.Marshal when the manifest does
-// not encode.
+// Handle returns the manifest envelope for the discovery name of a zone, and status
+// not-found for every other QNAME. It returns the error of codec.Marshal when the
+// manifest does not encode.
 func (h *handler) Handle(_ context.Context, req *protocol.Request) (*protocol.Response, error) {
 	// Name has no version label, so "_v1._qmux.<zone>" also gets the manifest.
-	if req.Name != h.name {
+	zone, ok := h.zones[req.Name]
+	if !ok {
 		return &protocol.Response{Status: protocol.StatusNotFound}, nil
 	}
 	// The handler reads the registry at each request, so a registration made after the
 	// start appears in the next manifest. List returns the class-then-type order.
 	regs := h.srv.Registry().List()
-	m := Manifest{FrameworkVersion: frameworkVersion, Zone: h.zone, Protocols: make([]Entry, len(regs))}
+	m := Manifest{FrameworkVersion: frameworkVersion, Zone: zone, Protocols: make([]Entry, len(regs))}
 	for i, r := range regs {
 		m.Protocols[i] = Entry{ID: r.Info.ID, Versions: r.Info.Versions, Class: r.Key.Class, Type: r.Key.Type}
 	}

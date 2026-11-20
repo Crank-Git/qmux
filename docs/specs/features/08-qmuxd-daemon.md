@@ -59,8 +59,8 @@ server.
 - **FR-qmuxd-13** — `qmuxd` registers each protocol through the registry, so the registry
   rules apply. A registry error exits with code 2.
 - **FR-qmuxd-14** — Each QNAME in `records` must be at or below one of the configured zones.
-- **FR-qmuxd-15** — When `discovery.enabled` is true, `qmuxd` calls `discovery.Register` for
-  each zone. `discovery.in_class` sets `InClass`.
+- **FR-qmuxd-15** — When `discovery.enabled` is true, `qmuxd` calls
+  `discovery.RegisterZones` one time with every zone. `discovery.in_class` sets `InClass`.
 
 ### Static records and JSON-to-CBOR rule
 
