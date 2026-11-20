@@ -800,3 +800,4 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   only at `(1, 65534)` (FR-discovery-12). A `version-unsupported` envelope reaches the
   caller as an `AppError` (#130). The Epic 2 version label rules are marked as replaced
   (#125).
+- 2026-11-20 — Discovery is `built` (#132).
