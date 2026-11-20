@@ -156,12 +156,13 @@ func TestQueryVersionAddsTheVersionLabel(t *testing.T) {
 
 func TestQueryExitsOneForAnUnregisteredProtocolKey(t *testing.T) {
 	addr := startServer(t)
-	code, stdout, stderr := queryCmd("--server", addr, "--class", "65281", "--type", "65280", "--name", testName)
+	code, stdout, stderr := queryCmd("--server", addr, "--class", "65283", "--type", "65280", "--name", testName)
 	if code != 1 {
 		t.Fatalf("exit code = %d, want 1; stderr = %q", code, stderr)
 	}
-	if stdout != "" || !strings.HasPrefix(stderr, "error: ") || !strings.Contains(stderr, "REFUSED") {
-		t.Errorf("stdout = %q, stderr = %q; want only an error line with REFUSED on stderr", stdout, stderr)
+	want := "error: dns: rcode REFUSED for device42.fleet.example. 65283/65280\n"
+	if stdout != "" || stderr != want {
+		t.Errorf("stdout = %q, stderr = %q; want only the error line %q on stderr", stdout, stderr, want)
 	}
 }
 
