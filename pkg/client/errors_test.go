@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Crank-Git/qmux/pkg/client"
+	"github.com/Crank-Git/qmux/pkg/codec"
 	"github.com/Crank-Git/qmux/pkg/protocol"
 	"github.com/Crank-Git/qmux/pkg/security"
 	"github.com/Crank-Git/qmux/pkg/transport"
@@ -471,12 +472,12 @@ func TestAppErrorNamesTheStatus(t *testing.T) { // FR-client-24
 	}
 }
 
-func TestVerifyErrorNamesTheReason(t *testing.T) { // FR-client-25
+func TestVerifyErrorNamesTheSentinelOfTheReason(t *testing.T) { // FR-client-25, FR-security-51
 	cause := fmt.Errorf("verify: %w: org.qmux.firmware %s", security.ErrExpired, testName)
 	err := &client.VerifyError{Reason: security.ErrExpired, Err: cause}
 
-	if err.Error() != cause.Error() {
-		t.Errorf("Error() = %q, want the text of Err %q", err.Error(), cause.Error())
+	if want := "verify: ErrExpired: org.qmux.firmware " + testName; err.Error() != want {
+		t.Errorf("Error() = %q, want %q", err.Error(), want)
 	}
 	if !errors.Is(err, cause) || !errors.Is(err, security.ErrExpired) {
 		t.Error("errors.Is(VerifyError, its Err or its Reason) = false")
@@ -488,5 +489,34 @@ func TestVerifyErrorWithoutErrNamesTheReason(t *testing.T) { // FR-client-25
 
 	if !strings.Contains(err.Error(), security.ErrExpired.Error()) || !errors.Is(err, security.ErrExpired) {
 		t.Errorf("Error() = %q, want the reason %q", err.Error(), security.ErrExpired)
+	}
+}
+
+func TestVerifyErrorNamesEachSentinelOfVerify(t *testing.T) { // FR-security-51
+	sentinels := map[string]error{
+		"ErrNotDeterministic": security.ErrNotDeterministic, "ErrUnsigned": security.ErrUnsigned,
+		"ErrAlgorithm": security.ErrAlgorithm, "ErrUnknownKey": security.ErrUnknownKey,
+		"ErrProtocolNotAllowed": security.ErrProtocolNotAllowed, "ErrBadSignature": security.ErrBadSignature,
+		"ErrNotYetValid": security.ErrNotYetValid, "ErrExpired": security.ErrExpired,
+		"ErrWindowTooLong": security.ErrWindowTooLong, "ErrReplay": security.ErrReplay,
+	}
+	for name, sentinel := range sentinels {
+		t.Run(name, func(t *testing.T) {
+			cause := fmt.Errorf("verify: %w: org.qmux.firmware %s", sentinel, testName)
+			err := &client.VerifyError{Reason: sentinel, Err: cause}
+
+			if want := "verify: " + name + ": org.qmux.firmware " + testName; err.Error() != want {
+				t.Errorf("Error() = %q, want %q", err.Error(), want)
+			}
+		})
+	}
+}
+
+func TestVerifyErrorWithACodecReasonGivesTheTextOfErr(t *testing.T) { // FR-client-25
+	cause := fmt.Errorf("verify %s: %w", testName, codec.ErrTooLarge)
+	err := &client.VerifyError{Reason: codec.ErrTooLarge, Err: cause}
+
+	if err.Error() != cause.Error() {
+		t.Errorf("Error() = %q, want the text of Err %q", err.Error(), cause.Error())
 	}
 }

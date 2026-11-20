@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/Crank-Git/qmux/pkg/protocol"
 	"github.com/Crank-Git/qmux/pkg/security"
@@ -113,13 +114,23 @@ type VerifyError struct {
 	Err error
 }
 
-// Error returns the text of Err, which qmuxctl prints after "error: ". Without Err,
-// the text names Reason.
+// Error returns the text that qmuxctl prints after "error: ".
+//
+// When Reason is a security sentinel, the text is the text of Err with the sentinel
+// text replaced by the sentinel name, for example
+// "verify: ErrExpired: org.qmux.firmware _v1.device42.fleet.example.". A researcher
+// then reads the failed check by its Go name. For every other Reason, the text is the
+// text of Err. Without Err, the text names Reason.
 func (e *VerifyError) Error() string {
-	if e.Err != nil {
-		return e.Err.Error()
+	if e.Err == nil {
+		return "verify: " + fmt.Sprint(e.Reason)
 	}
-	return "verify: " + fmt.Sprint(e.Reason)
+	for _, s := range sentinels {
+		if e.Reason == s.err {
+			return strings.Replace(e.Err.Error(), s.err.Error(), s.name, 1)
+		}
+	}
+	return e.Err.Error()
 }
 
 // Unwrap returns Reason and Err, so that errors.Is finds the sentinel in each.
@@ -127,19 +138,25 @@ func (e *VerifyError) Unwrap() []error {
 	return []error{e.Reason, e.Err}
 }
 
-// sentinels are the errors of security.Verifier.Verify, one for each check.
-var sentinels = []error{
-	security.ErrNotDeterministic, security.ErrUnsigned, security.ErrAlgorithm,
-	security.ErrUnknownKey, security.ErrProtocolNotAllowed, security.ErrBadSignature,
-	security.ErrNotYetValid, security.ErrExpired, security.ErrWindowTooLong, security.ErrReplay,
+// sentinels are the errors of security.Verifier.Verify, one for each check, with the
+// Go name that VerifyError.Error prints.
+var sentinels = []struct {
+	err  error
+	name string
+}{
+	{security.ErrNotDeterministic, "ErrNotDeterministic"}, {security.ErrUnsigned, "ErrUnsigned"},
+	{security.ErrAlgorithm, "ErrAlgorithm"}, {security.ErrUnknownKey, "ErrUnknownKey"},
+	{security.ErrProtocolNotAllowed, "ErrProtocolNotAllowed"}, {security.ErrBadSignature, "ErrBadSignature"},
+	{security.ErrNotYetValid, "ErrNotYetValid"}, {security.ErrExpired, "ErrExpired"},
+	{security.ErrWindowTooLong, "ErrWindowTooLong"}, {security.ErrReplay, "ErrReplay"},
 }
 
 // reason returns the sentinel that err wraps. It returns the codec error that err wraps
 // when err holds no sentinel, because Verify wraps it with the QNAME only.
 func reason(err error) error {
 	for _, s := range sentinels {
-		if errors.Is(err, s) {
-			return s
+		if errors.Is(err, s.err) {
+			return s.err
 		}
 	}
 	if u := errors.Unwrap(err); u != nil {
