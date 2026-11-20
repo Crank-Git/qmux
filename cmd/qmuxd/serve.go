@@ -67,12 +67,17 @@ func runServe(ctx context.Context, name string, args []string, stdout, stderr io
 	return d.serve(ctx, stderr)
 }
 
+// observationLogMode is the file mode of a new observation log (FR-qmuxd-36).
+const observationLogMode = 0o644
+
 // daemon is a loaded configuration and the server that it built.
 type daemon struct {
 	srv    *server.Server
 	cfg    config
 	logger *slog.Logger
 	keyID  [8]byte
+	// obsLog is the open observation log, or nil when the configuration has none.
+	obsLog *os.File
 }
 
 // newDaemon loads the configuration file at path and returns a signing server with its
@@ -80,8 +85,10 @@ type daemon struct {
 // the daemon writes to stderr with the log_level and log_format of the file.
 //
 // The error names the JSON path of the first configuration error. It also covers a
-// signing key that does not load and a registration that the registry rejects.
-func newDaemon(path, listen string, stderr io.Writer) (*daemon, error) {
+// signing key that does not load, an observation log that does not open, and a
+// registration that the registry rejects. On an error, newDaemon closes the
+// observation log.
+func newDaemon(path, listen string, stderr io.Writer) (d *daemon, err error) {
 	cfg, err := loadConfig(path, listen)
 	if err != nil {
 		return nil, err
@@ -101,6 +108,24 @@ func newDaemon(path, listen string, stderr io.Writer) (*daemon, error) {
 		logger.Warn(string(warning), "path", cfg.SigningKey)
 	}
 	signer := &security.Signer{Key: key, Validity: cfg.SignatureValidity}
+
+	var obsLog *os.File
+	// A nil *os.File in an io.Writer is not a nil io.Writer, so obsWriter stays nil
+	// when the configuration has no observation log.
+	var obsWriter io.Writer
+	if cfg.ObservationLog != "" {
+		// O_APPEND keeps the lines of earlier runs (FR-qmuxd-36).
+		obsLog, err = os.OpenFile(cfg.ObservationLog, os.O_WRONLY|os.O_CREATE|os.O_APPEND, observationLogMode)
+		if err != nil {
+			return nil, fmt.Errorf("observation_log: %w", err)
+		}
+		obsWriter = obsLog
+		defer func() {
+			if err != nil {
+				err = errors.Join(err, obsLog.Close())
+			}
+		}()
+	}
 	srv := server.NewServer(server.ServerConfig{
 		Address:        cfg.Listen,
 		Zones:          cfg.Zones,
@@ -111,6 +136,7 @@ func newDaemon(path, listen string, stderr io.Writer) (*daemon, error) {
 		Registry:       cfg.Registry,
 		Signer:         signer,
 		RateLimit:      cfg.RateLimit,
+		ObservationLog: obsWriter,
 	})
 	for i, p := range cfg.Protocols {
 		path := fmt.Sprintf("protocols[%d]", i)
@@ -129,12 +155,27 @@ func newDaemon(path, listen string, stderr io.Writer) (*daemon, error) {
 			return nil, fmt.Errorf("discovery: %w", err)
 		}
 	}
-	return &daemon{srv: srv, cfg: cfg, logger: logger, keyID: security.KeyID(key.Public().(ed25519.PublicKey))}, nil
+	return &daemon{
+		srv: srv, cfg: cfg, logger: logger, obsLog: obsLog,
+		keyID: security.KeyID(key.Public().(ed25519.PublicKey)),
+	}, nil
 }
 
 // serve binds the UDP and TCP listeners, logs the ready record and serves until ctx ends
-// or a signal arrives. It returns exitFailure when a listener does not bind.
-func (d *daemon) serve(ctx context.Context, stderr io.Writer) int {
+// or a signal arrives. It returns exitFailure when a listener does not bind or when the
+// observation log does not close. serve closes the observation log before it returns.
+func (d *daemon) serve(ctx context.Context, stderr io.Writer) (code int) {
+	if d.obsLog != nil {
+		defer func() {
+			// Close reports a write that the file system did not complete.
+			if err := d.obsLog.Close(); err != nil {
+				_, _ = fmt.Fprintf(stderr, "qmuxd: observation_log: %v\n", err)
+				if code == exitResult {
+					code = exitFailure
+				}
+			}
+		}()
+	}
 	logger := d.logger
 	pc, err := net.ListenPacket("udp", d.cfg.Listen)
 	if err != nil {

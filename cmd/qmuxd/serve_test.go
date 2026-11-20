@@ -293,6 +293,42 @@ func TestServeExitsTwoWhenTheSigningKeyDoesNotLoad(t *testing.T) {
 	}
 }
 
+func TestServeKeepsTheEarlierObservationLogLinesAfterARestart(t *testing.T) { // FR-qmuxd-36
+	cfg := baseConfig("127.0.0.1:0")
+	cfg["observation_log"] = "observations.jsonl"
+	dir := filepath.Dir(writeConfigFile(t, cfg))
+	for run := 1; run <= 2; run++ {
+		p := startQmuxd(t, dir)
+		addr := readyAddr(t, p.waitReady(t))
+		if err := queryDiscovery(addr, "udp"); err != nil {
+			t.Fatalf("run %d: %v", run, err)
+		}
+		if err := p.cmd.Process.Signal(syscall.SIGTERM); err != nil {
+			t.Fatalf("Signal: %v", err)
+		}
+		if code := p.waitExit(t, startTimeout); code != 0 {
+			t.Fatalf("run %d: exit code = %d, want 0", run, code)
+		}
+		b, err := os.ReadFile(filepath.Join(dir, "observations.jsonl"))
+		if err != nil {
+			t.Fatalf("run %d: ReadFile: %v", run, err)
+		}
+		// Each run sends one query, so each run adds one line.
+		if got := bytes.Count(b, []byte("\n")); got != run {
+			t.Errorf("after run %d: %d lines, want %d:\n%s", run, got, run, b)
+		}
+	}
+}
+
+func TestServeExitsTwoWhenTheObservationLogDoesNotOpen(t *testing.T) {
+	cfg := baseConfig(heldAddress(t))
+	cfg["observation_log"] = "missing-dir/observations.jsonl"
+	p := startQmuxd(t, filepath.Dir(writeConfigFile(t, cfg)))
+	if code := p.waitExit(t, startTimeout); code != 2 {
+		t.Errorf("exit code = %d, want 2", code)
+	}
+}
+
 func TestServeExitsSixtyFourOnAUsageError(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"qmuxd", "serve", "extra"}, &stdout, &stderr); code != 64 {

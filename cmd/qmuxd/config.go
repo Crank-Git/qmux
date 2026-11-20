@@ -67,9 +67,6 @@ type config struct {
 	Registry          registry.Options
 	Discovery         discoveryConfig
 	// ObservationLog is the path of the observation log. Empty disables it.
-	//
-	// TODO(#59): Open the file and set server.ServerConfig.ObservationLog after #58
-	// adds the field.
 	ObservationLog string
 	LogLevel       slog.Level
 	LogFormat      string
