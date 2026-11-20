@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -98,11 +99,12 @@ type record struct {
 }
 
 // fileConfig is the configuration file as it decodes. Each field holds the default of
-// the schema table before the decode. The nested objects stay raw, so that each error
-// names its JSON path.
+// the schema table before the decode. The nested objects and the arrays stay raw, so
+// that each error names its JSON path. Go 1.25 encoding/json leaves the array index out
+// of the path of a type error, so decodeArray adds it.
 type fileConfig struct {
 	Listen               string            `json:"listen"`
-	Zones                []string          `json:"zones"`
+	Zones                []json.RawMessage `json:"zones"`
 	SigningKey           string            `json:"signing_key"`
 	SignatureValidity    string            `json:"signature_validity"`
 	TTL                  uint32            `json:"ttl"`
@@ -127,7 +129,7 @@ type fileRateLimit struct {
 // fileProtocol is one entry of the protocols field as it decodes.
 type fileProtocol struct {
 	ID       string                     `json:"id"`
-	Versions []uint16                   `json:"versions"`
+	Versions []json.RawMessage          `json:"versions"`
 	Class    uint16                     `json:"class"`
 	Type     uint16                     `json:"type"`
 	Records  map[string]json.RawMessage `json:"records"`
@@ -188,7 +190,11 @@ func (f *fileConfig) serverFields(cfg *config, dir string) error {
 		return fmt.Errorf("listen: %w", err)
 	}
 	cfg.Listen = f.Listen
-	zones, err := validZones(f.Zones)
+	names, err := decodeArray[string](f.Zones, "zones")
+	if err != nil {
+		return err
+	}
+	zones, err := validZones(names)
 	if err != nil {
 		return err
 	}
@@ -307,14 +313,18 @@ func validProtocol(raw json.RawMessage, path string, zones []string) (protocolCo
 	if err := decodeStrict(raw, &fp, path); err != nil {
 		return protocolConfig{}, err
 	}
-	for i, v := range fp.Versions {
-		if v == 0 || (i > 0 && v <= fp.Versions[i-1]) {
-			return protocolConfig{}, fmt.Errorf("%s.versions: %v is not a sorted list of unique versions 1 to 65535", path, fp.Versions)
+	versions, err := decodeArray[uint16](fp.Versions, path+".versions")
+	if err != nil {
+		return protocolConfig{}, err
+	}
+	for i, v := range versions {
+		if v == 0 || (i > 0 && v <= versions[i-1]) {
+			return protocolConfig{}, fmt.Errorf("%s.versions: %v is not a sorted list of unique versions 1 to 65535", path, versions)
 		}
 	}
 	p := protocolConfig{
 		Key:     protocol.ProtocolKey{Class: fp.Class, Type: fp.Type},
-		Info:    protocol.Info{ID: fp.ID, Versions: fp.Versions},
+		Info:    protocol.Info{ID: fp.ID, Versions: versions},
 		Records: make(map[string]record, len(fp.Records)),
 	}
 	// The sorted order makes the first error the same at each start.
@@ -327,7 +337,7 @@ func validProtocol(raw json.RawMessage, path string, zones []string) (protocolCo
 		if _, ok := p.Records[name]; ok {
 			return protocolConfig{}, fmt.Errorf("%s: %s repeats another record QNAME of the protocol, without regard to case", rpath, qname)
 		}
-		r, err := validRecord(fp.Records[qname], rpath, fp.Versions)
+		r, err := validRecord(fp.Records[qname], rpath, versions)
 		if err != nil {
 			return protocolConfig{}, err
 		}
@@ -431,7 +441,11 @@ func decodeStrict(data []byte, v any, path string) error {
 	case err == nil:
 		return nil
 	case errors.As(err, &typeErr):
-		return fmt.Errorf("%s: %s is not a valid %s", joinPath(path, typeErr.Field), typeErr.Value, typeErr.Type)
+		msg := fmt.Sprintf("%s is not a valid %s", typeErr.Value, jsonType(typeErr.Type))
+		if p := joinPath(path, typeErr.Field); p != "" {
+			msg = p + ": " + msg
+		}
+		return errors.New(msg)
 	case errors.As(err, &syntaxErr):
 		err = fmt.Errorf("offset %d: %w", syntaxErr.Offset, err)
 	}
@@ -441,9 +455,41 @@ func decodeStrict(data []byte, v any, path string) error {
 	return fmt.Errorf("%s: %w", path, err)
 }
 
+// jsonType returns the JSON name of the Go type t: array for a slice and object for a
+// struct or a map. Other types keep their Go name, which states the range of a number.
+// The Go name of json.RawMessage differs between Go versions, so it never appears.
+func jsonType(t reflect.Type) string {
+	switch t.Kind() {
+	case reflect.Slice, reflect.Array:
+		return "array"
+	case reflect.Struct, reflect.Map:
+		return "object"
+	default:
+		return t.String()
+	}
+}
+
+// decodeArray decodes each element of the array raw at the JSON path path into a T.
+// An error names the element as path[i]. A nil raw gives a nil slice.
+func decodeArray[T any](raw []json.RawMessage, path string) ([]T, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	out := make([]T, len(raw))
+	for i, elem := range raw {
+		if err := decodeStrict(elem, &out[i], fmt.Sprintf("%s[%d]", path, i)); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
 // joinPath appends the dotted field path of encoding/json to the JSON path path. A
 // numeric element is an array index, so it becomes "[n]".
 func joinPath(path, field string) string {
+	if field == "" {
+		return path
+	}
 	var b strings.Builder
 	b.WriteString(path)
 	for _, elem := range strings.Split(field, ".") {
