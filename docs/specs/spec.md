@@ -805,3 +805,6 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   (#137). A client with trust anchors returns a `VerifyError` and no result for any failed
   check, including bytes that do not decode. Only `expires_at` ends a manifest cache
   entry. `client.Result.Raw` holds the verified envelope bytes.
+- 2026-11-20 — Signing and freshness is `built` (#140). The security review found that
+  `strings.ToLower` folds Unicode. `pkg/security` now folds QNAMEs with ASCII rules (RFC 4343,
+  #141). #142 applies the same fold in every package.

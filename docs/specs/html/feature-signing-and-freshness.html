@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: Signing and freshness</h1>
-<p class="meta">Epic 6: Signing and freshness &nbsp; <span class="badge">issued</span></p>
+<p class="meta">Epic 6: Signing and freshness &nbsp; <span class="badge">built</span></p>
 <h3 id="signing-and-freshness-purpose">Purpose</h3>
 <p>DNS gives no integrity and no authentication. This feature makes every envelope verifiable. The authoritative server signs each envelope at answer time with an Ed25519 key. The signature binds the QNAME, the class, the type, the protocol ID and the validity window. A client with trust anchors verifies every envelope before it returns any field. It rejects each envelope that is tampered, signed by an unknown key, outside its validity window, older than one it already accepted, or copied to another name or protocol key.</p>
 <p>This epic delivers Phase 3 of the brief: clients reject tampered, expired or incorrectly signed metadata. It also adds the manifest cache, key files, trust anchor files and <code>qmuxctl keygen</code>.</p>

@@ -2,7 +2,7 @@
 id: signing-and-freshness
 feature: Signing and freshness
 epic: "Epic 6: Signing and freshness"
-status: issued
+status: built
 issues: [7, 43, 44, 45, 46, 47, 48]
 mockups: []
 ---
