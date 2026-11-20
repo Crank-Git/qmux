@@ -119,10 +119,10 @@ func TestDiscoverInQueriesAtTheINKey(t *testing.T) { // FR-discovery-35
 }
 
 func TestDiscoverClassAndTypeOverrideTheDiscoveryKey(t *testing.T) { // FR-discovery-35
-	key := protocol.ProtocolKey{Class: 65290, Type: 65000}
+	key := protocol.ProtocolKey{Class: 65290, Type: 65500}
 	d := startDiscoveryServer(t, key, nil)
 	code, _, stderr := discoverCmd("--server", d.addr, "--name", testZone, "--insecure",
-		"--class", "65290", "--type", "65000")
+		"--class", "65290", "--type", "65500")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0; stderr = %q", code, stderr)
 	}
