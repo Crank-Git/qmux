@@ -56,14 +56,18 @@ type ServerConfig struct {
 
 // Server is the QMux DNS server.
 type Server struct {
-	addr      net.Addr
-	addrMu    sync.RWMutex
-	cfg       ServerConfig
-	registry  *registry.Registry
-	udpServer *dns.Server
-	tcpServer *dns.Server
-	mu        sync.Mutex
-	wg        *sync.WaitGroup
+	addr          net.Addr
+	addrMu        sync.RWMutex
+	cfg           ServerConfig
+	registry      *registry.Registry
+	udpServer     *dns.Server
+	tcpServer     *dns.Server
+	mu            sync.Mutex
+	wg            sync.WaitGroup
+	srvCtx        context.Context
+	srvCtxMu      sync.RWMutex
+	handlerCancel func()
+	handlerCancelMu sync.RWMutex
 }
 
 var (
@@ -98,6 +102,11 @@ func NewServer(cfg ServerConfig) *Server {
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
+	}
+
+	// FR-server-21: log warning when Zones is empty.
+	if len(cfg.Zones) == 0 {
+		cfg.Logger.Warn("no zones configured; accepting every QNAME")
 	}
 
 	return &Server{
@@ -180,8 +189,6 @@ func (s *Server) Serve(ctx context.Context, pc net.PacketConn, l net.Listener) e
 
 	s.mu.Lock()
 
-	var wg sync.WaitGroup
-
 	// Set up the DNS handler.
 	handler := &serverHandler{s: s}
 
@@ -197,9 +204,9 @@ func (s *Server) Serve(ctx context.Context, pc net.PacketConn, l net.Listener) e
 			MsgAcceptFunc: msgAcceptFunc(),
 		}
 
-		wg.Add(1)
+		s.wg.Add(1)
 		go func() {
-			defer wg.Done()
+			defer s.wg.Done()
 			s.udpServer.ActivateAndServe()
 		}()
 
@@ -220,9 +227,9 @@ func (s *Server) Serve(ctx context.Context, pc net.PacketConn, l net.Listener) e
 			MsgAcceptFunc: msgAcceptFunc(),
 		}
 
-		wg.Add(1)
+		s.wg.Add(1)
 		go func() {
-			defer wg.Done()
+			defer s.wg.Done()
 			s.tcpServer.ActivateAndServe()
 		}()
 
@@ -238,22 +245,28 @@ func (s *Server) Serve(ctx context.Context, pc net.PacketConn, l net.Listener) e
 		}
 	}
 
-	s.wg = &wg
+	s.srvCtxMu.Lock()
+	s.srvCtx = ctx
+	s.srvCtxMu.Unlock()
 	s.mu.Unlock()
 
 	// Wait for context cancellation.
 	<-ctx.Done()
 
-	// Graceful shutdown: use ShutdownContext with the grace period.
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), s.cfg.ShutdownGrace)
-	defer shutdownCancel()
+	// Graceful shutdown: cancel in-flight handler contexts first,
+	// then shut down the DNS servers.
+	s.handlerCancelMu.Lock()
+	if s.handlerCancel != nil {
+		s.handlerCancel()
+	}
+	s.handlerCancelMu.Unlock()
 
 	s.mu.Lock()
 	if s.udpServer != nil {
-		_ = s.udpServer.ShutdownContext(shutdownCtx)
+		_ = s.udpServer.ShutdownContext(context.Background())
 	}
 	if s.tcpServer != nil {
-		_ = s.tcpServer.ShutdownContext(shutdownCtx)
+		_ = s.tcpServer.ShutdownContext(context.Background())
 	}
 	s.mu.Unlock()
 
@@ -302,8 +315,48 @@ func (h *serverHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		return
 	}
 
+	// FR-server-18: BADVERS for EDNS version above 0.
+	edns := req.IsEdns0()
+	if edns != nil && edns.Version() > 0 {
+		resp := new(dns.Msg)
+		resp.SetReply(req)
+		resp.SetEdns0(defaultUDPSize, false)
+		resp.Rcode = dns.RcodeBadVers
+		_ = w.WriteMsg(resp)
+		return
+	}
+
+	// FR-server-16: FORMERR for query > 512 bytes without EDNS(0).
+	// FR-server-17: FORMERR for query > 1232 bytes with EDNS(0).
+	msgLen := req.Len()
+	if edns == nil && msgLen > dns.MinMsgSize {
+		resp := new(dns.Msg)
+		resp.SetReply(req)
+		resp.Rcode = dns.RcodeFormatError
+		_ = w.WriteMsg(resp)
+		return
+	}
+	if edns != nil && msgLen > int(defaultUDPSize) {
+		resp := new(dns.Msg)
+		resp.SetReply(req)
+		resp.Rcode = dns.RcodeFormatError
+		_ = w.WriteMsg(resp)
+		return
+	}
+
 	q := req.Question[0]
 	key := protocol.ProtocolKey{Class: q.Qclass, Type: q.Qtype}
+
+	// FR-server-19/20: Zone matching.
+	zone := zoneMatch(s.cfg.Zones, q.Name)
+	if zone == "" {
+		// FR-server-19: REFUSED for QNAME outside every configured zone.
+		resp := new(dns.Msg)
+		resp.SetReply(req)
+		resp.Rcode = dns.RcodeRefused
+		_ = w.WriteMsg(resp)
+		return
+	}
 
 	// Look up the registration.
 	reg, ok := s.registry.Lookup(key)
@@ -322,15 +375,34 @@ func (h *serverHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 		transport = "tcp"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), s.cfg.HandlerTimeout)
-	defer cancel()
+	// Create a cancellable handler context. The timeout is derived from the
+	// server context so that server shutdown propagates to in-flight handlers.
+	s.srvCtxMu.RLock()
+	srvCtx := s.srvCtx
+	s.srvCtxMu.RUnlock()
+
+	if srvCtx == nil {
+		srvCtx = context.Background()
+	}
+	hctx, hctxCancel := context.WithCancel(srvCtx)
+	ctx, cancel := context.WithTimeout(hctx, s.cfg.HandlerTimeout)
+
+	// Store the cancel function so shutdown can abort in-flight handlers.
+	s.handlerCancelMu.Lock()
+	s.handlerCancel = hctxCancel
+	s.handlerCancelMu.Unlock()
+
+	defer func() {
+		cancel()
+		hctxCancel()
+	}()
 
 	request := &protocol.Request{
 		QName:      q.Name,
 		Key:        key,
 		Version:    0,
 		Labels:     dns.SplitDomainName(q.Name),
-		Zone:       ".",
+		Zone:       zone,
 		Source:     netip.MustParseAddrPort(w.RemoteAddr().String()),
 		Transport:  transport,
 		UDPSize:    0,
@@ -398,7 +470,26 @@ func (h *serverHandler) ServeDNS(w dns.ResponseWriter, req *dns.Msg) {
 	_ = w.WriteMsg(resp)
 }
 
-// msgAcceptFunc returns a dns.MsgAcceptFunc that rejects NOTIFY and additional RRs.
+// zoneMatch returns the longest matching zone for a QNAME, or an empty string
+// when no zone matches. A zone matches when the QNAME equals the zone or ends
+// with "." plus the zone.
+func zoneMatch(zones []string, qname string) string {
+	if len(zones) == 0 {
+		return "."
+	}
+	var best string
+	for _, z := range zones {
+		if qname == z || len(qname) >= len(z)+1 && qname[len(qname)-len(z)-1:] == "."+z {
+			if len(z) > len(best) {
+				best = z
+			}
+		}
+	}
+	return best
+}
+
+// msgAcceptFunc returns a dns.MsgAcceptFunc that rejects NOTIFY and multiple
+// additional RRs. A single additional RR is allowed (for EDNS(0) OPT RR).
 //
 // The Header struct represents the raw DNS wire header. The QR bit is bit 15
 // (0x8000). The opcode occupies bits 11–14.
@@ -415,8 +506,9 @@ func msgAcceptFunc() dns.MsgAcceptFunc {
 			return dns.MsgRejectNotImplemented
 		}
 
-		// Reject messages with additional RRs.
-		if header.Arcount > 0 {
+		// Reject messages with more than one additional RR.
+		// One additional RR is allowed for EDNS(0) OPT RR.
+		if header.Arcount > 1 {
 			return dns.MsgReject
 		}
 
