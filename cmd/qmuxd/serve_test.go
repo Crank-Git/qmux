@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -45,23 +44,12 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// writeConfig writes the test signing key and a configuration file qmuxd.json with
-// listen into a new directory, and returns the directory. The signing_key path is
+// writeConfig writes the test signing key and the base configuration file qmuxd.json
+// with listen into a new directory, and returns the directory. The signing_key path is
 // relative, so it resolves from the directory of the file.
 func writeConfig(t *testing.T, listen string) string {
 	t.Helper()
-	dir := t.TempDir()
-	if err := security.WritePrivateKey(filepath.Join(dir, "qmuxd.key"), ed25519.NewKeyFromSeed(testSeed)); err != nil {
-		t.Fatalf("WritePrivateKey: %v", err)
-	}
-	cfg, err := json.Marshal(map[string]any{"listen": listen, "zones": []string{testZone}, "signing_key": "qmuxd.key"})
-	if err != nil {
-		t.Fatalf("Marshal: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "qmuxd.json"), cfg, 0o600); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-	return dir
+	return filepath.Dir(writeConfigFile(t, baseConfig(listen)))
 }
 
 // qmuxdProcess is one qmuxd process that a test started.
@@ -235,7 +223,8 @@ func TestServeReadyRecordHoldsListenZonesKeyIDAndProtocols(t *testing.T) { // FR
 		"listen=127.0.0.1:",
 		"zones=[" + testZone + "]",
 		fmt.Sprintf("key_id=%x", id),
-		"protocols=1",
+		// The base configuration file has one protocol, and discovery is the second.
+		"protocols=2",
 	} {
 		if !strings.Contains(line, want) {
 			t.Errorf("ready record %q has no %q", line, want)

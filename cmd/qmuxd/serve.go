@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/ed25519"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -12,11 +11,11 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 
 	"github.com/Crank-Git/qmux/pkg/discovery"
+	"github.com/Crank-Git/qmux/pkg/protocol"
 	"github.com/Crank-Git/qmux/pkg/security"
 	"github.com/Crank-Git/qmux/pkg/server"
 )
@@ -31,15 +30,6 @@ const (
 
 // defaultListen is the listen address when the configuration file has no listen field.
 const defaultListen = "127.0.0.1:5353"
-
-// config is the configuration file of qmuxd serve.
-//
-// TODO(#55): Replace this minimal schema with the full schema of the spec.
-type config struct {
-	Listen     string   `json:"listen"`
-	Zones      []string `json:"zones"`
-	SigningKey string   `json:"signing_key"`
-}
 
 // runServe runs qmuxd serve with the flags in args and returns the exit code. It serves
 // until ctx ends or the process receives SIGINT or SIGTERM.
@@ -69,33 +59,41 @@ func runServe(ctx context.Context, name string, args []string, stdout, stderr io
 		return exitUsage
 	}
 
-	logger := slog.New(slog.NewTextHandler(stderr, nil))
-	d, err := newDaemon(path, listen, logger)
+	d, err := newDaemon(path, listen, stderr)
 	if err != nil {
 		// The exit code is 2 whether or not stderr accepts the write.
 		_, _ = fmt.Fprintf(stderr, "qmuxd: config: %v\n", err)
 		return exitConfig
 	}
-	return d.serve(ctx, logger, stderr)
+	return d.serve(ctx, stderr)
 }
 
 // daemon is a loaded configuration and the server that it built.
 type daemon struct {
-	srv   *server.Server
-	cfg   config
-	keyID [8]byte
+	srv    *server.Server
+	cfg    config
+	logger *slog.Logger
+	keyID  [8]byte
 }
 
 // newDaemon loads the configuration file at path and returns a signing server with its
-// registrations. A non-empty listen replaces the listen field of the file.
-func newDaemon(path, listen string, logger *slog.Logger) (*daemon, error) {
-	cfg, err := loadConfig(path)
+// registrations. A non-empty listen replaces the listen field of the file. The logger of
+// the daemon writes to stderr with the log_level and log_format of the file.
+//
+// The error names the JSON path of the first configuration error. It also covers a
+// signing key that does not load and a registration that the registry rejects.
+func newDaemon(path, listen string, stderr io.Writer) (*daemon, error) {
+	cfg, err := loadConfig(path, listen)
 	if err != nil {
 		return nil, err
 	}
-	if listen != "" {
-		cfg.Listen = listen
+	opts := &slog.HandlerOptions{Level: cfg.LogLevel}
+	var h slog.Handler = slog.NewTextHandler(stderr, opts)
+	if cfg.LogFormat == "json" {
+		h = slog.NewJSONHandler(stderr, opts)
 	}
+	logger := slog.New(h)
+
 	key, warning, err := security.LoadPrivateKey(cfg.SigningKey)
 	if err != nil {
 		return nil, fmt.Errorf("signing_key: %w", err)
@@ -106,40 +104,39 @@ func newDaemon(path, listen string, logger *slog.Logger) (*daemon, error) {
 	srv := server.NewServer(server.ServerConfig{
 		Address: cfg.Listen,
 		Zones:   cfg.Zones,
-		Logger:  logger,
-		Signer:  &security.Signer{Key: key},
+		// TODO(#155): ServerConfig applies the default 60 to TTL 0, so "ttl": 0
+		// gives answers with TTL 60.
+		TTL:            cfg.TTL,
+		UDPSize:        cfg.UDPSize,
+		HandlerTimeout: cfg.HandlerTimeout,
+		Logger:         logger,
+		Registry:       cfg.Registry,
+		Signer:         &security.Signer{Key: key, Validity: cfg.SignatureValidity},
+		RateLimit:      cfg.RateLimit,
 	})
-	for _, z := range cfg.Zones {
-		if err := discovery.Register(srv, z, discovery.Options{}); err != nil {
-			return nil, fmt.Errorf("zones: %w", err)
+	// TODO(#56): Answer the records of each protocol with the static-record handler.
+	notFound := protocol.HandlerFunc(func(context.Context, *protocol.Request) (*protocol.Response, error) {
+		return &protocol.Response{Status: protocol.StatusNotFound}, nil
+	})
+	for i, p := range cfg.Protocols {
+		if err := srv.RegisterProtocol(p.Key, p.Info, notFound); err != nil {
+			return nil, fmt.Errorf("protocols[%d]: %w", i, err)
 		}
 	}
-	return &daemon{srv: srv, cfg: cfg, keyID: security.KeyID(key.Public().(ed25519.PublicKey))}, nil
-}
-
-// loadConfig decodes the configuration file at path. It rejects an unknown field, and it
-// resolves a relative signing_key path from the directory of the file.
-func loadConfig(path string) (config, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return config{}, fmt.Errorf("open: %w", err)
+	if cfg.Discovery.Enabled {
+		// One registration serves every zone, because the registry holds one protocol
+		// key for the discovery protocol ID.
+		if err := discovery.RegisterZones(srv, cfg.Zones, discovery.Options{InClass: cfg.Discovery.InClass}); err != nil {
+			return nil, fmt.Errorf("discovery: %w", err)
+		}
 	}
-	defer f.Close() //nolint:errcheck // The file is open for reading only.
-	dec := json.NewDecoder(f)
-	dec.DisallowUnknownFields()
-	cfg := config{Listen: defaultListen}
-	if err := dec.Decode(&cfg); err != nil {
-		return config{}, fmt.Errorf("%s: %w", path, err)
-	}
-	if cfg.SigningKey != "" && !filepath.IsAbs(cfg.SigningKey) {
-		cfg.SigningKey = filepath.Join(filepath.Dir(path), cfg.SigningKey)
-	}
-	return cfg, nil
+	return &daemon{srv: srv, cfg: cfg, logger: logger, keyID: security.KeyID(key.Public().(ed25519.PublicKey))}, nil
 }
 
 // serve binds the UDP and TCP listeners, logs the ready record and serves until ctx ends
 // or a signal arrives. It returns exitFailure when a listener does not bind.
-func (d *daemon) serve(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
+func (d *daemon) serve(ctx context.Context, stderr io.Writer) int {
+	logger := d.logger
 	pc, err := net.ListenPacket("udp", d.cfg.Listen)
 	if err != nil {
 		// The exit code is 1 whether or not stderr accepts the write.
