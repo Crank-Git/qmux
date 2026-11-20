@@ -11,12 +11,20 @@ linters:
     - unused
     - gocyclo
     - nestif
+    - depguard
 
   settings:
     gocyclo:
       min-complexity: 15
     nestif:
       min-complexity: 4
+    depguard:
+      rules:
+        miekg-only-in-transport:
+          files: ["$all", "!**/pkg/transport/**"]
+          deny:
+            - pkg: github.com/miekg/dns
+              desc: Only pkg/transport imports miekg/dns. See ADR 0001 and ADR 0005.
 
 formatters:
   enable:
