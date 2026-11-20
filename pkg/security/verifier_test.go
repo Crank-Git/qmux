@@ -35,7 +35,7 @@ type signedEnvelope struct {
 	pk    protocol.ProtocolKey
 }
 
-func newSignedEnvelope(t *testing.T) *signedEnvelope {
+func newSignedEnvelope(t testing.TB) *signedEnvelope {
 	t.Helper()
 	key := testKey(t)
 	id := KeyID(key.Public().(ed25519.PublicKey))
@@ -62,7 +62,7 @@ func newSignedEnvelope(t *testing.T) *signedEnvelope {
 
 // raw signs the envelope over the signing input of s.qname and s.pk, and returns
 // the encoded envelope.
-func (s *signedEnvelope) raw(t *testing.T) []byte {
+func (s *signedEnvelope) raw(t testing.TB) []byte {
 	t.Helper()
 	if s.env.Signature != nil {
 		in, err := signingInput(s.env, s.qname, s.pk)
@@ -78,7 +78,7 @@ func (s *signedEnvelope) raw(t *testing.T) []byte {
 	return b
 }
 
-func testVerifier(t *testing.T) *Verifier {
+func testVerifier(t testing.TB) *Verifier {
 	t.Helper()
 	pub := testKey(t).Public().(ed25519.PublicKey)
 	return &Verifier{
