@@ -63,7 +63,8 @@ type ServerConfig struct {
 	// ShutdownGrace is the time that the server waits for in-flight handlers after its
 	// context ends. The default is 5s.
 	ShutdownGrace time.Duration
-	// Logger receives the log records. The default is slog.Default().
+	// Logger receives the log records. The default is slog.Default(). The server logs
+	// one info record "query" per answered query. The record never holds payload bytes.
 	Logger *slog.Logger
 	// Registry holds the options of the registry of the server.
 	Registry registry.Options
@@ -203,17 +204,17 @@ func (s *Server) serveQuery(ctx context.Context, q *transport.Query, w transport
 		return
 	}
 	if rcode, ok := s.checkHeader(q); !ok {
-		s.write(w, transport.Answer{RCode: rcode})
+		s.write(ctx, q, w, transport.Answer{RCode: rcode})
 		return
 	}
 	zone, ok := s.matchZone(q.Name)
 	if !ok {
-		s.write(w, transport.Answer{RCode: transport.RCodeRefused})
+		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeRefused})
 		return
 	}
 	reg, ok := s.reg.Lookup(q.Key)
 	if !ok {
-		s.write(w, transport.Answer{RCode: transport.RCodeRefused})
+		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeRefused})
 		return
 	}
 	s.dispatch(ctx, q, zone, reg, w)
@@ -261,10 +262,28 @@ func (s *Server) matchZone(name string) (string, bool) {
 	return best, found
 }
 
-// write sends a through w. A write error ends only this query, so the server logs it
-// at debug level and continues.
-func (s *Server) write(w transport.Writer, a transport.Answer) {
-	if _, err := w.Write(a); err != nil {
+// write sends a through w as the response to q, and logs one info record for q. A write
+// error ends only this query, so the server logs it at debug level and continues.
+//
+// The record takes the RCODE and the size from transport.Sent, because the transport
+// can change the RCODE after the size rules. The record holds no payload bytes.
+func (s *Server) write(ctx context.Context, q *transport.Query, w transport.Writer, a transport.Answer) {
+	sent, err := w.Write(a)
+	if err != nil {
 		s.cfg.Logger.Debug("server: write response", "error", err)
+		return
 	}
+	s.cfg.Logger.LogAttrs(ctx, slog.LevelInfo, "query",
+		slog.String("qname", q.Name),
+		slog.Int("qclass", int(q.Key.Class)),
+		slog.Int("qtype", int(q.Key.Type)),
+		slog.String("transport", q.Transport),
+		slog.String("source", q.Source.String()),
+		slog.String("rcode", sent.RCode.String()),
+		// Epic 4 sets the status from the envelope. A raw payload has no status.
+		slog.String("status", ""),
+		slog.Int("bytes_in", q.WireSize),
+		slog.Int("bytes_out", sent.WireSize),
+		slog.Float64("duration_ms", float64(time.Since(q.ReceivedAt))/float64(time.Millisecond)),
+	)
 }
