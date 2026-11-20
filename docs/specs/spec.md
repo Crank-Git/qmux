@@ -782,3 +782,5 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   loops and exports only QMux types. #88 and #89 build it. Foundation is `built` (#91).
 - 2026-11-20 — The user ruled that the registry always rejects type 65535, also with
   `AllowNonPrivateTypes`. FR-registry-22 lists it (#20).
+- 2026-11-20 — Protocol registry is `built` (#97). The batch also carried #88, the server
+  side of the transport API, because #88 needs `protocol.ProtocolKey`.
