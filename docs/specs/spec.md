@@ -444,8 +444,8 @@ another protocol key fails verification.
 - The registry accepts private types 65280–65534.
 - The registry accepts a non-private type only when `AllowNonPrivateTypes` is true. That
   option exists for the TXT reference row of the benchmark and probe.
-- The registry always rejects the meta-types OPT (41), TSIG (250), IXFR (251), AXFR (252)
-  and ANY (255).
+- The registry always rejects the types 0, OPT (41), TSIG (250), IXFR (251), AXFR (252),
+  ANY (255) and the reserved type 65535.
 - Class and type numbers are local to one server. A protocol ID is the stable name. The
   manifest maps protocol IDs to protocol keys.
 
@@ -780,3 +780,5 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   `go 1.25.0` and the Go tool does not accept `go 1.25` next to it.
 - 2026-11-20 — The user accepted ADR 0005: `pkg/transport` runs its own UDP and TCP read
   loops and exports only QMux types. #88 and #89 build it. Foundation is `built` (#91).
+- 2026-11-20 — The user ruled that the registry always rejects type 65535, also with
+  `AllowNonPrivateTypes`. FR-registry-22 lists it (#20).
