@@ -1,3 +1,3 @@
-// Package codec implements CBOR encoding and decoding of QMux messages
-// with support for extensible type registries.
+// Package codec encodes and decodes the envelope. It holds the deterministic CBOR
+// options and the size limits.
 package codec

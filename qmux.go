@@ -1,5 +1,8 @@
-// Package qmux implements QMux, a framework for running application protocols
-// over DNS. QMux wraps application messages in DNS queries and responses,
-// allowing clients to discover services and communicate through a DNS
-// infrastructure without requiring a dedicated server.
+// Package qmux is the root facade of QMux. QMux runs independent application
+// protocols over DNS. Each protocol owns a protocol key, and the QNAME names the
+// resource.
+//
+// This package holds type aliases and constructors only, so that NewServer,
+// ProtocolKey, NewClient and Query compile as the brief shows them. The behavior
+// lives in the packages under pkg/.
 package qmux

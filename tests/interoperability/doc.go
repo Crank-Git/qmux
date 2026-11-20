@@ -1,5 +1,5 @@
-// Package interoperability holds the interop harness tests for QMux.
+// Package interoperability is the QMux research harness. It is a separate module
+// that holds the interop matrix, the baselines and qmux-bench.
 //
-// This module depends on the root qmux module through a replace directive.
-// It also depends on go-coap for the CoAP baseline comparison.
+// It uses a replace directive to the root module.
 package interoperability
