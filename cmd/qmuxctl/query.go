@@ -59,9 +59,11 @@ type queryOutput struct {
 // runQuery runs qmuxctl query with the flags in args and returns the exit code.
 func runQuery(ctx context.Context, name string, args []string, stdout, stderr io.Writer) int {
 	usage := name + " query"
+	synopsis := usage + " --server <addr> --class <n> --type <n> --name <qname> [flags]"
+	exits := "0 result, 1 DNS error, 2 application error, 3 verification error, 64 usage error."
 	f, fs, err := parseQueryFlags(usage, args)
 	if errors.Is(err, flag.ErrHelp) {
-		if printUsage(stdout, usage, fs) != nil {
+		if printUsage(stdout, synopsis, exits, fs) != nil {
 			return 1
 		}
 		return exitResult
@@ -69,7 +71,7 @@ func runQuery(ctx context.Context, name string, args []string, stdout, stderr io
 	if err != nil {
 		// The exit code is 64 whether or not stderr accepts the write.
 		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
-		_ = printUsage(stderr, usage, fs)
+		_ = printUsage(stderr, synopsis, exits, fs)
 		return exitUsage
 	}
 
@@ -84,7 +86,7 @@ func runQuery(ctx context.Context, name string, args []string, stdout, stderr io
 	if res == nil {
 		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		if code == exitUsage {
-			_ = printUsage(stderr, usage, fs)
+			_ = printUsage(stderr, synopsis, exits, fs)
 		}
 		return code
 	}
@@ -197,15 +199,15 @@ func uint16Flag(dst *uint16, set *bool) func(string) error {
 	}
 }
 
-// printUsage writes the usage of qmuxctl query to w, with each flag in the form
-// "--name".
-func printUsage(w io.Writer, usage string, fs *flag.FlagSet) error {
+// printUsage writes the synopsis, the flags of fs and the exit codes to w, with each
+// flag in the form "--name".
+func printUsage(w io.Writer, synopsis, exits string, fs *flag.FlagSet) error {
 	var b strings.Builder
-	b.WriteString("Usage: " + usage + " --server <addr> --class <n> --type <n> --name <qname> [flags]\n\nFlags:\n")
+	b.WriteString("Usage: " + synopsis + "\n\nFlags:\n")
 	fs.VisitAll(func(fl *flag.Flag) {
 		fmt.Fprintf(&b, "  --%-9s %s\n", fl.Name, fl.Usage)
 	})
-	b.WriteString("\nExit codes: 0 result, 1 DNS error, 2 application error, 3 verification error, 64 usage error.\n")
+	b.WriteString("\nExit codes: " + exits + "\n")
 	_, err := io.WriteString(w, b.String())
 	return err
 }

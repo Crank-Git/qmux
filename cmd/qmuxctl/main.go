@@ -18,20 +18,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 	name := filepath.Base(args[0])
 	if len(args) < 2 {
 		// The exit code is 1 whether or not stderr accepts the write.
-		_, _ = fmt.Fprintf(stderr, "Usage: %s <query|version|help>\n", name)
+		_, _ = fmt.Fprintf(stderr, "Usage: %s <query|discover|version|help>\n", name)
 		return 1
 	}
 	var err error
 	switch args[1] {
 	case "query":
 		return runQuery(context.Background(), name, args[2:], stdout, stderr)
+	case "discover":
+		return runDiscover(context.Background(), name, args[2:], stdout, stderr)
 	case "version":
 		_, err = fmt.Fprintf(stdout, "%s %s\n", name, versionOf(debug.ReadBuildInfo()))
 	case "help", "-h", "--help":
-		_, err = fmt.Fprintf(stdout, "Usage: %s <command>\n\nCommands:\n  query     Send one query and print the result\n  version   Print version\n  help      Show this help\n", name)
+		_, err = fmt.Fprintf(stdout, "Usage: %s <command>\n\nCommands:\n  query     Send one query and print the result\n  discover  Print the manifest of a server\n  version   Print version\n  help      Show this help\n", name)
 	default:
 		// The exit code is 1 whether or not stderr accepts the write.
-		_, _ = fmt.Fprintf(stderr, "Unknown command: %s\nUsage: %s <query|version|help>\n", args[1], name)
+		_, _ = fmt.Fprintf(stderr, "Unknown command: %s\nUsage: %s <query|discover|version|help>\n", args[1], name)
 		return 1
 	}
 	if err != nil {
