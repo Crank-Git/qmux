@@ -135,6 +135,9 @@ func TestServeQuerySetsTheLabelsBelowTheZone(t *testing.T) {
 		{"the QNAME is the zone", []string{"fleet.example."}, "fleet.example.", []string{}},
 		{"every label with no zones", nil, "device42.fleet.example.", []string{"device42", "fleet", "example"}},
 		{"an escaped dot stays in its label", nil, `a\.b.example.`, []string{`a\.b`, "example"}},
+		{"an escaped dot below the zone", []string{"example."}, `a\.b.example.`, []string{`a\.b`}},
+		{"an escaped octet stays in its label", []string{"example."}, `a\046b.example.`, []string{`a\046b`}},
+		{"labels below a zone with an escaped dot", []string{`a\.b.example.`}, `x.y.a\.b.example.`, []string{"x", "y"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

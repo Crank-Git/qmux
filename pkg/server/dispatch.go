@@ -100,13 +100,8 @@ func (s *Server) callHandler(ctx context.Context, h protocol.Handler, req *proto
 // The version comes from a leftmost version label, which is not in the labels. It is
 // 0 when the leftmost label is not a version label.
 func splitQName(name, zone string) (uint16, []string) {
-	below := name
-	if zone != rootZone {
-		below = name[:len(name)-len(zone)]
-	} else if name == rootZone {
-		below = ""
-	}
-	labels := splitLabels(below)
+	labels := splitLabels(name)
+	labels = labels[:len(labels)-len(splitLabels(zone))]
 	if len(labels) > 0 {
 		if v, ok := parseVersionLabel(labels[0]); ok {
 			return v, labels[1:]
@@ -115,9 +110,14 @@ func splitQName(name, zone string) (uint16, []string) {
 	return 0, labels
 }
 
-// splitLabels returns the labels of name, which ends with a dot or is empty. A dot
-// after a backslash is part of its label, as in the presentation format of a name.
+// splitLabels returns the labels of name, which is in the presentation format. The
+// root name has no labels. A backslash escapes the next character, so an escaped dot
+// (\.) is part of its label. The digits of a \DDD escape are never a dot, so the split
+// keeps them in the label too.
 func splitLabels(name string) []string {
+	if name == rootZone {
+		return nil
+	}
 	var labels []string
 	start := 0
 	for i := 0; i < len(name); i++ {
@@ -128,6 +128,10 @@ func splitLabels(name string) []string {
 			labels = append(labels, name[start:i])
 			start = i + 1
 		}
+	}
+	// A zone in the config can lack the final dot. Its last label still counts.
+	if start < len(name) {
+		labels = append(labels, name[start:])
 	}
 	return labels
 }
