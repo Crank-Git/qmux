@@ -17,14 +17,30 @@ import (
 
 // dispatch answers q, which passed every check, with the handler of reg. zone is the
 // zone that matches q.Name.
+//
+// A query with a bad version label, or with a version that reg does not have, gets
+// an envelope with that application status. The server then does not call the handler.
 func (s *Server) dispatch(ctx context.Context, q *transport.Query, zone string, reg registry.Registration, w transport.Writer) {
-	name := strings.ToLower(q.Name)
-	version, labels := splitQName(name, zone)
+	qname := strings.ToLower(q.Name)
+	v, ok := splitQName(qname, zone)
+	if !ok {
+		s.answerStatus(ctx, q, reg, protocol.StatusBadRequest, w)
+		return
+	}
+	if v.version != 0 && !slices.Contains(reg.Info.Versions, v.version) {
+		s.answerStatus(ctx, q, reg, protocol.StatusVersionUnsupported, w)
+		return
+	}
+	version := v.version
+	if version == 0 {
+		version = highestVersion(reg)
+	}
 	resp, ok := s.callHandler(ctx, reg.Handler, &protocol.Request{
-		QName:      name,
+		QName:      qname,
+		Name:       v.name,
 		Key:        q.Key,
 		Version:    version,
-		Labels:     labels,
+		Labels:     v.labels,
 		Zone:       zone,
 		Source:     q.Source,
 		Transport:  q.Transport,
@@ -42,12 +58,38 @@ func (s *Server) dispatch(ctx context.Context, q *transport.Query, zone string, 
 		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail}, "")
 		return
 	}
-	ttl := resp.TTL
+	s.answerEnvelope(ctx, q, w, rdata, resp.TTL, resp.Status)
+}
+
+// answerStatus answers q with an envelope that holds status, no payload and the
+// highest version of reg.
+//
+// The schema of reg checks handler payloads only, so answerStatus does not call it.
+// A schema that rejects an empty payload would otherwise hide the status.
+func (s *Server) answerStatus(ctx context.Context, q *transport.Query, reg registry.Registration, status protocol.Status, w transport.Writer) {
+	rdata, err := encodeEnvelope(reg, highestVersion(reg), &protocol.Response{Status: status})
+	if err != nil {
+		s.cfg.Logger.Error("server: build envelope", "key", q.Key.String(), "error", err)
+		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail}, "")
+		return
+	}
+	s.answerEnvelope(ctx, q, w, rdata, 0, status)
+}
+
+// answerEnvelope answers q with NOERROR and one answer RR that holds rdata. A ttl of
+// 0 selects cfg.TTL.
+func (s *Server) answerEnvelope(ctx context.Context, q *transport.Query, w transport.Writer, rdata []byte, ttl uint32, status protocol.Status) {
 	if ttl == 0 {
 		ttl = s.cfg.TTL
 	}
 	s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeNoError, TTL: ttl, Payload: rdata},
-		strconv.FormatUint(uint64(resp.Status), 10))
+		strconv.FormatUint(uint64(status), 10))
+}
+
+// highestVersion returns the highest version of reg. The registry keeps the versions
+// in ascending order.
+func highestVersion(reg registry.Registration) uint16 {
+	return reg.Info.Versions[len(reg.Info.Versions)-1]
 }
 
 // envelope returns the encoded envelope of resp for the registration reg.
@@ -57,8 +99,7 @@ func (s *Server) dispatch(ctx context.Context, q *transport.Query, zone string, 
 func (s *Server) envelope(reg registry.Registration, resp *protocol.Response) ([]byte, error) {
 	version := resp.Version
 	if version == 0 {
-		// The registry keeps the versions in ascending order.
-		version = reg.Info.Versions[len(reg.Info.Versions)-1]
+		version = highestVersion(reg)
 	} else if !slices.Contains(reg.Info.Versions, version) {
 		return nil, fmt.Errorf("%w: %d", errVersion, version)
 	}
@@ -67,6 +108,12 @@ func (s *Server) envelope(reg registry.Registration, resp *protocol.Response) ([
 			return nil, fmt.Errorf("schema rejects the payload of version %d: %w", version, err)
 		}
 	}
+	return encodeEnvelope(reg, version, resp)
+}
+
+// encodeEnvelope returns the encoded envelope of resp with the protocol ID of reg and
+// version. It returns the error of codec.Encode.
+func encodeEnvelope(reg registry.Registration, version uint16, resp *protocol.Response) ([]byte, error) {
 	messageType := resp.MessageType
 	if messageType == 0 {
 		messageType = protocol.MessageRecord
@@ -133,20 +180,36 @@ func (s *Server) callHandler(ctx context.Context, h protocol.Handler, req *proto
 	}
 }
 
-// splitQName returns the version and the labels of name below zone. Both name and
-// zone are lowercase and fully qualified, and name is inside zone.
+// qnameParts is a QNAME split into the version label and the rest.
+type qnameParts struct {
+	// version is 0 when the QNAME has no version label.
+	version uint16
+	// name is the QNAME without the version label.
+	name string
+	// labels holds the labels below the zone, without the version label.
+	labels []string
+}
+
+// splitQName returns the parts of name. Both name and zone are lowercase and fully
+// qualified, and name is inside zone. Only a label below zone can be the version label.
 //
-// The version comes from a leftmost version label, which is not in the labels. It is
-// 0 when the leftmost label is not a version label.
-func splitQName(name, zone string) (uint16, []string) {
+// It returns false when the leftmost label below zone starts with "_v" but does not
+// parse as a version label.
+func splitQName(name, zone string) (qnameParts, bool) {
 	labels := splitLabels(name)
 	labels = labels[:len(labels)-len(splitLabels(zone))]
-	if len(labels) > 0 {
-		if v, ok := parseVersionLabel(labels[0]); ok {
-			return v, labels[1:]
-		}
+	if len(labels) == 0 || !strings.HasPrefix(labels[0], "_v") {
+		return qnameParts{name: name, labels: labels}, true
 	}
-	return 0, labels
+	v, ok := parseVersionLabel(labels[0])
+	if !ok {
+		return qnameParts{}, false
+	}
+	rest := name[len(labels[0])+1:]
+	if rest == "" {
+		rest = rootZone
+	}
+	return qnameParts{version: v, name: rest, labels: labels[1:]}, true
 }
 
 // splitLabels returns the labels of name, which is in the presentation format. The
