@@ -119,6 +119,7 @@ func TestServeExitsTwoBeforeItListensForAnInvalidConfigFile(t *testing.T) {
 		}, `protocols[0].records["device42.fleet.example."]`},
 		{"no zones", func(c map[string]any) { delete(c, "zones") }, "zones"},
 		{"zone that is not fully qualified", func(c map[string]any) { c["zones"] = []any{"fleet.example"} }, "zones[0]"},
+		{"zone that is not a string", func(c map[string]any) { c["zones"] = []any{testZone, 7} }, "zones[1]: "},
 		{"two zones that differ only in case", func(c map[string]any) { c["zones"] = []any{testZone, "FLEET.example."} }, "zones[1]"},
 		{"listen without a port", func(c map[string]any) { c["listen"] = "127.0.0.1" }, "listen"},
 		{"signature_validity below 1m", func(c map[string]any) { c["signature_validity"] = "59s" }, "signature_validity"},
@@ -137,6 +138,8 @@ func TestServeExitsTwoBeforeItListensForAnInvalidConfigFile(t *testing.T) {
 		{"unknown log_level", func(c map[string]any) { c["log_level"] = "trace" }, "log_level"},
 		{"unknown log_format", func(c map[string]any) { c["log_format"] = "xml" }, "log_format"},
 		{"no protocols", func(c map[string]any) { c["protocols"] = []any{} }, "protocols"},
+		{"protocols that is not an array", func(c map[string]any) { c["protocols"] = 5 }, "protocols: number is not a valid array"},
+		{"discovery that is not an object", func(c map[string]any) { c["discovery"] = 5 }, "discovery: number is not a valid object"},
 		{"versions not sorted", func(c map[string]any) { firstProtocol(c)["versions"] = []any{2, 1} }, "protocols[0].versions"},
 		{"repeated version", func(c map[string]any) { firstProtocol(c)["versions"] = []any{1, 1} }, "protocols[0].versions"},
 		{"version 0", func(c map[string]any) { firstProtocol(c)["versions"] = []any{0, 1} }, "protocols[0].versions"},
@@ -184,6 +187,17 @@ func TestServeExitsTwoForTrailingDataAfterTheConfigObject(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"qmuxd", "serve", "--config", path}, &stdout, &stderr); code != 2 {
 		t.Errorf("exit code = %d, want 2; stderr = %q", code, stderr.String())
+	}
+}
+
+func TestLoadConfigRejectsAFileThatIsNotAJSONObject(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "qmuxd.json")
+	if err := os.WriteFile(path, []byte("[1]"), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	_, err := loadConfig(path, "")
+	if err == nil || err.Error() != "array is not a valid object" {
+		t.Errorf("loadConfig error = %v, want \"array is not a valid object\"", err)
 	}
 }
 
