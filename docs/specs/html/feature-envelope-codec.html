@@ -583,7 +583,7 @@ func Marshal(v any) ([]byte, error)
 func Unmarshal(b []byte, v any) error
 
 var ErrTooLarge, ErrNotDeterministic, ErrFormat, ErrInvalidProtocolID,
-    ErrInvalidVersion, ErrInvalidMessageType error</code></pre>
+    ErrInvalidVersion, ErrInvalidMessageType, ErrInvalidStatus error</code></pre>
 <p><code>SignatureBlock</code> is declared in this epic with the keys of the signature block table, so the envelope shape is final. Epic 6 fills it and verifies it.</p>
 <p>External library:</p>
 <ul>

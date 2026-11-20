@@ -280,7 +280,7 @@ func Marshal(v any) ([]byte, error)
 func Unmarshal(b []byte, v any) error
 
 var ErrTooLarge, ErrNotDeterministic, ErrFormat, ErrInvalidProtocolID,
-    ErrInvalidVersion, ErrInvalidMessageType error
+    ErrInvalidVersion, ErrInvalidMessageType, ErrInvalidStatus error
 ```
 
 `SignatureBlock` is declared in this epic with the keys of the signature block table, so
