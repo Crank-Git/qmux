@@ -337,11 +337,11 @@ func TestOtherNamesGetNoConfiguration(t *testing.T) { // FR-demo-15
 	r, _ := start(t)
 	c, m := device(t, r.Addr, r.TrustAnchor)
 	_, err := c.QueryProtocol(ctxT(t), m, fleet.ConfigurationID, "device43.fleet.example.", []uint16{1})
-	// The handler answers status not-found with no payload. The server applies the
-	// schema to every answer (FR-server-28), so the empty payload gives SERVFAIL.
-	var dnsErr *client.DNSError
-	if !errors.As(err, &dnsErr) || dnsErr.Kind != client.KindRCode {
-		t.Fatalf("got %v, want a DNSError with an RCODE", err)
+	// The handler answers status not-found with no payload. The server calls the
+	// schema only for status ok (FR-server-28), so the client gets the status.
+	var appErr *client.AppError
+	if !errors.As(err, &appErr) || appErr.Status != protocol.StatusNotFound {
+		t.Fatalf("got %v, want an AppError with status not-found", err)
 	}
 }
 

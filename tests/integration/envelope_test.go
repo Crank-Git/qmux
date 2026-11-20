@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,6 +22,13 @@ var firmwareInfo = protocol.Info{ID: "org.qmux.firmware", Versions: []uint16{1, 
 // and returns its address.
 func startEnvelopeServer(t *testing.T, resp protocol.Response) string {
 	t.Helper()
+	return startEnvelopeServerWith(t, firmwareInfo, resp)
+}
+
+// startEnvelopeServerWith starts a server that answers every query for testKey with
+// resp under the registration info, and returns its address.
+func startEnvelopeServerWith(t *testing.T, info protocol.Info, resp protocol.Response) string {
+	t.Helper()
 	s := qmux.NewServer(qmux.ServerConfig{
 		Address: "127.0.0.1:0",
 		Zones:   []string{"fleet.example."},
@@ -29,7 +37,7 @@ func startEnvelopeServer(t *testing.T, resp protocol.Response) string {
 	h := protocol.HandlerFunc(func(context.Context, *protocol.Request) (*protocol.Response, error) {
 		return &resp, nil
 	})
-	if err := s.RegisterProtocol(testKey, firmwareInfo, h); err != nil {
+	if err := s.RegisterProtocol(testKey, info, h); err != nil {
 		t.Fatalf("RegisterProtocol: %v", err)
 	}
 	addr, _ := startServer(t, s)
@@ -66,5 +74,35 @@ func TestClientReturnsTheResultAndAnAppErrorForANotFoundAnswer(t *testing.T) { /
 	var ae *client.AppError
 	if res == nil || !errors.As(err, &ae) || ae.Status != protocol.StatusNotFound || ae.ProtocolID != "org.qmux.firmware" {
 		t.Fatalf("result %+v, error %v; want a result and an AppError with not-found from org.qmux.firmware", res, err)
+	}
+}
+
+// requiredFieldSchema rejects every payload, as a schema with a required field
+// rejects an empty payload. It counts its calls.
+type requiredFieldSchema struct {
+	calls atomic.Int32
+}
+
+func (s *requiredFieldSchema) Validate(uint16, []byte) error {
+	s.calls.Add(1)
+	return errors.New("required field missing")
+}
+
+func TestClientReturnsAnAppErrorForANotFoundAnswerFromAProtocolWithASchema(t *testing.T) { // FR-server-28, FR-codec-39
+	schema := &requiredFieldSchema{}
+	info := firmwareInfo
+	info.Schema = schema
+	addr := startEnvelopeServerWith(t, info, protocol.Response{Status: protocol.StatusNotFound})
+	c := qmux.NewClient(qmux.ClientConfig{Resolver: addr})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	res, err := c.Query(ctx, qmux.Query{Name: "device42.fleet.example.", Class: testKey.Class, Type: testKey.Type})
+	var ae *client.AppError
+	if res == nil || !errors.As(err, &ae) || ae.Status != protocol.StatusNotFound {
+		t.Fatalf("result %+v, error %v; want a result and an AppError with not-found", res, err)
+	}
+	if n := schema.calls.Load(); n != 0 {
+		t.Fatalf("Validate calls = %d, want 0", n)
 	}
 }

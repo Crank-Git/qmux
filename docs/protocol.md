@@ -109,7 +109,7 @@ registration:
 - The message type is `Response.MessageType`. When `Response.MessageType` is 0, it is
   `1` (record).
 - The application status is `Response.Status`, and the payload is `Response.Payload`.
-- When the registration has a `Schema`, the server calls
+- When the registration has a `Schema` and `Response.Status` is `ok`, the server calls
   `Schema.Validate(version, payload)` before it encodes the envelope.
 
 ### How the client reads the envelope
@@ -141,9 +141,13 @@ They never overlap.
 | The QNAME is outside every configured zone | `REFUSED` | none |
 | The handler returns an error, times out or panics | `SERVFAIL` | none |
 | `Response.Version` is not a version of the registration | `SERVFAIL` | none |
-| The schema rejects the payload | `SERVFAIL` | none |
+| The schema rejects the payload of a response with status `ok` | `SERVFAIL` | none |
 | `codec.Encode` returns an error, for example `ErrTooLarge` or `ErrInvalidMessageType` | `SERVFAIL` | none |
 | The EDNS version is above 0 | `BADVERS` | none |
+
+The server calls the schema only for a response with status `ok`. A response with another
+status has no schema check, so a protocol with a schema can answer `not-found` with no
+payload.
 
 The server logs the cause of a `SERVFAIL` for a version, a schema or an encode error at
 level `error`. The log record never holds payload bytes.

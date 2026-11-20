@@ -1025,7 +1025,12 @@ golangci-lint run</code></pre>
 <li>2026-11-20 — Signing decisions (#7): <code>VerifyError.Reason</code> holds the sentinel error
 </li>
 </ul>
-<p>(#137). A client with trust anchors returns a <code>VerifyError</code> and no result for any failed check, including bytes that do not decode. Only <code>expires_at</code> ends a manifest cache entry. <code>client.Result.Raw</code> holds the verified envelope bytes.</p><nav class="pager">
+<p>(#137). A client with trust anchors returns a <code>VerifyError</code> and no result for any failed check, including bytes that do not decode. Only <code>expires_at</code> ends a manifest cache entry. <code>client.Result.Raw</code> holds the verified envelope bytes.</p>
+<ul>
+<li>2026-11-20 — Signing and freshness is <code>built</code> (#140). The security review found that
+</li>
+</ul>
+<p><code>strings.ToLower</code> folds Unicode. <code>pkg/security</code> now folds QNAMEs with ASCII rules (RFC 4343, #141). #142 applies the same fold in every package.</p><nav class="pager">
 <span></span>
 <a href="html/feature-foundation.html">Feature: Foundation &rarr;</a>
 </nav>
