@@ -10,8 +10,11 @@ type Request struct {
 	// QName is the lowercase FQDN of the query.
 	QName string
 	Key   ProtocolKey
-	// Version is the protocol version from the version label, or 0 when the
-	// QNAME has no version label.
+	// Name is QName without the version label. A handler reads the resource
+	// name here, so it never parses the version label.
+	Name string
+	// Version is the protocol version from the version label. When the QNAME
+	// has no version label, Version is the highest version of the registration.
 	Version uint16
 	// Labels holds the QNAME labels below the zone, without the version label.
 	Labels []string
