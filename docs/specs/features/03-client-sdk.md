@@ -308,7 +308,7 @@ type AppError struct {
 }
 
 type VerifyError struct {
-    Reason string
+    Reason error // the security sentinel, or the codec error; a string before Epic 6
     Err    error
 }
 
@@ -390,7 +390,8 @@ miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73)
 - A query to a closed TCP port returns a network `DNSError`. (FR-client-23)
 - `AppError{Status: 1, ProtocolID: "org.qmux.firmware", Version: 1}` compiles and its
   `Error()` names the status. (FR-client-24)
-- `VerifyError{Reason: "expired"}` compiles and its `Error()` names the reason.
+- `VerifyError{Reason: "expired"}` compiles and its `Error()` names the reason. From
+  Epic 6, FR-security-36 replaces the string: `Reason` holds the sentinel error.
   (FR-client-25)
 - `Result.Payload` equals the payload of the envelope, which is the handler's payload.
   (FR-client-26)
