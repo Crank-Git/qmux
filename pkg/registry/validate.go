@@ -22,9 +22,10 @@ const (
 	classHS = 4
 )
 
-// metaTypes are the types that no option enables (FR-registry-22): 0, OPT
-// (41), TSIG (250), IXFR (251), AXFR (252) and ANY (255).
-var metaTypes = []uint16{0, 41, 250, 251, 252, 255}
+// rejectedTypes are the types that no option enables (FR-registry-22): 0,
+// the meta-types OPT (41), TSIG (250), IXFR (251), AXFR (252) and ANY (255),
+// and 65535, which DNS reserves.
+var rejectedTypes = []uint16{0, 41, 250, 251, 252, 255, 65535}
 
 // validKey returns nil when opts allow the class and the type of key.
 // The error wraps ErrInvalidKey and names the field that fails.
@@ -36,8 +37,8 @@ func validKey(key protocol.ProtocolKey, opts Options) error {
 		return fmt.Errorf("class %d: %w", key.Class, ErrInvalidKey)
 	}
 	switch {
-	case slices.Contains(metaTypes, key.Type):
-		return fmt.Errorf("meta-type %d: %w", key.Type, ErrInvalidKey)
+	case slices.Contains(rejectedTypes, key.Type):
+		return fmt.Errorf("reserved type %d: %w", key.Type, ErrInvalidKey)
 	case protocol.IsPrivateType(key.Type), opts.AllowNonPrivateTypes:
 		return nil
 	default:

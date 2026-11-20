@@ -27,8 +27,8 @@ var (
 type Options struct {
 	// AllowReservedClasses accepts the reserved classes CH (3) and HS (4).
 	AllowReservedClasses bool
-	// AllowNonPrivateTypes accepts a type outside 65280–65534. The meta-types
-	// stay rejected.
+	// AllowNonPrivateTypes accepts a type outside 65280–65534. The types 0,
+	// 41, 250, 251, 252, 255 and 65535 stay rejected.
 	AllowNonPrivateTypes bool
 }
 
