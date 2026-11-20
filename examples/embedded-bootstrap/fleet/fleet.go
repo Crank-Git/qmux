@@ -73,15 +73,26 @@ type Options struct {
 	Out io.Writer
 	// Logger receives the query log of the server. Nil means no query log.
 	Logger *slog.Logger
+	// TamperDNS makes the server change one byte of each configuration envelope after
+	// it signs it (FR-demo-40).
+	TamperDNS bool
+	// TamperHTTPS makes the mock HTTPS service serve a configuration bundle whose bytes
+	// differ from the signed digest (FR-demo-42).
+	TamperHTTPS bool
 }
 
-// BindFlags defines the flags --remote-generation and --remote-firmware on fs. The
-// flags write to o and default to DefaultRemoteGeneration and DefaultRemoteFirmware.
+// BindFlags defines the flags --remote-generation, --remote-firmware, --tamper-dns and
+// --tamper-https on fs. The flags write to o. The first two default to
+// DefaultRemoteGeneration and DefaultRemoteFirmware, and the tamper flags to false.
 func (o *Options) BindFlags(fs *flag.FlagSet) {
 	fs.Uint64Var(&o.RemoteGeneration, "remote-generation", DefaultRemoteGeneration,
 		"configuration generation that the server publishes")
 	fs.StringVar(&o.RemoteFirmware, "remote-firmware", DefaultRemoteFirmware,
 		"firmware version that the server publishes")
+	fs.BoolVar(&o.TamperDNS, "tamper-dns", false,
+		"change one byte of the configuration envelope after signing")
+	fs.BoolVar(&o.TamperHTTPS, "tamper-https", false,
+		"serve a configuration bundle that does not match its digest")
 }
 
 // Running is a started authoritative server and mock HTTPS service. Call Close to stop
@@ -175,6 +186,9 @@ func Start(ctx context.Context, opts Options) (*Running, error) {
 		return nil, err
 	}
 	r.Addr = pc.LocalAddr().String()
+	if opts.TamperDNS {
+		pc = tamperConn{pc}
+	}
 
 	ctx, r.cancel = context.WithCancel(ctx)
 	r.served = make(chan error, 1)
@@ -195,11 +209,15 @@ func register(srv *server.Server, mux *http.ServeMux, r *Running, opts Options, 
 	image := fmt.Appendf(nil, "firmware image %s\n", opts.RemoteFirmware)
 	bundlePath := fmt.Sprintf("/config-%d.bin", opts.RemoteGeneration)
 	imagePath := fmt.Sprintf("/firmware-%s.img", opts.RemoteFirmware)
+	bundleSum := sha256.Sum256(bundle)
+	imageSum := sha256.Sum256(image)
+	if opts.TamperHTTPS {
+		// The digest stays the digest of the original bundle.
+		bundle = append(bundle, "tampered\n"...)
+	}
 	mux.HandleFunc("GET "+bundlePath, serveBytes(bundle, logger))
 	mux.HandleFunc("GET "+imagePath, serveBytes(image, logger))
 
-	bundleSum := sha256.Sum256(bundle)
-	imageSum := sha256.Sum256(image)
 	protocols := []struct {
 		id  string
 		key protocol.ProtocolKey
@@ -211,7 +229,7 @@ func register(srv *server.Server, mux *http.ServeMux, r *Running, opts Options, 
 	}{
 		{BootstrapID, protocol.ProtocolKey{Class: 65280, Type: 65280},
 			schema.Bootstrap{ManagementURL: r.HTTPSURL + "/mgmt", ManagementTransport: "https"}},
-		{ConfigurationID, protocol.ProtocolKey{Class: 65281, Type: 65280},
+		{ConfigurationID, protocol.ProtocolKey{Class: configurationClass, Type: configurationType},
 			schema.Configuration{Generation: opts.RemoteGeneration, Digest: bundleSum[:], URL: r.HTTPSURL + bundlePath}},
 		{FirmwareID, protocol.ProtocolKey{Class: 65282, Type: 65280},
 			schema.Firmware{Version: opts.RemoteFirmware, Digest: imageSum[:], URL: r.HTTPSURL + imagePath, KeyID: r.FirmwareKeyID[:]}},
