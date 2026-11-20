@@ -183,7 +183,8 @@ flowchart TD
 3. The client sends the query.
 4. If the client returns a result, `qmuxctl` prints it and exits 0.
 5. If the client returns a `DNSError`, `qmuxctl` prints it and exits 1.
-6. If the client returns an `AppError`, `qmuxctl` prints it and exits 2.
+6. If the client returns an `AppError`, `qmuxctl` prints the result to stdout, prints the
+   error to stderr and exits 2.
 7. If the client returns a `VerifyError`, `qmuxctl` prints it and exits 3.
 
 ## Screens & states

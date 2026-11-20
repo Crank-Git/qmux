@@ -437,8 +437,11 @@ body.rv-open .layout { padding-right:21rem; }
 </li>
 <li>If the client returns a <code>DNSError</code>, <code>qmuxctl</code> prints it and exits 1.
 </li>
-<li>If the client returns an <code>AppError</code>, <code>qmuxctl</code> prints it and exits 2.
+<li>If the client returns an <code>AppError</code>, <code>qmuxctl</code> prints the result to stdout, prints the
 </li>
+</ol>
+<p>error to stderr and exits 2.</p>
+<ol>
 <li>If the client returns a <code>VerifyError</code>, <code>qmuxctl</code> prints it and exits 3.
 </li>
 </ol>
