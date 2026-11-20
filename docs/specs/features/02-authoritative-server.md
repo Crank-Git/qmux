@@ -216,8 +216,8 @@ level=INFO msg=query qname=device42.fleet.example. qclass=65280 qtype=65280 tran
   check against the registration versions.
 - `Response.Version` 0 means the highest version of the registration.
   `Response.MessageType` 0 means `MessageRecord`. Epic 4 writes both into the envelope.
-- The server replaces the miekg/dns default `MsgAcceptFunc`. The default accepts NOTIFY
-  and allows up to two additional RRs, which QMux does not want.
+- `pkg/transport` runs its own UDP and TCP read loops, so no miekg/dns accept function
+  filters the queries. `pkg/server` answers NOTIFY and IQUERY with `NOTIMP`. See ADR 0005.
 - A response to a non-EDNS query carries no OPT RR.
 - The server sets the RA bit to 0 on every response.
 
@@ -281,18 +281,16 @@ type Response struct {
 }
 ```
 
-`pkg/transport` holds every miekg/dns call: the accept function, the conversion between
-bytes and the hex `RFC3597.Rdata`, the EDNS(0) handling, and the size checks. miekg/dns
-v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and `go doc` on
-2026-11-20:
+`pkg/transport` holds every miekg/dns call: the UDP and TCP read loops, the conversion
+between bytes and the hex `RFC3597.Rdata`, the EDNS(0) handling, and the size checks.
+ADR 0005 defines its API. miekg/dns v1.1.73 facts, verified against
+https://github.com/miekg/dns (v1.1.73) and `go doc` on 2026-11-20:
 
-- `dns.Server` has the fields `Addr`, `Net` (`udp` or `tcp`), `Handler`, `UDPSize`,
-  `ReadTimeout`, `WriteTimeout`, `NotifyStartedFunc`, `MsgAcceptFunc`, and the methods
-  `Shutdown()` and `ShutdownContext(ctx)`.
-- `dns.Server` also has `PacketConn` and `Listener` fields. `Serve` uses them.
-- The default `MsgAcceptFunc` ignores responses, answers `NOTIMP` for opcodes other than
-  QUERY and NOTIFY, and rejects a question count other than 1. It does not check class or
-  type.
+- `pkg/transport` uses miekg/dns only for `Msg.Pack`, `Msg.Unpack`, `Msg.Truncate`,
+  `SetEdns0` and `RFC3597`. It does not use `dns.Server`.
+- `dns.Server` reads a UDP query into a buffer of `UDPSize` bytes and does not give the
+  received size to the handler. `Msg.Unpack` ignores trailing bytes. So `pkg/transport`
+  measures each query from the bytes that it receives.
 - `Msg.IsEdns0()` returns the OPT RR. `OPT.UDPSize()` and `OPT.Version()` read its fields.
 
 ## Edge cases & failures

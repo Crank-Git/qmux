@@ -489,10 +489,10 @@ body.rv-open .layout { padding-right:21rem; }
 </ul>
 <p><code>Response.MessageType</code> 0 means <code>MessageRecord</code>. Epic 4 writes both into the envelope.</p>
 <ul>
-<li>The server replaces the miekg/dns default <code>MsgAcceptFunc</code>. The default accepts NOTIFY
+<li><code>pkg/transport</code> runs its own UDP and TCP read loops, so no miekg/dns accept function
 </li>
 </ul>
-<p>and allows up to two additional RRs, which QMux does not want.</p>
+<p>filters the queries. <code>pkg/server</code> answers NOTIFY and IQUERY with <code>NOTIMP</code>. See ADR 0005.</p>
 <ul>
 <li>A response to a non-EDNS query carries no OPT RR.
 </li>
@@ -549,19 +549,17 @@ type Response struct {
     Version     uint16      // 0: highest registered version
     MessageType MessageType // 0: MessageRecord
 }</code></pre>
-<p><code>pkg/transport</code> holds every miekg/dns call: the accept function, the conversion between bytes and the hex <code>RFC3597.Rdata</code>, the EDNS(0) handling, and the size checks. miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and <code>go doc</code> on 2026-11-20:</p>
+<p><code>pkg/transport</code> holds every miekg/dns call: the UDP and TCP read loops, the conversion between bytes and the hex <code>RFC3597.Rdata</code>, the EDNS(0) handling, and the size checks. ADR 0005 defines its API. miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and <code>go doc</code> on 2026-11-20:</p>
 <ul>
-<li><code>dns.Server</code> has the fields <code>Addr</code>, <code>Net</code> (<code>udp</code> or <code>tcp</code>), <code>Handler</code>, <code>UDPSize</code>,
+<li><code>pkg/transport</code> uses miekg/dns only for <code>Msg.Pack</code>, <code>Msg.Unpack</code>, <code>Msg.Truncate</code>,
 </li>
 </ul>
-<p><code>ReadTimeout</code>, <code>WriteTimeout</code>, <code>NotifyStartedFunc</code>, <code>MsgAcceptFunc</code>, and the methods <code>Shutdown()</code> and <code>ShutdownContext(ctx)</code>.</p>
+<p><code>SetEdns0</code> and <code>RFC3597</code>. It does not use <code>dns.Server</code>.</p>
 <ul>
-<li><code>dns.Server</code> also has <code>PacketConn</code> and <code>Listener</code> fields. <code>Serve</code> uses them.
-</li>
-<li>The default <code>MsgAcceptFunc</code> ignores responses, answers <code>NOTIMP</code> for opcodes other than
+<li><code>dns.Server</code> reads a UDP query into a buffer of <code>UDPSize</code> bytes and does not give the
 </li>
 </ul>
-<p>QUERY and NOTIFY, and rejects a question count other than 1. It does not check class or type.</p>
+<p>received size to the handler. <code>Msg.Unpack</code> ignores trailing bytes. So <code>pkg/transport</code> measures each query from the bytes that it receives.</p>
 <ul>
 <li><code>Msg.IsEdns0()</code> returns the OPT RR. <code>OPT.UDPSize()</code> and <code>OPT.Version()</code> read its fields.
 </li>
