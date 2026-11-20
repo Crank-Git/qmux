@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net"
 	"os"
 	"os/signal"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	"github.com/Crank-Git/qmux/pkg/discovery"
 	"github.com/Crank-Git/qmux/pkg/security"
 	"github.com/Crank-Git/qmux/pkg/server"
+	"github.com/Crank-Git/qmux/pkg/transport"
 )
 
 // The exit codes of qmuxd serve.
@@ -177,17 +177,11 @@ func (d *daemon) serve(ctx context.Context, stderr io.Writer) (code int) {
 		}()
 	}
 	logger := d.logger
-	pc, err := net.ListenPacket("udp", d.cfg.Listen)
+	// Listen gives one port for both transports, and retries a port 0 bind that
+	// another process holds for TCP.
+	pc, l, err := transport.Listen(d.cfg.Listen)
 	if err != nil {
 		// The exit code is 1 whether or not stderr accepts the write.
-		_, _ = fmt.Fprintf(stderr, "qmuxd: listen: %v\n", err)
-		return exitFailure
-	}
-	// The TCP listener takes the port of the UDP listener, so that port 0 gives one
-	// port for both transports.
-	l, err := net.Listen("tcp", pc.LocalAddr().String())
-	if err != nil {
-		_ = pc.Close() //nolint:errcheck // The process exits with the listen error.
 		_, _ = fmt.Fprintf(stderr, "qmuxd: listen: %v\n", err)
 		return exitFailure
 	}
