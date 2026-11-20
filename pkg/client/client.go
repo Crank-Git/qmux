@@ -67,9 +67,21 @@ type Result struct {
 	Payload []byte
 	// TTL is the TTL of the answer RR. It is informational and never a security expiry.
 	TTL uint32
+	// Transport is "udp" or "tcp", the transport of the final attempt.
+	Transport string
 	// FellBack is true when the client repeated the query over TCP after a UDP response
 	// with the TC bit.
 	FellBack bool
+	// RTT is the time of the final attempt, from the dial to the matched response.
+	// Earlier attempts that timed out do not count.
+	RTT time.Duration
+	// QueryBytes and ResponseBytes are the wire sizes of the final attempt, without the
+	// TCP length prefix.
+	QueryBytes    int
+	ResponseBytes int
+	// Verified is true when the client verified the signed envelope of the payload. The
+	// client does not verify envelopes yet, so Verified is always false.
+	Verified bool
 }
 
 // Client sends queries to one server. A Client is safe for concurrent use, because it
@@ -178,9 +190,16 @@ func (c *Client) attempt(ctx context.Context, network string, server netip.AddrP
 	ctx, cancel := context.WithTimeout(ctx, c.cfg.AttemptTimeout)
 	defer cancel()
 
+	start := time.Now()
 	got, err := exchange(ctx, network, server, p)
+	rtt := time.Since(start)
 	if err == nil {
-		return result(p, got)
+		res, err := result(p, got)
+		if err != nil {
+			return nil, err
+		}
+		res.Transport, res.RTT = network, rtt
+		return res, nil
 	}
 	var kind ErrorKind
 	switch {
@@ -228,7 +247,10 @@ func result(p transport.Packet, got transport.Received) (*Result, error) {
 	if got.RCode != transport.RCodeNoError {
 		return nil, &DNSError{Kind: KindRCode, RCode: int(got.RCode), Name: p.Name, Key: p.Key}
 	}
-	return &Result{Name: p.Name, Key: p.Key, RCode: int(got.RCode), Payload: got.Payload, TTL: got.TTL}, nil
+	return &Result{
+		Name: p.Name, Key: p.Key, RCode: int(got.RCode), Payload: got.Payload, TTL: got.TTL,
+		QueryBytes: len(p.Wire), ResponseBytes: got.WireSize,
+	}, nil
 }
 
 // errTruncated is the cause of a truncation DNSError, because the transport reports the
