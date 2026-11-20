@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,15 +21,15 @@ type FreshnessStore struct {
 	newest map[freshnessKey]uint64
 }
 
-// freshnessKey is the protocol ID and the lowercase QNAME without the version
-// label, so a version change does not reset freshness.
+// freshnessKey is the protocol ID and the QNAME without the version label, with
+// ASCII letters in lowercase, so a version change does not reset freshness.
 type freshnessKey struct {
 	protocolID string
 	qname      string
 }
 
 func newFreshnessKey(protocolID, qname string) freshnessKey {
-	qname = strings.ToLower(qname)
+	qname = lowerASCII(qname)
 	if label, rest, ok := strings.Cut(qname, "."); ok && isVersionLabel(label) {
 		qname = rest
 	}
@@ -105,14 +106,10 @@ func (s *FreshnessStore) Save(path string) error {
 	_, werr := tmp.Write(append(b, '\n'))
 	cerr := tmp.Close()
 	if err := cmp.Or(werr, cerr); err != nil {
-		// The write error is the one to report, so a failed cleanup is ignored.
-		_ = os.Remove(tmp.Name())
-		return fmt.Errorf("save freshness store: %w", err)
+		return fmt.Errorf("save freshness store: %w", errors.Join(err, os.Remove(tmp.Name())))
 	}
 	if err := os.Rename(tmp.Name(), path); err != nil {
-		// The rename error is the one to report, so a failed cleanup is ignored.
-		_ = os.Remove(tmp.Name())
-		return fmt.Errorf("save freshness store: %w", err)
+		return fmt.Errorf("save freshness store: %w", errors.Join(err, os.Remove(tmp.Name())))
 	}
 	return nil
 }
