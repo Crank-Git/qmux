@@ -152,6 +152,12 @@ func match(wire []byte, p Packet, network string) (Received, error) {
 	if m.Truncated && network == TCP {
 		return Received{}, fmt.Errorf("%w: tcp response has the TC bit", ErrMalformed)
 	}
+	r := Received{RCode: RCode(m.Rcode), Truncated: m.Truncated, WireSize: len(wire)}
+	// A server can send an error RCODE without the question, for example NOTIMP from
+	// BIND. An absent question does not differ from the query, so the RCODE applies.
+	if len(m.Question) == 0 && r.RCode != RCodeNoError {
+		return r, nil
+	}
 	if len(m.Question) != 1 {
 		return Received{}, fmt.Errorf("%w: response has %d questions", ErrMismatch, len(m.Question))
 	}
@@ -160,7 +166,6 @@ func match(wire []byte, p Packet, network string) (Received, error) {
 		return Received{}, fmt.Errorf("%w: response question %q %d/%d", ErrMismatch, q.Name, q.Qclass, q.Qtype)
 	}
 
-	r := Received{RCode: RCode(m.Rcode), Truncated: m.Truncated, WireSize: len(wire)}
 	// A truncated response holds no answer RR, and the caller retries over TCP.
 	if r.RCode != RCodeNoError || r.Truncated {
 		return r, nil
