@@ -559,6 +559,7 @@ type Options struct {
 }
 
 func Register(srv *server.Server, zone string, opts Options) error
+func RegisterZones(srv *server.Server, zones []string, opts Options) error
 func Static(zone string, entries []Entry) (*Manifest, error)
 func Negotiate(m *Manifest, id string, supported []uint16) (protocol.ProtocolKey, uint16, error)
 func (m *Manifest) Lookup(id string) (Entry, bool)

@@ -241,10 +241,10 @@ body.rv-open .layout { padding-right:21rem; }
 <ul>
 <li><strong>FR-qmuxd-14</strong> — Each QNAME in <code>records</code> must be at or below one of the configured zones.
 </li>
-<li><strong>FR-qmuxd-15</strong> — When <code>discovery.enabled</code> is true, <code>qmuxd</code> calls <code>discovery.Register</code> for
+<li><strong>FR-qmuxd-15</strong> — When <code>discovery.enabled</code> is true, <code>qmuxd</code> calls
 </li>
 </ul>
-<p>each zone. <code>discovery.in_class</code> sets <code>InClass</code>.</p>
+<p><code>discovery.RegisterZones</code> one time with every zone. <code>discovery.in_class</code> sets <code>InClass</code>.</p>
 <h4 id="qmuxd-daemon-static-records-and-json-to-cbor-rule">Static records and JSON-to-CBOR rule</h4>
 <ul>
 <li><strong>FR-qmuxd-16</strong> — A static-record handler answers a QNAME listed in <code>records</code>, with a
