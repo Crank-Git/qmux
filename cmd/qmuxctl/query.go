@@ -177,7 +177,7 @@ func printText(w io.Writer, out queryOutput) error {
 // exitCode returns the exit code of qmuxctl query for the error of client.Query:
 //   - 0 for nil.
 //   - 1 for a *client.DNSError.
-//   - 2 for a client.AppError.
+//   - 2 for a *client.AppError.
 //   - 3 for a client.VerifyError.
 //   - 64 for every other error.
 //
@@ -186,7 +186,7 @@ func printText(w io.Writer, out queryOutput) error {
 // the --name flag, and an invalid flag exits 64.
 func exitCode(err error) int {
 	var dnsErr *client.DNSError
-	var appErr client.AppError
+	var appErr *client.AppError
 	var verifyErr client.VerifyError
 	switch {
 	case err == nil:

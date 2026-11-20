@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Crank-Git/qmux/pkg/codec"
 	"github.com/Crank-Git/qmux/pkg/protocol"
 	"github.com/Crank-Git/qmux/pkg/registry"
 	"github.com/Crank-Git/qmux/pkg/transport"
@@ -189,16 +190,28 @@ func exchange(ctx context.Context, network, addr string, id uint16) (transportte
 	return transporttest.Unpack(resp)
 }
 
-// checkAnswer fails the test when m is not a NOERROR answer with payload as RDATA.
+// checkAnswer fails the test when m is not a NOERROR answer whose RDATA is an envelope
+// with payload.
 func checkAnswer(t *testing.T, network string, m transporttest.Message, id uint16, payload []byte) {
 	t.Helper()
 	if m.ID != id || m.RCode != transport.RCodeNoError || len(m.Answer) != 1 {
 		t.Fatalf("%s: got ID %d, RCODE %v, %d answers; want ID %d, NOERROR, 1 answer",
 			network, m.ID, m.RCode, len(m.Answer), id)
 	}
-	if !bytes.Equal(m.Answer[0].Data, payload) {
-		t.Fatalf("%s: RDATA = %q, want %q", network, m.Answer[0].Data, payload)
+	if got := envelopePayload(t, m.Answer[0].Data); !bytes.Equal(got, payload) {
+		t.Fatalf("%s: envelope payload = %q, want %q", network, got, payload)
 	}
+}
+
+// envelopePayload fails the test when rdata is not a valid envelope, and returns the
+// payload of the envelope.
+func envelopePayload(t *testing.T, rdata []byte) []byte {
+	t.Helper()
+	e, err := codec.Decode(rdata, codec.Limits{})
+	if err != nil {
+		t.Fatalf("Decode(RDATA): %v", err)
+	}
+	return e.Payload
 }
 
 // waitAddr returns the address of s after its listeners start. Addr is the readiness

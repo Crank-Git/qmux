@@ -241,8 +241,8 @@ func TestExitCodeMapsEachOutcomeToItsExitCode(t *testing.T) {
 	}{
 		"a result":            {nil, 0},
 		"a DNSError":          {&client.DNSError{Kind: client.KindTimeout}, 1},
-		"an AppError":         {client.AppError{Status: protocol.StatusNotFound}, 2},
-		"a wrapped AppError":  {fmt.Errorf("query: %w", client.AppError{}), 2},
+		"an AppError":         {&client.AppError{Status: protocol.StatusNotFound}, 2},
+		"a wrapped AppError":  {fmt.Errorf("query: %w", &client.AppError{}), 2},
 		"a VerifyError":       {client.VerifyError{Reason: "expired"}, 3},
 		"a plain query error": {errors.New("client: transport: pack query"), 64},
 	}

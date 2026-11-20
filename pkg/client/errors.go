@@ -20,9 +20,10 @@ const (
 	// than a timeout. A resolver that is not an IP address and port is also this kind.
 	KindNetwork ErrorKind = "network"
 	// KindMismatch means that the response question or answer RR differs from the
-	// query.
+	// query, or that the envelope protocol ID or version differs from the query.
 	KindMismatch ErrorKind = "mismatch"
-	// KindMalformed means that the response does not parse.
+	// KindMalformed means that the response does not parse, or that the RDATA of the
+	// answer RR is not a valid envelope.
 	KindMalformed ErrorKind = "malformed"
 	// KindTruncation means that the UDP response has the TC bit and the client sends
 	// no TCP query.
@@ -84,7 +85,7 @@ func (e *DNSError) Unwrap() error {
 }
 
 // AppError is a response that the server answered with an application status other
-// than StatusOK. The client returns it from Epic 4.
+// than StatusOK. Client.Query returns it as a *AppError together with the result.
 type AppError struct {
 	Status     protocol.Status
 	ProtocolID string
@@ -92,7 +93,7 @@ type AppError struct {
 }
 
 // Error returns the application status, the protocol ID and the protocol version.
-func (e AppError) Error() string {
+func (e *AppError) Error() string {
 	return "client: application status " + strconv.FormatUint(uint64(e.Status), 10) +
 		" from " + e.ProtocolID + " version " + strconv.FormatUint(uint64(e.Version), 10)
 }

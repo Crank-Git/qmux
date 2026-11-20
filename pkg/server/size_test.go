@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Crank-Git/qmux/pkg/codec"
 	"github.com/Crank-Git/qmux/pkg/protocol"
 	"github.com/Crank-Git/qmux/pkg/transport"
 	"github.com/Crank-Git/qmux/pkg/transport/transporttest"
@@ -15,9 +16,29 @@ import (
 const sizeQName = "device42.fleet.example."
 
 // responseOverhead is the size of a NOERROR response to a query for sizeQName without EDNS(0),
-// less the payload. It is 12 bytes of header, 28 bytes of question, and 12 bytes of
+// less the envelope. It is 12 bytes of header, 28 bytes of question, and 12 bytes of
 // answer RR: a 2-byte compressed name and a 10-byte fixed part.
 const responseOverhead = 12 + 28 + 12
+
+// payloadForEnvelope returns a payload of 0xab bytes whose envelope for testInfo is
+// exactly size bytes. The length of the CBOR byte string head depends on the payload
+// length, so the function searches for the length.
+func payloadForEnvelope(t *testing.T, size int) []byte {
+	t.Helper()
+	for n := size; n >= 0; n-- {
+		payload := bytes.Repeat([]byte{0xab}, n)
+		b, err := codec.Encode(codec.Envelope{Format: 1, ProtocolID: testInfo.ID, Version: 1,
+			MessageType: uint64(protocol.MessageRecord), Payload: payload}, codec.Limits{MaxEnvelope: 65000})
+		if err != nil {
+			t.Fatalf("Encode: %v", err)
+		}
+		if len(b) == size {
+			return payload
+		}
+	}
+	t.Fatalf("no payload gives a %d-byte envelope", size)
+	return nil
+}
 
 // sizeQuery returns a query for sizeQName. advertised 0 means a query without EDNS(0).
 func sizeQuery(id, advertised uint16) transporttest.Message {
@@ -93,7 +114,7 @@ func TestServeTruncatesA600BytePayloadToAUDPQueryWithoutEDNS(t *testing.T) {
 func TestServeUsesA512ByteLimitForAUDPQueryWithoutEDNS(t *testing.T) {
 	tests := []struct {
 		name      string
-		payload   int
+		envelope  int
 		truncated bool
 	}{
 		{"a 512-byte response", 512 - responseOverhead, false},
@@ -101,7 +122,7 @@ func TestServeUsesA512ByteLimitForAUDPQueryWithoutEDNS(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			payload := bytes.Repeat([]byte{0xab}, tt.payload)
+			payload := payloadForEnvelope(t, tt.envelope)
 			addr := startPayloadServer(t, ServerConfig{}, payload)
 
 			m := exchangeMessage(t, transport.UDP, addr, sizeQuery(2, 0))
@@ -231,18 +252,18 @@ func TestServeAnswersServFailToA70000BytePayloadOverTCP(t *testing.T) {
 	}
 }
 
-func TestServeUsesA65535ByteLimitOverTCP(t *testing.T) {
+func TestServeAnswersTheLargestEnvelopeOverTCP(t *testing.T) { // FR-codec-36
 	tests := []struct {
 		name     string
-		size     int
+		envelope int
 		servFail bool
 	}{
-		{"a 65535-byte response", 65535, false},
-		{"a 65536-byte response", 65536, true},
+		{"a 16384-byte envelope", 16384, false},
+		{"a 16385-byte envelope", 16385, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			payload := bytes.Repeat([]byte{0xab}, tt.size-responseOverhead)
+			payload := payloadForEnvelope(t, tt.envelope)
 			addr := startPayloadServer(t, ServerConfig{}, payload)
 
 			m := exchangeMessage(t, transport.TCP, addr, sizeQuery(10, 0))
