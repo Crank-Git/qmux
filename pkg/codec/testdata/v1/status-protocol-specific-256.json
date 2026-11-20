@@ -1,0 +1,11 @@
+{
+  "description": "A record envelope with the protocol-specific status 256.",
+  "envelope": {
+    "format": 1,
+    "protocol_id": "org.qmux.test",
+    "version": 1,
+    "message_type": 1,
+    "status": 256,
+    "payload_hex": ""
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "description": "The map has an indefinite length.",
+  "error": "cbor.IndefiniteLengthError"
+}
