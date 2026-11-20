@@ -93,8 +93,10 @@ func ExchangeTCP(ctx context.Context, c net.Conn, p Packet) (Received, error)
    `ErrAlreadyWritten`.
 
 `Serve` reads into a 65535-byte buffer. It drops a packet that is shorter than the
-12-byte header, and logs it at debug level. After `ctx` ends, `Serve` closes `pc` and
-`l`. It waits `ShutdownGrace` for in-flight calls, then cancels their contexts. Handler
+12-byte header, and logs it at debug level. After `ctx` ends, `Serve` closes `l` and
+stops the reads on `pc`. It waits `ShutdownGrace` for in-flight calls, then cancels their
+contexts. It closes `pc` after the calls return, so that a UDP handler can still send its
+answer during `ShutdownGrace`. Handler
 contexts do not come from the `Serve` context.
 
 ### The rules for `Exchange`
