@@ -24,10 +24,10 @@ var (
 	testPayload = []byte{0xa1, 0x01, 0x02}
 )
 
-// recorder is a fake server that records each query it receives and its network. It
-// answers a query with testPayload, or drops it when drop returns true for the query
-// number. The first query has number 1. When edit is set, it changes each response
-// before the server sends it.
+// recorder is a fake server that records each query it receives, its network, and the
+// wire sizes of each answered exchange. It answers a query with testPayload, or drops it
+// when drop returns true for the query number. The first query has number 1. When edit
+// is set, it changes each response before the server sends it.
 type recorder struct {
 	drop func(n int) bool
 	edit func(network string, m *transporttest.Message)
@@ -35,7 +35,14 @@ type recorder struct {
 	mu       sync.Mutex
 	queries  []transporttest.Message
 	networks []string
+	sizes    []wireSizes
 	errs     []error
+}
+
+// wireSizes holds the packed sizes of one query and of its response, without the TCP
+// length prefix.
+type wireSizes struct {
+	query, response int
 }
 
 func (r *recorder) respond(network string, wire []byte) [][]byte {
@@ -65,6 +72,7 @@ func (r *recorder) respond(network string, wire []byte) [][]byte {
 		r.errs = append(r.errs, err)
 		return nil
 	}
+	r.sizes = append(r.sizes, wireSizes{query: len(wire), response: len(resp)})
 	return [][]byte{resp}
 }
 
@@ -85,6 +93,13 @@ func (r *recorder) receivedOver() []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return append([]string(nil), r.networks...)
+}
+
+// answered returns the wire sizes of each exchange that r answered, in order.
+func (r *recorder) answered() []wireSizes {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]wireSizes(nil), r.sizes...)
 }
 
 // start starts a fake server that uses r and returns its address.
@@ -343,7 +358,7 @@ func TestQueryRepeatsATruncatedUDPQueryOnceOverTCP(t *testing.T) { // FR-client-
 	}
 }
 
-func TestQuerySetsFellBackToFalseForAUDPAnswer(t *testing.T) {
+func TestQuerySetsFellBackToFalseForAUDPAnswer(t *testing.T) { // FR-client-29
 	var r recorder
 	c := client.NewClient(client.ClientConfig{Resolver: r.start(t)})
 
