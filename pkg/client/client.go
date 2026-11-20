@@ -55,7 +55,7 @@ type Query struct {
 	Class uint16
 	Type  uint16
 	// Version adds the label "_v<Version>" before Name when it is not 0. The envelope
-	// version must then equal Version.
+	// version must then equal Version, except in a version-unsupported envelope.
 	Version uint16
 	// ExpectedProtocolID is optional. When it is set, the envelope protocol ID must
 	// equal it.
@@ -133,7 +133,8 @@ func NewClient(cfg ClientConfig) *Client {
 //     true.
 //   - KindMismatch when the response does not answer q, when the envelope protocol ID
 //     differs from q.ExpectedProtocolID, or when the envelope version differs from
-//     q.Version.
+//     q.Version. A version-unsupported envelope gives the *AppError and not this
+//     error, because it carries the highest version of the registration.
 //   - KindMalformed when the response does not parse, when a TCP response has the TC
 //     bit, or when codec.Decode rejects the RDATA of the answer RR.
 //   - KindRCode when the RCODE is not NOERROR.
@@ -267,7 +268,8 @@ func exchange(ctx context.Context, network string, server netip.AddrPort, p tran
 // holds no answer RR whatever its RCODE.
 //
 // result returns the result and a *AppError when the application status is not
-// protocol.StatusOK.
+// protocol.StatusOK. For the status protocol.StatusVersionUnsupported, result skips the
+// version check, so the caller gets the *AppError.
 func result(q Query, p transport.Packet, got transport.Received) (*Result, error) {
 	if got.Truncated {
 		return nil, &DNSError{Kind: KindTruncation, Name: p.Name, Key: p.Key, Err: errTruncated}
@@ -284,7 +286,10 @@ func result(q Query, p transport.Packet, got transport.Received) (*Result, error
 		return nil, &DNSError{Kind: KindMismatch, Name: p.Name, Key: p.Key,
 			Err: fmt.Errorf("%w: envelope protocol ID %q, want %q", transport.ErrMismatch, e.ProtocolID, q.ExpectedProtocolID)}
 	}
-	if q.Version != 0 && e.Version != uint64(q.Version) {
+	// A version-unsupported envelope carries the highest version of the registration,
+	// not the label. A version check on it would hide the status from the caller.
+	unsupported := e.Status == uint64(protocol.StatusVersionUnsupported)
+	if q.Version != 0 && e.Version != uint64(q.Version) && !unsupported {
 		return nil, &DNSError{Kind: KindMismatch, Name: p.Name, Key: p.Key,
 			Err: fmt.Errorf("%w: envelope version %d, want %d", transport.ErrMismatch, e.Version, q.Version)}
 	}

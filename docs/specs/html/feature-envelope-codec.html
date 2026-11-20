@@ -398,7 +398,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li><strong>FR-codec-41</strong> — When the query QNAME has a version label, the client returns a
 </li>
 </ul>
-<p><code>*client.DNSError</code> of kind <code>mismatch</code> if the envelope version differs from the label.</p>
+<p><code><em>client.DNSError</code> of kind <code>mismatch</code> if the envelope version differs from the label. From Epic 5, an envelope with the status <code>version-unsupported</code> is the exception: the client skips the version check and returns the result and a <code></em>client.AppError</code>. FR-discovery-20 gives this envelope the highest version of the registration (#130).</p>
 <ul>
 <li><strong>FR-codec-42</strong> — <code>qmuxctl query</code> prints the protocol ID, the protocol version, the
 </li>
