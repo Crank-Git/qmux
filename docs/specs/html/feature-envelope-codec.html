@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: Envelope codec</h1>
-<p class="meta">Epic 4: Envelope codec &nbsp; <span class="badge">issued</span></p>
+<p class="meta">Epic 4: Envelope codec &nbsp; <span class="badge">built</span></p>
 <h3 id="envelope-codec-purpose">Purpose</h3>
 <p>Every answer RR carries one envelope as its RDATA. The envelope is a CBOR map with a fixed set of integer keys. It names the protocol ID, the protocol version, the message type and the application status, and it carries the payload.</p>
 <p>This feature adds <code>pkg/codec</code>. It encodes the envelope with deterministic CBOR and decodes it strictly. The authoritative server then wraps every response in an envelope, and the client SDK decodes every answer from an envelope. Epic 6 signs the envelope, so the encoding must give the same bytes for the same values on every platform.</p>

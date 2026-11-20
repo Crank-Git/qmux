@@ -2,7 +2,7 @@
 id: envelope-codec
 feature: Envelope codec
 epic: "Epic 4: Envelope codec"
-status: issued
+status: built
 issues: [5, 32, 33, 34, 35, 36]
 mockups: []
 ---

@@ -795,3 +795,4 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
 - 2026-11-20 — The user ruled that `qmuxctl query` shows the envelope fields as `key: value`
   lines and prints the result before an `AppError` (#36). The envelope rejects a message
   type or status above 65535 (`ErrInvalidStatus`, #33).
+- 2026-11-20 — Envelope codec is `built` (#122).
