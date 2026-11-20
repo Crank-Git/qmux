@@ -47,6 +47,12 @@ func startServerWith(t *testing.T, resp protocol.Response) string {
 	if err := s.RegisterProtocol(testKey, testInfo, h); err != nil {
 		t.Fatalf("RegisterProtocol: %v", err)
 	}
+	return serve(t, s)
+}
+
+// serve runs s until the test ends and returns the server address.
+func serve(t *testing.T, s *server.Server) string {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	errc := make(chan error, 1)
 	go func() { errc <- s.ListenAndServe(ctx) }()
