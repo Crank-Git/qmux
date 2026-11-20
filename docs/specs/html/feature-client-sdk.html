@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: Client SDK</h1>
-<p class="meta">Epic 3: Client SDK &nbsp; <span class="badge">issued</span></p>
+<p class="meta">Epic 3: Client SDK &nbsp; <span class="badge">built</span></p>
 <h3 id="client-sdk-purpose">Purpose</h3>
 <p>The client SDK sends a query for one QNAME, QCLASS and QTYPE directly to a configured server, and returns a result. It builds every DNS packet itself and never uses the operating system's stub resolver. It retries on a UDP timeout, repeats a truncated query over TCP, and checks that the answer matches the question exactly. It reports DNS failures and application outcomes as separate error types.</p>
 <p><code>qmuxctl query</code> exposes the SDK on the command line. This epic also adds the root <code>qmux</code> facade, so the brief's API examples compile as written. The Phase 1 deliverable closes this epic: two protocols answer through two private classes.</p>
@@ -486,10 +486,10 @@ payload: a1016b68656c6c6f</code></pre>
 </li>
 <li><code>Result.TTL</code> is informational. Nothing in the client uses it as an expiry.
 </li>
-<li><code>DNSError.Error()</code> names the kind, the QNAME, the protocol key and, for the kind
+<li><code>DNSError.Error()</code> names the kind, the QNAME and the protocol key. For the kind
 </li>
 </ul>
-<p><code>rcode</code>, the RCODE text.</p>
+<p><code>rcode</code>, it also names the RCODE text. For the kind <code>timeout</code>, it names the attempt count and the resolver address in place of the QNAME and the protocol key.</p>
 <ul>
 <li>Every error wraps a cause, so callers test it with <code>errors.As</code> and <code>errors.Is</code>.
 </li>

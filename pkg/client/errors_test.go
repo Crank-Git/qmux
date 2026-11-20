@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"slices"
 	"strings"
@@ -186,8 +187,8 @@ func TestQueryReturnsAnRCodeErrorThatHoldsTheRCode(t *testing.T) { // FR-client-
 			if de.RCode != 5 {
 				t.Errorf("DNSError RCode = %d, want 5", de.RCode)
 			}
-			if !strings.Contains(err.Error(), "REFUSED") {
-				t.Errorf("Error() = %q, want the RCODE text REFUSED", err.Error())
+			if want := "dns: rcode REFUSED for " + testName + " 65280/65280"; err.Error() != want {
+				t.Errorf("Error() = %q, want %q", err.Error(), want)
 			}
 		})
 	}
@@ -281,18 +282,22 @@ func answerTruncated(pc net.PacketConn) {
 
 func TestQueryMakesExactlyThreeAttemptsWhenTheServerDropsEveryPacket(t *testing.T) { // FR-client-10
 	r := recorder{drop: func(int) bool { return true }}
-	c := client.NewClient(client.ClientConfig{Resolver: r.start(t), AttemptTimeout: 50 * time.Millisecond})
+	addr := r.start(t)
+	c := client.NewClient(client.ClientConfig{Resolver: addr, AttemptTimeout: 50 * time.Millisecond})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	_, err := c.Query(ctx, testQuery)
 
-	wantKind(t, err, client.KindTimeout)
+	de := wantKind(t, err, client.KindTimeout)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Errorf("errors.Is(err, context.DeadlineExceeded) = false for %v", err)
 	}
-	if !strings.Contains(err.Error(), "3 attempts") {
-		t.Errorf("Error() = %q, want the attempt count", err.Error())
+	if de.Attempts != 3 || de.Resolver != addr {
+		t.Errorf("DNSError Attempts, Resolver = %d, %q, want 3, %q", de.Attempts, de.Resolver, addr)
+	}
+	if want := "dns: timeout after 3 attempts to " + addr; err.Error() != want {
+		t.Errorf("Error() = %q, want %q", err.Error(), want)
 	}
 	if got := r.receivedOver(); !slices.Equal(got, []string{transport.UDP, transport.UDP, transport.UDP}) {
 		t.Errorf("server received queries over %v, want 3 over udp", got)
@@ -397,18 +402,59 @@ func TestQueryReturnsANetworkErrorForAClosedTCPPort(t *testing.T) { // FR-client
 	wantKind(t, err, client.KindNetwork)
 }
 
-func TestDNSErrorNamesTheKindTheNameAndTheProtocolKey(t *testing.T) {
-	err := &client.DNSError{Kind: client.KindMismatch, Name: testName, Key: testKey, Err: transport.ErrMismatch}
-
-	msg := err.Error()
-
-	for _, want := range []string{"mismatch", testName, "65280/65280"} {
-		if !strings.Contains(msg, want) {
-			t.Errorf("Error() = %q, want %q in it", msg, want)
-		}
+func TestDNSErrorTextMatchesTheQmuxctlScreens(t *testing.T) {
+	name, key := "device42.fleet.example.", protocol.ProtocolKey{Class: 65283, Type: 65280}
+	tests := []struct {
+		name string
+		err  *client.DNSError
+		want string
+	}{
+		{"rcode", &client.DNSError{Kind: client.KindRCode, RCode: 5, Name: name, Key: key},
+			"dns: rcode REFUSED for device42.fleet.example. 65283/65280"},
+		{"timeout", &client.DNSError{Kind: client.KindTimeout, Name: name, Key: key, Attempts: 3, Resolver: "127.0.0.1:5353", Err: context.DeadlineExceeded},
+			"dns: timeout after 3 attempts to 127.0.0.1:5353"},
+		{"timeout after one attempt", &client.DNSError{Kind: client.KindTimeout, Name: name, Key: key, Attempts: 1, Resolver: "127.0.0.1:5353", Err: context.DeadlineExceeded},
+			"dns: timeout after 1 attempt to 127.0.0.1:5353"},
 	}
-	if !errors.Is(err, transport.ErrMismatch) {
-		t.Error("errors.Is(DNSError, its Err) = false")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.err.Error(); got != tt.want {
+				t.Errorf("Error() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDNSErrorNamesTheKindTheNameAndTheProtocolKeyForEveryOtherKind(t *testing.T) {
+	cause := errors.New("cause")
+	tests := []struct {
+		kind client.ErrorKind
+		err  error
+		want string
+	}{
+		{client.KindNetwork, cause, "dns: network for " + testName + " 65280/65280: cause"},
+		{client.KindMismatch, transport.ErrMismatch, "dns: mismatch for " + testName + " 65280/65280: " + transport.ErrMismatch.Error()},
+		{client.KindMalformed, transport.ErrMalformed, "dns: malformed for " + testName + " 65280/65280: " + transport.ErrMalformed.Error()},
+		{client.KindTruncation, cause, "dns: truncation for " + testName + " 65280/65280: cause"},
+		// A timeout DNSError without the attempt count does not come from Query, so its
+		// text falls back to the form of the other kinds.
+		{client.KindTimeout, context.DeadlineExceeded, "dns: timeout for " + testName + " 65280/65280: " + context.DeadlineExceeded.Error()},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.kind), func(t *testing.T) {
+			err := &client.DNSError{Kind: tt.kind, Name: testName, Key: testKey, Err: tt.err}
+
+			if got := err.Error(); got != tt.want {
+				t.Errorf("Error() = %q, want %q", got, tt.want)
+			}
+			var de *client.DNSError
+			if !errors.As(fmt.Errorf("wrap: %w", err), &de) || de != err {
+				t.Error("errors.As(wrapped DNSError, *DNSError) does not find the DNSError")
+			}
+			if !errors.Is(err, tt.err) {
+				t.Error("errors.Is(DNSError, its Err) = false")
+			}
+		})
 	}
 }
 
