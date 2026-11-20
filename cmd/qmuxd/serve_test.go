@@ -68,7 +68,10 @@ func writeConfig(t *testing.T, listen string) string {
 type qmuxdProcess struct {
 	cmd   *exec.Cmd
 	ready chan string
-	done  chan error
+	// done closes when the process has exited. waitErr is the error of cmd.Wait, and a
+	// test reads it only after done closes.
+	done    chan struct{}
+	waitErr error
 }
 
 // startQmuxd starts "qmuxd serve" with args in the directory dir. The process ends
@@ -85,7 +88,7 @@ func startQmuxd(t *testing.T, dir string, args ...string) *qmuxdProcess {
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	p := &qmuxdProcess{cmd: cmd, ready: make(chan string, 1), done: make(chan error, 1)}
+	p := &qmuxdProcess{cmd: cmd, ready: make(chan string, 1), done: make(chan struct{})}
 	go func() {
 		// The scan reads stderr to the end, so the per-query log records never fill
 		// the pipe. Wait comes after the scan, as exec.Cmd.StderrPipe requires.
@@ -95,7 +98,8 @@ func startQmuxd(t *testing.T, dir string, args ...string) *qmuxdProcess {
 				p.ready <- sc.Text()
 			}
 		}
-		p.done <- cmd.Wait()
+		p.waitErr = cmd.Wait()
+		close(p.done)
 	}()
 	t.Cleanup(func() {
 		// Kill fails when the process has already exited, which is the expected case
@@ -113,9 +117,8 @@ func (p *qmuxdProcess) waitReady(t *testing.T) string {
 	select {
 	case line := <-p.ready:
 		return line
-	case err := <-p.done:
-		p.done <- err
-		t.Fatalf("qmuxd exited before the ready record: %v", err)
+	case <-p.done:
+		t.Fatalf("qmuxd exited before the ready record: %v", p.waitErr)
 	case <-time.After(startTimeout):
 		t.Fatalf("no ready record in %v", startTimeout)
 	}
@@ -126,11 +129,10 @@ func (p *qmuxdProcess) waitReady(t *testing.T) string {
 func (p *qmuxdProcess) waitExit(t *testing.T, limit time.Duration) int {
 	t.Helper()
 	select {
-	case err := <-p.done:
-		p.done <- err
+	case <-p.done:
 		var exitErr *exec.ExitError
-		if err != nil && !errors.As(err, &exitErr) {
-			t.Fatalf("Wait: %v", err)
+		if p.waitErr != nil && !errors.As(p.waitErr, &exitErr) {
+			t.Fatalf("Wait: %v", p.waitErr)
 		}
 		return p.cmd.ProcessState.ExitCode()
 	case <-time.After(limit):

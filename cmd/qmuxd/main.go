@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 )
 
@@ -17,18 +19,20 @@ func run(args []string, stdout, stderr io.Writer) int {
 	name := filepath.Base(args[0])
 	if len(args) < 2 {
 		// The exit code is 1 whether or not stderr accepts the write.
-		_, _ = fmt.Fprintf(stderr, "Usage: %s <version|help>\n", name)
+		_, _ = fmt.Fprintf(stderr, "Usage: %s <serve|version|help>\n", name)
 		return 1
 	}
 	var err error
 	switch args[1] {
+	case "serve":
+		return runServe(context.Background(), name, args[2:], stdout, stderr)
 	case "version":
-		_, err = fmt.Fprintf(stdout, "%s %s\n", name, versionOf(debug.ReadBuildInfo()))
+		_, err = fmt.Fprintf(stdout, "%s %s %s\n", name, versionOf(debug.ReadBuildInfo()), runtime.Version())
 	case "help", "-h", "--help":
-		_, err = fmt.Fprintf(stdout, "Usage: %s <command>\n\nCommands:\n  version   Print version\n  help      Show this help\n", name)
+		_, err = fmt.Fprintf(stdout, "Usage: %s <command>\n\nCommands:\n  serve     Serve the protocols of the configuration file\n  version   Print the module version and the Go version\n  help      Show this help\n", name)
 	default:
 		// The exit code is 1 whether or not stderr accepts the write.
-		_, _ = fmt.Fprintf(stderr, "Unknown command: %s\nUsage: %s <version|help>\n", args[1], name)
+		_, _ = fmt.Fprintf(stderr, "Unknown command: %s\nUsage: %s <serve|version|help>\n", args[1], name)
 		return 1
 	}
 	if err != nil {
