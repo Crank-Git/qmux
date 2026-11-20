@@ -97,6 +97,10 @@ func highestVersion(reg registry.Registration) uint16 {
 // It returns errVersion when resp.Version is not a version of reg, the error of
 // reg.Info.Schema when the schema rejects the payload, and the error of
 // encodeEnvelope.
+//
+// The schema checks only a response with status ok. A response with another status
+// usually has no payload, and a schema that requires fields would turn it into
+// SERVFAIL (FR-server-28).
 func (s *Server) envelope(q *transport.Query, reg registry.Registration, resp *protocol.Response) ([]byte, error) {
 	version := resp.Version
 	if version == 0 {
@@ -104,7 +108,7 @@ func (s *Server) envelope(q *transport.Query, reg registry.Registration, resp *p
 	} else if !slices.Contains(reg.Info.Versions, version) {
 		return nil, fmt.Errorf("%w: %d", errVersion, version)
 	}
-	if schema := reg.Info.Schema; schema != nil {
+	if schema := reg.Info.Schema; schema != nil && resp.Status == protocol.StatusOK {
 		if err := schema.Validate(version, resp.Payload); err != nil {
 			return nil, fmt.Errorf("schema rejects the payload of version %d: %w", version, err)
 		}

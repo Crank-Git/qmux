@@ -22,7 +22,8 @@ func (k ProtocolKey) String() string {
 type Info struct {
 	ID       string
 	Versions []uint16
-	// Schema is optional and can be nil.
+	// Schema is optional and can be nil. The server calls it only for a response with
+	// status ok.
 	Schema Schema
 }
 
