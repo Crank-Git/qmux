@@ -33,8 +33,9 @@ imports it.
   TC bit when it removes answer RRs.
 - `Msg.SetEdns0(udpsize uint16, do bool)` adds an OPT RR to the additional section with
   the given UDP size.
-- `RFC3597.Rdata` is a hex-encoded string, not raw bytes. `pkg/transport` must call
-  `encoding/hex.EncodeToString` to set it and compare unpacked values as strings.
+- `RFC3597.Rdata` is a hex-encoded string, not raw bytes. `pkg/transport` calls
+  `encoding/hex.EncodeToString` to set it and `encoding/hex.DecodeString` to read it.
+  A byte-exact check compares the decoded bytes, because hex strings can differ in case.
 - `dns.UnpackRR` takes two arguments: the wire buffer and the offset.
 - `dns.Msg.Truncated` (not `TC`) holds the truncation flag; `dns.Msg` embeds
   `dns.MsgHdr` which carries the field.
