@@ -1,3 +1,4 @@
-// Package protocol defines the QMux application protocol types, message
-// formats, and state machines for session management.
+// Package protocol defines the core QMux types: ProtocolKey, Info, Request,
+// Response, Handler, Status and MessageType. It also holds the range checks for
+// private classes and private types.
 package protocol

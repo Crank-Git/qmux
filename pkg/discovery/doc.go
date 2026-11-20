@@ -1,3 +1,3 @@
-// Package discovery provides DNS-based service discovery mechanisms
-// including bootstrap, multicast, and registry fallback.
+// Package discovery holds the manifest schema, the discovery handler and
+// client-side discovery. It also holds version negotiation and the manifest cache.
 package discovery
