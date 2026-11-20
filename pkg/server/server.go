@@ -43,7 +43,7 @@ const (
 var ErrMissingInfo = errors.New("server: handler does not implement protocol.Describer")
 
 // ServerConfig holds the settings of a Server. NewServer applies a default to each
-// zero field except Address, Zones and Registry.
+// zero field except Address, Zones, Registry, Signer, RateLimit and ObservationLog.
 type ServerConfig struct {
 	// Address is the host and port of the UDP and TCP listeners, for example
 	// "127.0.0.1:5353". ListenAndServe uses it.
@@ -78,6 +78,9 @@ type ServerConfig struct {
 	// label. When signing fails, the server answers SERVFAIL. Nil means that the
 	// server returns unsigned envelopes. Handlers never sign.
 	Signer *security.Signer
+	// RateLimit sets the per-source token bucket. The zero value disables the rate
+	// limit.
+	RateLimit RateLimit
 	// ObservationLog receives one JSON object and a newline for each answered query.
 	// The fields are ts, transport, source, qname, qclass, qtype, rcode, status,
 	// bytes_in, bytes_out and duration_us. status is null when the response holds no
@@ -92,6 +95,8 @@ type ServerConfig struct {
 type Server struct {
 	cfg ServerConfig
 	reg *registry.Registry
+	// limiter is nil when cfg.RateLimit disables the rate limit.
+	limiter *rateLimiter
 	// obs is nil when cfg.ObservationLog is nil.
 	obs *observationLog
 
@@ -129,7 +134,7 @@ func NewServer(cfg ServerConfig) *Server {
 		zones[i] = protocol.FoldName(z)
 	}
 	cfg.Zones = zones
-	s := &Server{cfg: cfg, reg: registry.New(cfg.Registry)}
+	s := &Server{cfg: cfg, reg: registry.New(cfg.Registry), limiter: newRateLimiter(cfg.RateLimit)}
 	if cfg.ObservationLog != nil {
 		s.obs = &observationLog{logger: cfg.Logger, w: cfg.ObservationLog}
 	}
@@ -224,6 +229,12 @@ func (s *Server) Addr() net.Addr {
 func (s *Server) serveQuery(ctx context.Context, q *transport.Query, w transport.Writer) {
 	// An answer to a response can start a loop between two servers.
 	if q.QR {
+		return
+	}
+	// The rate limit applies before every other check, so a source with an empty
+	// bucket costs the server no further work (FR-qmuxd-26).
+	if s.limiter != nil && !s.limiter.allow(q.Source.Addr(), q.ReceivedAt) {
+		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeRefused}, nil)
 		return
 	}
 	if rcode, ok := s.checkHeader(q); !ok {
