@@ -89,9 +89,9 @@ func TestRegisterSortsVersions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Register = %v, want nil", err)
 	}
-	reg, err := r.Lookup(protocol.ProtocolKey{Class: 65280, Type: 65280})
-	if err != nil {
-		t.Fatalf("Lookup = %v, want nil", err)
+	reg, ok := r.Lookup(protocol.ProtocolKey{Class: 65280, Type: 65280})
+	if !ok {
+		t.Fatal("Lookup: not found")
 	}
 	expected := []uint16{1, 2, 3}
 	if len(reg.Info.Versions) != 3 || reg.Info.Versions[0] != 1 || reg.Info.Versions[1] != 2 || reg.Info.Versions[2] != 3 {

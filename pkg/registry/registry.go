@@ -47,8 +47,9 @@ func New(opts Options) *Registry {
 	}
 }
 
-// Register stores a protocol registration. It validates the handler, ID, versions,
-// and key before storing. It rejects duplicate keys and duplicate IDs.
+// Register adds a registration when the key and info are valid.
+// It validates the handler, ID, versions, and key before storing.
+// It rejects duplicate keys and duplicate IDs.
 //
 // The validation order is: handler, ID, versions, key, key conflict, ID conflict.
 // The first failed rule decides the error value.
@@ -56,44 +57,44 @@ func (r *Registry) Register(key protocol.ProtocolKey, info protocol.Info, handle
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Validate handler.
+	// Check handler (FR-registry-23).
 	if handler == nil {
-		return fmt.Errorf("%s (%s): %w", info.ID, key, ErrInvalidHandler)
+		return fmt.Errorf("%w", ErrInvalidHandler)
 	}
 
-	// Validate ID.
+	// Check protocol ID (FR-registry-12).
 	if err := validateID(info.ID); err != nil {
-		return fmt.Errorf("%s (%s): %w", info.ID, key, err)
+		return err
 	}
 
-	// Validate versions.
+	// Check versions (FR-registry-13, 14, 15).
 	if err := r.validateVersions(info.Versions); err != nil {
-		return fmt.Errorf("%s (%s): %w", info.ID, key, err)
+		return err
 	}
 
-	// Validate key.
+	// Check key (FR-registry-17, 18, 19, 20, 21, 22).
 	if err := r.validateKey(key); err != nil {
-		return fmt.Errorf("%s (%s): %w", info.ID, key, err)
+		return err
 	}
 
-	// Check key conflict.
-	if _, exists := r.byKey[key]; exists {
-		return fmt.Errorf("%s (%s): %w", info.ID, key, ErrKeyConflict)
+	// Check key conflict (FR-registry-25).
+	if _, ok := r.byKey[key]; ok {
+		return fmt.Errorf("%w: %s", ErrKeyConflict, key)
 	}
 
-	// Check ID conflict.
-	if existingKey, exists := r.byID[info.ID]; exists {
-		return fmt.Errorf("%s (%s): %w (conflicts with %s)", info.ID, key, ErrIDConflict, existingKey)
+	// Check ID conflict (FR-registry-26).
+	if existingKey, ok := r.byID[info.ID]; ok && existingKey != key {
+		return fmt.Errorf("%w: %s", ErrIDConflict, info.ID)
 	}
 
-	// Store the registration with sorted versions.
-	sorted := make([]uint16, len(info.Versions))
-	copy(sorted, info.Versions)
-	slices.Sort(sorted)
+	// Store a copy of versions (edge case: caller mutates after Register).
+	versions := make([]uint16, len(info.Versions))
+	copy(versions, info.Versions)
+	slices.Sort(versions) // FR-registry-16: store sorted
 
 	r.byKey[key] = Registration{
 		Key:     key,
-		Info:    protocol.Info{ID: info.ID, Versions: sorted, Schema: info.Schema},
+		Info:    protocol.Info{ID: info.ID, Versions: versions, Schema: info.Schema},
 		Handler: handler,
 	}
 	r.byID[info.ID] = key
@@ -101,16 +102,68 @@ func (r *Registry) Register(key protocol.ProtocolKey, info protocol.Info, handle
 	return nil
 }
 
-// Lookup returns the registration for the given key.
-func (r *Registry) Lookup(key protocol.ProtocolKey) (Registration, error) {
+// Unregister removes the registration of the protocol key.
+func (r *Registry) Unregister(key protocol.ProtocolKey) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	reg, ok := r.byKey[key]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrNotFound, key)
+	}
+
+	delete(r.byKey, key)
+	delete(r.byID, reg.Info.ID)
+
+	return nil
+}
+
+// Lookup returns the registration of the protocol key and true,
+// or a zero value and false.
+func (r *Registry) Lookup(key protocol.ProtocolKey) (Registration, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	reg, ok := r.byKey[key]
+	return reg, ok
+}
+
+// LookupID returns the registration of the protocol ID and true,
+// or a zero value and false.
+func (r *Registry) LookupID(id string) (Registration, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	key, ok := r.byID[id]
 	if !ok {
-		return Registration{}, fmt.Errorf("%s: %w", key, ErrNotFound)
+		return Registration{}, false
 	}
-	return reg, nil
+
+	reg, ok := r.byKey[key]
+	return reg, ok
+}
+
+// List returns every registration, ordered by class then type.
+func (r *Registry) List() []Registration {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	regs := make([]Registration, 0, len(r.byKey))
+	for _, reg := range r.byKey {
+		regs = append(regs, reg)
+	}
+
+	slices.SortFunc(regs, func(a, b Registration) int {
+		if a.Key.Class != b.Key.Class {
+			return int(a.Key.Class) - int(b.Key.Class)
+		}
+		return int(a.Key.Type) - int(b.Key.Type)
+	})
+
+	// Return a copy (FR-registry-33).
+	result := make([]Registration, len(regs))
+	copy(result, regs)
+	return result
 }
 
 // validateID checks protocol ID validity (FR-registry-12).
