@@ -72,7 +72,7 @@ var (
 	// ErrInvalidStatus means the application status is above 65535.
 	ErrInvalidStatus = errors.New("codec: invalid application status")
 	// ErrNotDeterministic means the input is not the core deterministic encoding of
-	// the envelope it decodes to.
+	// the envelope or the payload it decodes to. Decode and Unmarshal return it.
 	ErrNotDeterministic = errors.New("codec: input is not deterministic CBOR")
 )
 
