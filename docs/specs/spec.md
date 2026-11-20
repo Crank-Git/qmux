@@ -784,3 +784,9 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   `AllowNonPrivateTypes`. FR-registry-22 lists it (#20).
 - 2026-11-20 — Protocol registry is `built` (#97). The batch also carried #88, the server
   side of the transport API, because #88 needs `protocol.ProtocolKey`.
+- 2026-11-20 — Authoritative server is `built` (#111). Decisions: the 512-byte limit
+  without EDNS(0) applies over UDP and TCP. A zone matches by label (#104). A handler
+  that ignores its context gets SERVFAIL at `HandlerTimeout`, and its goroutine stays
+  until it returns.
+- 2026-11-20 — Client SDK first batch shipped (#110). An error response with zero
+  questions returns its RCODE (ADR 0005, Exchange rule 4).
