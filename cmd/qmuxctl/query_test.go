@@ -15,6 +15,7 @@ import (
 
 	"github.com/Crank-Git/qmux/pkg/client"
 	"github.com/Crank-Git/qmux/pkg/protocol"
+	"github.com/Crank-Git/qmux/pkg/security"
 	"github.com/Crank-Git/qmux/pkg/server"
 )
 
@@ -304,7 +305,7 @@ func TestExitCodeMapsEachOutcomeToItsExitCode(t *testing.T) {
 		"a DNSError":          {&client.DNSError{Kind: client.KindTimeout}, 1},
 		"an AppError":         {&client.AppError{Status: protocol.StatusNotFound}, 2},
 		"a wrapped AppError":  {fmt.Errorf("query: %w", &client.AppError{}), 2},
-		"a VerifyError":       {client.VerifyError{Reason: "expired"}, 3},
+		"a VerifyError":       {&client.VerifyError{Reason: security.ErrExpired}, 3},
 		"a plain query error": {errors.New("client: transport: pack query"), 64},
 	}
 	for name, tc := range cases {

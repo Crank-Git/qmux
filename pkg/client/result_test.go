@@ -108,11 +108,11 @@ func TestResultBytesEqualTheWireSizesOfTheFinalAttempt(t *testing.T) { // FR-cli
 	}
 }
 
-func TestResultIsNotVerified(t *testing.T) { // FR-client-32
+func TestResultIsNotVerifiedWithoutTrustAnchors(t *testing.T) { // FR-client-32, FR-security-38
 	var r recorder
 	c := client.NewClient(client.ClientConfig{Resolver: r.start(t)})
 
 	if query(t, c, testQuery).Verified {
-		t.Error("Verified = true, want false before the client verifies envelopes")
+		t.Error("Verified = true, want false for a client with no trust anchors")
 	}
 }
