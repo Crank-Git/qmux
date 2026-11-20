@@ -83,6 +83,10 @@ type Result struct {
 	MessageType protocol.MessageType
 	Status      protocol.Status
 	Payload     []byte
+	// Raw is the RDATA of the answer RR. When Verified is true, TrustAnchors verified
+	// these bytes. A caller can keep Raw and verify it again later, for example from a
+	// cache file.
+	Raw []byte
 	// TTL is the TTL of the answer RR. It is informational and never a security expiry.
 	TTL uint32
 	// Transport is "udp" or "tcp", the transport of the final attempt.
@@ -320,7 +324,7 @@ func result(v *security.Verifier, q Query, p transport.Packet, got transport.Rec
 	res := &Result{
 		Name: p.Name, Key: p.Key, RCode: int(got.RCode), TTL: got.TTL,
 		ProtocolID: e.ProtocolID, Version: uint16(e.Version), MessageType: protocol.MessageType(e.MessageType),
-		Status: protocol.Status(e.Status), Payload: e.Payload,
+		Status: protocol.Status(e.Status), Payload: e.Payload, Raw: got.Payload,
 		QueryBytes: len(p.Wire), ResponseBytes: got.WireSize,
 		Verified: v != nil,
 	}
