@@ -259,3 +259,18 @@ func TestTrustAnchorsReturnsTheVerifierOfTheConfiguration(t *testing.T) { // FR-
 		t.Errorf("TrustAnchors() = %p, want nil", got)
 	}
 }
+
+func TestResultRawHoldsTheRDATAThatTheVerifierChecked(t *testing.T) { // FR-security-43
+	res, err := verifyQuery(t, newVerifier(signTime), client.ClientConfig{}, signedWith(t, signingKey, testEnvelope), testQuery)
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	// A second verifier has its own freshness store, so it checks the bytes again.
+	e, err := newVerifier(signTime).Verify(res.Raw, res.Name, res.Key)
+	if err != nil {
+		t.Fatalf("Verify(Raw) error = %v", err)
+	}
+	if !bytes.Equal(e.Payload, res.Payload) {
+		t.Errorf("payload of Raw = %x, want %x", e.Payload, res.Payload)
+	}
+}
