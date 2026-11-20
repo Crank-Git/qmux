@@ -76,7 +76,7 @@ var requiredVectors = []string{
 }
 
 // vectorNames returns the base name of each JSON file in vectorDir, sorted.
-func vectorNames(t testing.TB) []string {
+func vectorNames(t *testing.T) []string {
 	t.Helper()
 	paths, err := filepath.Glob(filepath.Join(vectorDir, "*.json"))
 	if err != nil {
