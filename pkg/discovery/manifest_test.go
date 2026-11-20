@@ -94,6 +94,14 @@ func TestValidateIgnoresLetterCaseInTheZone(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsAZoneThatDiffersOnlyByAKelvinSign(t *testing.T) { // RFC 4343: case folding is ASCII only
+	m := validManifest()
+	m.Zone = "kiosk.example."
+	if err := m.validate("Kiosk.example."); !errors.Is(err, ErrInvalidManifest) {
+		t.Errorf("validate = %v, want ErrInvalidManifest", err)
+	}
+}
+
 func TestValidateRejectsTwoEntriesWithOneProtocolID(t *testing.T) {
 	m := validManifest()
 	m.Protocols = append(m.Protocols,

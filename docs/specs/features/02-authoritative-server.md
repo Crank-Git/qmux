@@ -86,7 +86,9 @@ the envelope. The server never recurses and never delegates.
 - FR-server-27 — The server calls the handler of the registration with a context that
   expires after `HandlerTimeout`.
 - FR-server-28 — The server calls `Info.Schema.Validate` on the response payload when the
-  registration has a schema.
+  registration has a schema. From Epic 7, the server calls the schema only when
+  `Response.Status` is `ok`. A handler response with another status goes out without a
+  schema check, so a protocol with a schema can return `not-found` (#147).
 - FR-server-29 — On a handler response, the server answers `NOERROR` with the AA bit set
   and exactly one answer RR.
 - FR-server-30 — The answer RR has the QNAME as received, and the class and type of the

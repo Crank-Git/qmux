@@ -808,3 +808,7 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
 - 2026-11-20 — Signing and freshness is `built` (#140). The security review found that
   `strings.ToLower` folds Unicode. `pkg/security` now folds QNAMEs with ASCII rules (RFC 4343,
   #141). #142 applies the same fold in every package.
+- 2026-11-20 — Embedded recovery decisions (#8): the server runs the schema only on an
+  answer with the status `ok` (#147). The discovery log line prints no expiry. A run with no
+  download, the rollback case included, prints `result: up to date (0 downloads)`.
+  `protocol.FoldName` is the one ASCII fold for DNS names (#142).

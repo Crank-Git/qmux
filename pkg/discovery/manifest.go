@@ -3,7 +3,6 @@ package discovery
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/Crank-Git/qmux/pkg/protocol"
 )
@@ -52,7 +51,7 @@ func (m *Manifest) validate(zone string) error {
 		return fmt.Errorf("%w: framework version %d, want %d",
 			ErrInvalidManifest, m.FrameworkVersion, frameworkVersion)
 	}
-	if !strings.EqualFold(m.Zone, zone) {
+	if protocol.FoldName(m.Zone) != protocol.FoldName(zone) {
 		return fmt.Errorf("%w: zone %q, want %q", ErrInvalidManifest, m.Zone, zone)
 	}
 	ids := make(map[string]bool, len(m.Protocols))

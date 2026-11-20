@@ -297,7 +297,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li>FR-server-28 — The server calls <code>Info.Schema.Validate</code> on the response payload when the
 </li>
 </ul>
-<p>registration has a schema.</p>
+<p>registration has a schema. From Epic 7, the server calls the schema only when <code>Response.Status</code> is <code>ok</code>. A handler response with another status goes out without a schema check, so a protocol with a schema can return <code>not-found</code> (#147).</p>
 <ul>
 <li>FR-server-29 — On a handler response, the server answers <code>NOERROR</code> with the AA bit set
 </li>

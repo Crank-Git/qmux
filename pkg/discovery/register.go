@@ -34,7 +34,7 @@ func Register(srv *server.Server, zone string, opts Options) error {
 	case key == (protocol.ProtocolKey{}):
 		key = DefaultKey
 	}
-	zone = strings.ToLower(zone)
+	zone = protocol.FoldName(zone)
 	if !strings.HasSuffix(zone, ".") {
 		zone += "."
 	}
