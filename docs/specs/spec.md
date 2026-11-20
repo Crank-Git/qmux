@@ -818,3 +818,5 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   query whose response write fails still writes an observation line. `qmuxd` checks each
   payload against the codec decode limits at load time (#159). `qmuxd` binds with
   `transport.Listen` (#158).
+- 2026-11-20 — qmuxd daemon is `built` (#163). A config error gives the same text on every
+  Go version (#164).

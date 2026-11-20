@@ -2,7 +2,7 @@
 id: qmuxd-daemon
 feature: qmuxd daemon
 epic: "Epic 8: qmuxd daemon"
-status: issued
+status: built
 issues: [9, 54, 55, 56, 57, 58, 59]
 mockups: []
 ---

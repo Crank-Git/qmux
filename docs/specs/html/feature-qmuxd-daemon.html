@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: qmuxd daemon</h1>
-<p class="meta">Epic 8: qmuxd daemon &nbsp; <span class="badge">issued</span></p>
+<p class="meta">Epic 8: qmuxd daemon &nbsp; <span class="badge">built</span></p>
 <h3 id="qmuxd-daemon-purpose">Purpose</h3>
 <p><code>qmuxd</code> is the standalone authoritative server. An operator runs it with a configuration file and a signing key, and it serves static records for any number of protocols. No Go code is necessary. <code>qmuxd</code> always signs. It adds two server capabilities that the library exposes too: a per-source rate limit and an observation log. Epic 9 runs <code>qmuxd</code> in Docker Compose and reads the observation log to find whether a probe reached the authoritative server.</p>
 <h3 id="qmuxd-daemon-user-stories">User stories</h3>
