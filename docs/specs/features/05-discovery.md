@@ -2,8 +2,8 @@
 id: discovery
 feature: Discovery and version negotiation
 epic: "Epic 5: Discovery and version negotiation"
-status: planned
-issues: []
+status: issued
+issues: [6, 37, 38, 39, 40, 41, 42]
 mockups: []
 ---
 

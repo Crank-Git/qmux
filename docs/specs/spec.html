@@ -152,6 +152,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li><a class="sub" href="#milestones">Milestones</a></li>
 <li><a class="sub" href="#assumptions">Assumptions</a></li>
 <li><a class="sub" href="#risks-open-questions">Risks &amp; open questions</a></li>
+<li><a class="sub" href="#issue-map">Issue map</a></li>
 <li><a class="sub" href="#changelog">Changelog</a></li>
 </ul>
 <h2>Features</h2><ul>
@@ -840,6 +841,90 @@ golangci-lint run</code></pre>
 </ul>
 <p>differ from the DNS client (1 s). The user chose equal timers for DNS and CoAP. HTTPS uses the Linux TCP defaults, and the results record them.</p>
 <p>No open question remains. Two items moved to the non-goals: an EDNS option for the protocol version, and Unbound root hints for a private class.</p>
+<h2 id="issue-map">Issue map</h2>
+<p>spec-to-issues created these issues on 2026-11-20 in <code>Crank-Git/qmux</code>.</p>
+<div class="table-wrap"><table>
+<tr><th>Epic</th><th>Epic issue</th><th>Sub-issues</th></tr>
+<tr><td>Epic 0: Foundation</td><td>#1</td><td>#13, #14, #15, #16</td></tr>
+<tr><td>Epic 1: Protocol registry</td><td>#2</td><td>#17, #18, #19, #20</td></tr>
+<tr><td>Epic 2: Authoritative server</td><td>#3</td><td>#21, #22, #23, #24, #25</td></tr>
+<tr><td>Epic 3: Client SDK</td><td>#4</td><td>#26, #27, #28, #29, #30, #31</td></tr>
+<tr><td>Epic 4: Envelope codec</td><td>#5</td><td>#32, #33, #34, #35, #36</td></tr>
+<tr><td>Epic 5: Discovery and version negotiation</td><td>#6</td><td>#37, #38, #39, #40, #41, #42</td></tr>
+<tr><td>Epic 6: Signing and freshness</td><td>#7</td><td>#43, #44, #45, #46, #47, #48</td></tr>
+<tr><td>Epic 7: Embedded recovery demonstration</td><td>#8</td><td>#49, #50, #51, #52, #53</td></tr>
+<tr><td>Epic 8: qmuxd daemon</td><td>#9</td><td>#54, #55, #56, #57, #58, #59</td></tr>
+<tr><td>Epic 9: Interop harness</td><td>#10</td><td>#60, #61, #62, #63, #64</td></tr>
+<tr><td>Epic 10: Baseline benchmarks</td><td>#11</td><td>#65, #66, #67, #68, #69, #70</td></tr>
+<tr><td>Epic 11: Documentation</td><td>#12</td><td>#71, #72, #73, #74, #75</td></tr>
+</table></div>
+<h3 id="fr-issue">FR → issue</h3>
+<div class="table-wrap"><table>
+<tr><th>Feature</th><th>Issue</th><th>FRs</th></tr>
+<tr><td>foundation</td><td>#13</td><td>FR-foundation-1, FR-foundation-2, FR-foundation-3, FR-foundation-4, FR-foundation-5, FR-foundation-6, FR-foundation-7, FR-foundation-8, FR-foundation-9</td></tr>
+<tr><td>foundation</td><td>#14</td><td>FR-foundation-10, FR-foundation-11, FR-foundation-12, FR-foundation-13, FR-foundation-14, FR-foundation-15, FR-foundation-16, FR-foundation-17, FR-foundation-18, FR-foundation-19, FR-foundation-20</td></tr>
+<tr><td>foundation</td><td>#15</td><td>FR-foundation-21, FR-foundation-22, FR-foundation-23, FR-foundation-24, FR-foundation-25, FR-foundation-26, FR-foundation-27</td></tr>
+<tr><td>foundation</td><td>#16</td><td>FR-foundation-28, FR-foundation-29, FR-foundation-30, FR-foundation-31, FR-foundation-32, FR-foundation-33</td></tr>
+<tr><td>protocol-registry</td><td>#17</td><td>FR-registry-1, FR-registry-2, FR-registry-3, FR-registry-4, FR-registry-5, FR-registry-6, FR-registry-7, FR-registry-8, FR-registry-9, FR-registry-10, FR-registry-11</td></tr>
+<tr><td>protocol-registry</td><td>#18</td><td>FR-registry-12, FR-registry-13, FR-registry-14, FR-registry-15, FR-registry-16, FR-registry-17, FR-registry-18, FR-registry-19, FR-registry-20, FR-registry-21, FR-registry-22, FR-registry-23</td></tr>
+<tr><td>protocol-registry</td><td>#19</td><td>FR-registry-24, FR-registry-25, FR-registry-26, FR-registry-27, FR-registry-28, FR-registry-29, FR-registry-30, FR-registry-31, FR-registry-32, FR-registry-33</td></tr>
+<tr><td>protocol-registry</td><td>#20</td><td>FR-registry-34, FR-registry-35, FR-registry-36, FR-registry-37, FR-registry-38, FR-registry-39</td></tr>
+<tr><td>authoritative-server</td><td>#21</td><td>FR-server-1, FR-server-2, FR-server-3, FR-server-4, FR-server-5, FR-server-6, FR-server-7, FR-server-8, FR-server-9, FR-server-10, FR-server-11, FR-server-12</td></tr>
+<tr><td>authoritative-server</td><td>#22</td><td>FR-server-13, FR-server-14, FR-server-15, FR-server-16, FR-server-17, FR-server-18, FR-server-19, FR-server-20, FR-server-21, FR-server-22</td></tr>
+<tr><td>authoritative-server</td><td>#23</td><td>FR-server-23, FR-server-24, FR-server-25, FR-server-26, FR-server-27, FR-server-28, FR-server-29, FR-server-30, FR-server-31, FR-server-32, FR-server-33, FR-server-34, FR-server-35, FR-server-36</td></tr>
+<tr><td>authoritative-server</td><td>#24</td><td>FR-server-37, FR-server-38, FR-server-39, FR-server-40, FR-server-41</td></tr>
+<tr><td>authoritative-server</td><td>#25</td><td>FR-server-42, FR-server-43, FR-server-44, FR-server-45</td></tr>
+<tr><td>client-sdk</td><td>#26</td><td>FR-client-1, FR-client-2, FR-client-3, FR-client-4, FR-client-5, FR-client-6, FR-client-7</td></tr>
+<tr><td>client-sdk</td><td>#27</td><td>FR-client-8, FR-client-9, FR-client-10, FR-client-11, FR-client-12, FR-client-13, FR-client-14, FR-client-15</td></tr>
+<tr><td>client-sdk</td><td>#28</td><td>FR-client-16, FR-client-17, FR-client-18, FR-client-19, FR-client-20, FR-client-21, FR-client-22, FR-client-23, FR-client-24, FR-client-25</td></tr>
+<tr><td>client-sdk</td><td>#29</td><td>FR-client-26, FR-client-27, FR-client-28, FR-client-29, FR-client-30, FR-client-31, FR-client-32</td></tr>
+<tr><td>client-sdk</td><td>#30</td><td>FR-client-33, FR-client-34, FR-client-35, FR-client-36, FR-client-37, FR-client-38, FR-client-39, FR-client-40</td></tr>
+<tr><td>client-sdk</td><td>#31</td><td>FR-client-41, FR-client-42, FR-client-43, FR-client-44, FR-client-45</td></tr>
+<tr><td>envelope-codec</td><td>#32</td><td>FR-codec-1, FR-codec-2, FR-codec-3, FR-codec-4, FR-codec-5, FR-codec-6</td></tr>
+<tr><td>envelope-codec</td><td>#33</td><td>FR-codec-7, FR-codec-8, FR-codec-9, FR-codec-10, FR-codec-11, FR-codec-12, FR-codec-13, FR-codec-14, FR-codec-15, FR-codec-16, FR-codec-17, FR-codec-18</td></tr>
+<tr><td>envelope-codec</td><td>#34</td><td>FR-codec-19, FR-codec-20, FR-codec-21, FR-codec-22</td></tr>
+<tr><td>envelope-codec</td><td>#35</td><td>FR-codec-23, FR-codec-24, FR-codec-25, FR-codec-26, FR-codec-27, FR-codec-28</td></tr>
+<tr><td>envelope-codec</td><td>#36</td><td>FR-codec-29, FR-codec-30, FR-codec-31, FR-codec-32, FR-codec-33, FR-codec-34, FR-codec-35, FR-codec-36, FR-codec-37, FR-codec-38, FR-codec-39, FR-codec-40, FR-codec-41, FR-codec-42, FR-codec-43, FR-codec-44</td></tr>
+<tr><td>discovery</td><td>#37</td><td>FR-discovery-1, FR-discovery-2, FR-discovery-3, FR-discovery-4, FR-discovery-5, FR-discovery-6, FR-discovery-7, FR-discovery-8, FR-discovery-9</td></tr>
+<tr><td>discovery</td><td>#38</td><td>FR-discovery-10, FR-discovery-11, FR-discovery-12, FR-discovery-13, FR-discovery-14, FR-discovery-15, FR-discovery-16</td></tr>
+<tr><td>discovery</td><td>#39</td><td>FR-discovery-17, FR-discovery-18, FR-discovery-19, FR-discovery-20, FR-discovery-21, FR-discovery-22</td></tr>
+<tr><td>discovery</td><td>#40</td><td>FR-discovery-23, FR-discovery-24, FR-discovery-25, FR-discovery-26, FR-discovery-27, FR-discovery-28, FR-discovery-29, FR-discovery-30, FR-discovery-31, FR-discovery-32</td></tr>
+<tr><td>discovery</td><td>#41</td><td>FR-discovery-33, FR-discovery-34, FR-discovery-35, FR-discovery-36, FR-discovery-37, FR-discovery-38</td></tr>
+<tr><td>discovery</td><td>#42</td><td>FR-discovery-39, FR-discovery-40, FR-discovery-41, FR-discovery-42</td></tr>
+<tr><td>signing-and-freshness</td><td>#43</td><td>FR-security-1, FR-security-2, FR-security-3, FR-security-4, FR-security-5, FR-security-6, FR-security-7, FR-security-8, FR-security-9, FR-security-10</td></tr>
+<tr><td>signing-and-freshness</td><td>#44</td><td>FR-security-11, FR-security-12, FR-security-13, FR-security-14, FR-security-15, FR-security-16, FR-security-17</td></tr>
+<tr><td>signing-and-freshness</td><td>#45</td><td>FR-security-18, FR-security-19, FR-security-20, FR-security-21, FR-security-22, FR-security-23, FR-security-24, FR-security-25, FR-security-26, FR-security-27, FR-security-28, FR-security-29, FR-security-30, FR-security-31, FR-security-32, FR-security-33</td></tr>
+<tr><td>signing-and-freshness</td><td>#46</td><td>FR-security-34, FR-security-35, FR-security-36, FR-security-37, FR-security-38, FR-security-39, FR-security-40</td></tr>
+<tr><td>signing-and-freshness</td><td>#47</td><td>FR-security-41, FR-security-42, FR-security-43, FR-security-44, FR-security-45, FR-security-46, FR-security-47</td></tr>
+<tr><td>signing-and-freshness</td><td>#48</td><td>FR-security-48, FR-security-49, FR-security-50, FR-security-51, FR-security-52, FR-security-53, FR-security-54, FR-security-55, FR-security-56</td></tr>
+<tr><td>embedded-recovery</td><td>#49</td><td>FR-demo-1, FR-demo-2, FR-demo-3, FR-demo-4, FR-demo-5, FR-demo-6</td></tr>
+<tr><td>embedded-recovery</td><td>#50</td><td>FR-demo-7, FR-demo-8, FR-demo-9, FR-demo-10, FR-demo-11, FR-demo-12, FR-demo-13, FR-demo-14, FR-demo-15, FR-demo-16, FR-demo-17, FR-demo-18</td></tr>
+<tr><td>embedded-recovery</td><td>#51</td><td>FR-demo-19, FR-demo-20, FR-demo-21, FR-demo-22, FR-demo-23, FR-demo-24, FR-demo-25, FR-demo-26, FR-demo-27, FR-demo-28, FR-demo-29, FR-demo-30, FR-demo-31, FR-demo-32, FR-demo-33, FR-demo-34, FR-demo-35, FR-demo-36</td></tr>
+<tr><td>embedded-recovery</td><td>#52</td><td>FR-demo-37, FR-demo-38, FR-demo-39, FR-demo-40, FR-demo-41, FR-demo-42, FR-demo-43, FR-demo-44</td></tr>
+<tr><td>embedded-recovery</td><td>#53</td><td>FR-demo-45</td></tr>
+<tr><td>qmuxd-daemon</td><td>#54</td><td>FR-qmuxd-1, FR-qmuxd-2, FR-qmuxd-3, FR-qmuxd-4, FR-qmuxd-5, FR-qmuxd-6, FR-qmuxd-7</td></tr>
+<tr><td>qmuxd-daemon</td><td>#55</td><td>FR-qmuxd-8, FR-qmuxd-9, FR-qmuxd-10, FR-qmuxd-11, FR-qmuxd-12, FR-qmuxd-13, FR-qmuxd-14, FR-qmuxd-15</td></tr>
+<tr><td>qmuxd-daemon</td><td>#56</td><td>FR-qmuxd-16, FR-qmuxd-17, FR-qmuxd-18, FR-qmuxd-19, FR-qmuxd-20, FR-qmuxd-21, FR-qmuxd-22, FR-qmuxd-23</td></tr>
+<tr><td>qmuxd-daemon</td><td>#57</td><td>FR-qmuxd-24, FR-qmuxd-25, FR-qmuxd-26, FR-qmuxd-27, FR-qmuxd-28, FR-qmuxd-29, FR-qmuxd-30</td></tr>
+<tr><td>qmuxd-daemon</td><td>#58</td><td>FR-qmuxd-31, FR-qmuxd-32, FR-qmuxd-33, FR-qmuxd-34, FR-qmuxd-35, FR-qmuxd-36</td></tr>
+<tr><td>qmuxd-daemon</td><td>#59</td><td>FR-qmuxd-37, FR-qmuxd-38, FR-qmuxd-39, FR-qmuxd-40, FR-qmuxd-41, FR-qmuxd-42, FR-qmuxd-43, FR-qmuxd-44</td></tr>
+<tr><td>interop-harness</td><td>#60</td><td>FR-interop-1, FR-interop-2, FR-interop-3, FR-interop-4, FR-interop-5, FR-interop-6, FR-interop-7, FR-interop-8, FR-interop-9</td></tr>
+<tr><td>interop-harness</td><td>#61</td><td>FR-interop-10, FR-interop-11, FR-interop-12, FR-interop-12a, FR-interop-13, FR-interop-14, FR-interop-15, FR-interop-16, FR-interop-17, FR-interop-18, FR-interop-19, FR-interop-20, FR-interop-21, FR-interop-22, FR-interop-23, FR-interop-24, FR-interop-25, FR-interop-26, FR-interop-27</td></tr>
+<tr><td>interop-harness</td><td>#62</td><td>FR-interop-28, FR-interop-29, FR-interop-30, FR-interop-31, FR-interop-32, FR-interop-33, FR-interop-34, FR-interop-35, FR-interop-36, FR-interop-37, FR-interop-38, FR-interop-39, FR-interop-39a, FR-interop-39b, FR-interop-39c, FR-interop-40</td></tr>
+<tr><td>interop-harness</td><td>#63</td><td>FR-interop-41, FR-interop-42, FR-interop-43, FR-interop-44, FR-interop-45</td></tr>
+<tr><td>interop-harness</td><td>#64</td><td>FR-interop-46, FR-interop-47, FR-interop-48, FR-interop-49, FR-interop-50</td></tr>
+<tr><td>baseline-benchmarks</td><td>#65</td><td>FR-bench-1, FR-bench-2, FR-bench-3, FR-bench-4, FR-bench-5, FR-bench-6, FR-bench-7, FR-bench-8, FR-bench-9, FR-bench-10, FR-bench-11</td></tr>
+<tr><td>baseline-benchmarks</td><td>#66</td><td>FR-bench-12, FR-bench-13, FR-bench-14</td></tr>
+<tr><td>baseline-benchmarks</td><td>#67</td><td>FR-bench-15, FR-bench-16, FR-bench-17, FR-bench-18, FR-bench-19, FR-bench-20, FR-bench-20a, FR-bench-21, FR-bench-22, FR-bench-23, FR-bench-24, FR-bench-25, FR-bench-26, FR-bench-27, FR-bench-28, FR-bench-29, FR-bench-30</td></tr>
+<tr><td>baseline-benchmarks</td><td>#68</td><td>FR-bench-31, FR-bench-32, FR-bench-33, FR-bench-34</td></tr>
+<tr><td>baseline-benchmarks</td><td>#69</td><td>FR-bench-35, FR-bench-36, FR-bench-37</td></tr>
+<tr><td>baseline-benchmarks</td><td>#70</td><td>FR-bench-38, FR-bench-39, FR-bench-40, FR-bench-41, FR-bench-42</td></tr>
+<tr><td>documentation</td><td>#71</td><td>FR-docs-1, FR-docs-2, FR-docs-3, FR-docs-4, FR-docs-5, FR-docs-6, FR-docs-7, FR-docs-8</td></tr>
+<tr><td>documentation</td><td>#72</td><td>FR-docs-9, FR-docs-10, FR-docs-11, FR-docs-12</td></tr>
+<tr><td>documentation</td><td>#73</td><td>FR-docs-13, FR-docs-14, FR-docs-15</td></tr>
+<tr><td>documentation</td><td>#74</td><td>FR-docs-16, FR-docs-17, FR-docs-18, FR-docs-19, FR-docs-20, FR-docs-21</td></tr>
+<tr><td>documentation</td><td>#75</td><td>FR-docs-22, FR-docs-23</td></tr>
+</table></div>
 <h2 id="changelog">Changelog</h2>
 <ul>
 <li>2026-11-20 — First draft from the user's brief and three interview rounds:
@@ -880,6 +965,8 @@ golangci-lint run</code></pre>
 <p>the non-goals.</p>
 <ul>
 <li>2026-11-20 — The user approved the spec and the project scaffold.
+</li>
+<li>2026-11-20 — spec-to-issues created 12 epics (#1–#12) and 63 sub-issues (#13–#75). Every feature is now <code>issued</code>.
 </li>
 </ul><nav class="pager">
 <span></span>

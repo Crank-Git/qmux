@@ -668,6 +668,93 @@ Epic 8 depends on Epic 7, because `examples/qmuxd.json` uses the payload schemas
 No open question remains. Two items moved to the non-goals: an EDNS option for the
 protocol version, and Unbound root hints for a private class.
 
+## Issue map
+
+spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
+
+| Epic | Epic issue | Sub-issues |
+|---|---|---|
+| Epic 0: Foundation | #1 | #13, #14, #15, #16 |
+| Epic 1: Protocol registry | #2 | #17, #18, #19, #20 |
+| Epic 2: Authoritative server | #3 | #21, #22, #23, #24, #25 |
+| Epic 3: Client SDK | #4 | #26, #27, #28, #29, #30, #31 |
+| Epic 4: Envelope codec | #5 | #32, #33, #34, #35, #36 |
+| Epic 5: Discovery and version negotiation | #6 | #37, #38, #39, #40, #41, #42 |
+| Epic 6: Signing and freshness | #7 | #43, #44, #45, #46, #47, #48 |
+| Epic 7: Embedded recovery demonstration | #8 | #49, #50, #51, #52, #53 |
+| Epic 8: qmuxd daemon | #9 | #54, #55, #56, #57, #58, #59 |
+| Epic 9: Interop harness | #10 | #60, #61, #62, #63, #64 |
+| Epic 10: Baseline benchmarks | #11 | #65, #66, #67, #68, #69, #70 |
+| Epic 11: Documentation | #12 | #71, #72, #73, #74, #75 |
+
+### FR → issue
+
+| Feature | Issue | FRs |
+|---|---|---|
+| foundation | #13 | FR-foundation-1, FR-foundation-2, FR-foundation-3, FR-foundation-4, FR-foundation-5, FR-foundation-6, FR-foundation-7, FR-foundation-8, FR-foundation-9 |
+| foundation | #14 | FR-foundation-10, FR-foundation-11, FR-foundation-12, FR-foundation-13, FR-foundation-14, FR-foundation-15, FR-foundation-16, FR-foundation-17, FR-foundation-18, FR-foundation-19, FR-foundation-20 |
+| foundation | #15 | FR-foundation-21, FR-foundation-22, FR-foundation-23, FR-foundation-24, FR-foundation-25, FR-foundation-26, FR-foundation-27 |
+| foundation | #16 | FR-foundation-28, FR-foundation-29, FR-foundation-30, FR-foundation-31, FR-foundation-32, FR-foundation-33 |
+| protocol-registry | #17 | FR-registry-1, FR-registry-2, FR-registry-3, FR-registry-4, FR-registry-5, FR-registry-6, FR-registry-7, FR-registry-8, FR-registry-9, FR-registry-10, FR-registry-11 |
+| protocol-registry | #18 | FR-registry-12, FR-registry-13, FR-registry-14, FR-registry-15, FR-registry-16, FR-registry-17, FR-registry-18, FR-registry-19, FR-registry-20, FR-registry-21, FR-registry-22, FR-registry-23 |
+| protocol-registry | #19 | FR-registry-24, FR-registry-25, FR-registry-26, FR-registry-27, FR-registry-28, FR-registry-29, FR-registry-30, FR-registry-31, FR-registry-32, FR-registry-33 |
+| protocol-registry | #20 | FR-registry-34, FR-registry-35, FR-registry-36, FR-registry-37, FR-registry-38, FR-registry-39 |
+| authoritative-server | #21 | FR-server-1, FR-server-2, FR-server-3, FR-server-4, FR-server-5, FR-server-6, FR-server-7, FR-server-8, FR-server-9, FR-server-10, FR-server-11, FR-server-12 |
+| authoritative-server | #22 | FR-server-13, FR-server-14, FR-server-15, FR-server-16, FR-server-17, FR-server-18, FR-server-19, FR-server-20, FR-server-21, FR-server-22 |
+| authoritative-server | #23 | FR-server-23, FR-server-24, FR-server-25, FR-server-26, FR-server-27, FR-server-28, FR-server-29, FR-server-30, FR-server-31, FR-server-32, FR-server-33, FR-server-34, FR-server-35, FR-server-36 |
+| authoritative-server | #24 | FR-server-37, FR-server-38, FR-server-39, FR-server-40, FR-server-41 |
+| authoritative-server | #25 | FR-server-42, FR-server-43, FR-server-44, FR-server-45 |
+| client-sdk | #26 | FR-client-1, FR-client-2, FR-client-3, FR-client-4, FR-client-5, FR-client-6, FR-client-7 |
+| client-sdk | #27 | FR-client-8, FR-client-9, FR-client-10, FR-client-11, FR-client-12, FR-client-13, FR-client-14, FR-client-15 |
+| client-sdk | #28 | FR-client-16, FR-client-17, FR-client-18, FR-client-19, FR-client-20, FR-client-21, FR-client-22, FR-client-23, FR-client-24, FR-client-25 |
+| client-sdk | #29 | FR-client-26, FR-client-27, FR-client-28, FR-client-29, FR-client-30, FR-client-31, FR-client-32 |
+| client-sdk | #30 | FR-client-33, FR-client-34, FR-client-35, FR-client-36, FR-client-37, FR-client-38, FR-client-39, FR-client-40 |
+| client-sdk | #31 | FR-client-41, FR-client-42, FR-client-43, FR-client-44, FR-client-45 |
+| envelope-codec | #32 | FR-codec-1, FR-codec-2, FR-codec-3, FR-codec-4, FR-codec-5, FR-codec-6 |
+| envelope-codec | #33 | FR-codec-7, FR-codec-8, FR-codec-9, FR-codec-10, FR-codec-11, FR-codec-12, FR-codec-13, FR-codec-14, FR-codec-15, FR-codec-16, FR-codec-17, FR-codec-18 |
+| envelope-codec | #34 | FR-codec-19, FR-codec-20, FR-codec-21, FR-codec-22 |
+| envelope-codec | #35 | FR-codec-23, FR-codec-24, FR-codec-25, FR-codec-26, FR-codec-27, FR-codec-28 |
+| envelope-codec | #36 | FR-codec-29, FR-codec-30, FR-codec-31, FR-codec-32, FR-codec-33, FR-codec-34, FR-codec-35, FR-codec-36, FR-codec-37, FR-codec-38, FR-codec-39, FR-codec-40, FR-codec-41, FR-codec-42, FR-codec-43, FR-codec-44 |
+| discovery | #37 | FR-discovery-1, FR-discovery-2, FR-discovery-3, FR-discovery-4, FR-discovery-5, FR-discovery-6, FR-discovery-7, FR-discovery-8, FR-discovery-9 |
+| discovery | #38 | FR-discovery-10, FR-discovery-11, FR-discovery-12, FR-discovery-13, FR-discovery-14, FR-discovery-15, FR-discovery-16 |
+| discovery | #39 | FR-discovery-17, FR-discovery-18, FR-discovery-19, FR-discovery-20, FR-discovery-21, FR-discovery-22 |
+| discovery | #40 | FR-discovery-23, FR-discovery-24, FR-discovery-25, FR-discovery-26, FR-discovery-27, FR-discovery-28, FR-discovery-29, FR-discovery-30, FR-discovery-31, FR-discovery-32 |
+| discovery | #41 | FR-discovery-33, FR-discovery-34, FR-discovery-35, FR-discovery-36, FR-discovery-37, FR-discovery-38 |
+| discovery | #42 | FR-discovery-39, FR-discovery-40, FR-discovery-41, FR-discovery-42 |
+| signing-and-freshness | #43 | FR-security-1, FR-security-2, FR-security-3, FR-security-4, FR-security-5, FR-security-6, FR-security-7, FR-security-8, FR-security-9, FR-security-10 |
+| signing-and-freshness | #44 | FR-security-11, FR-security-12, FR-security-13, FR-security-14, FR-security-15, FR-security-16, FR-security-17 |
+| signing-and-freshness | #45 | FR-security-18, FR-security-19, FR-security-20, FR-security-21, FR-security-22, FR-security-23, FR-security-24, FR-security-25, FR-security-26, FR-security-27, FR-security-28, FR-security-29, FR-security-30, FR-security-31, FR-security-32, FR-security-33 |
+| signing-and-freshness | #46 | FR-security-34, FR-security-35, FR-security-36, FR-security-37, FR-security-38, FR-security-39, FR-security-40 |
+| signing-and-freshness | #47 | FR-security-41, FR-security-42, FR-security-43, FR-security-44, FR-security-45, FR-security-46, FR-security-47 |
+| signing-and-freshness | #48 | FR-security-48, FR-security-49, FR-security-50, FR-security-51, FR-security-52, FR-security-53, FR-security-54, FR-security-55, FR-security-56 |
+| embedded-recovery | #49 | FR-demo-1, FR-demo-2, FR-demo-3, FR-demo-4, FR-demo-5, FR-demo-6 |
+| embedded-recovery | #50 | FR-demo-7, FR-demo-8, FR-demo-9, FR-demo-10, FR-demo-11, FR-demo-12, FR-demo-13, FR-demo-14, FR-demo-15, FR-demo-16, FR-demo-17, FR-demo-18 |
+| embedded-recovery | #51 | FR-demo-19, FR-demo-20, FR-demo-21, FR-demo-22, FR-demo-23, FR-demo-24, FR-demo-25, FR-demo-26, FR-demo-27, FR-demo-28, FR-demo-29, FR-demo-30, FR-demo-31, FR-demo-32, FR-demo-33, FR-demo-34, FR-demo-35, FR-demo-36 |
+| embedded-recovery | #52 | FR-demo-37, FR-demo-38, FR-demo-39, FR-demo-40, FR-demo-41, FR-demo-42, FR-demo-43, FR-demo-44 |
+| embedded-recovery | #53 | FR-demo-45 |
+| qmuxd-daemon | #54 | FR-qmuxd-1, FR-qmuxd-2, FR-qmuxd-3, FR-qmuxd-4, FR-qmuxd-5, FR-qmuxd-6, FR-qmuxd-7 |
+| qmuxd-daemon | #55 | FR-qmuxd-8, FR-qmuxd-9, FR-qmuxd-10, FR-qmuxd-11, FR-qmuxd-12, FR-qmuxd-13, FR-qmuxd-14, FR-qmuxd-15 |
+| qmuxd-daemon | #56 | FR-qmuxd-16, FR-qmuxd-17, FR-qmuxd-18, FR-qmuxd-19, FR-qmuxd-20, FR-qmuxd-21, FR-qmuxd-22, FR-qmuxd-23 |
+| qmuxd-daemon | #57 | FR-qmuxd-24, FR-qmuxd-25, FR-qmuxd-26, FR-qmuxd-27, FR-qmuxd-28, FR-qmuxd-29, FR-qmuxd-30 |
+| qmuxd-daemon | #58 | FR-qmuxd-31, FR-qmuxd-32, FR-qmuxd-33, FR-qmuxd-34, FR-qmuxd-35, FR-qmuxd-36 |
+| qmuxd-daemon | #59 | FR-qmuxd-37, FR-qmuxd-38, FR-qmuxd-39, FR-qmuxd-40, FR-qmuxd-41, FR-qmuxd-42, FR-qmuxd-43, FR-qmuxd-44 |
+| interop-harness | #60 | FR-interop-1, FR-interop-2, FR-interop-3, FR-interop-4, FR-interop-5, FR-interop-6, FR-interop-7, FR-interop-8, FR-interop-9 |
+| interop-harness | #61 | FR-interop-10, FR-interop-11, FR-interop-12, FR-interop-12a, FR-interop-13, FR-interop-14, FR-interop-15, FR-interop-16, FR-interop-17, FR-interop-18, FR-interop-19, FR-interop-20, FR-interop-21, FR-interop-22, FR-interop-23, FR-interop-24, FR-interop-25, FR-interop-26, FR-interop-27 |
+| interop-harness | #62 | FR-interop-28, FR-interop-29, FR-interop-30, FR-interop-31, FR-interop-32, FR-interop-33, FR-interop-34, FR-interop-35, FR-interop-36, FR-interop-37, FR-interop-38, FR-interop-39, FR-interop-39a, FR-interop-39b, FR-interop-39c, FR-interop-40 |
+| interop-harness | #63 | FR-interop-41, FR-interop-42, FR-interop-43, FR-interop-44, FR-interop-45 |
+| interop-harness | #64 | FR-interop-46, FR-interop-47, FR-interop-48, FR-interop-49, FR-interop-50 |
+| baseline-benchmarks | #65 | FR-bench-1, FR-bench-2, FR-bench-3, FR-bench-4, FR-bench-5, FR-bench-6, FR-bench-7, FR-bench-8, FR-bench-9, FR-bench-10, FR-bench-11 |
+| baseline-benchmarks | #66 | FR-bench-12, FR-bench-13, FR-bench-14 |
+| baseline-benchmarks | #67 | FR-bench-15, FR-bench-16, FR-bench-17, FR-bench-18, FR-bench-19, FR-bench-20, FR-bench-20a, FR-bench-21, FR-bench-22, FR-bench-23, FR-bench-24, FR-bench-25, FR-bench-26, FR-bench-27, FR-bench-28, FR-bench-29, FR-bench-30 |
+| baseline-benchmarks | #68 | FR-bench-31, FR-bench-32, FR-bench-33, FR-bench-34 |
+| baseline-benchmarks | #69 | FR-bench-35, FR-bench-36, FR-bench-37 |
+| baseline-benchmarks | #70 | FR-bench-38, FR-bench-39, FR-bench-40, FR-bench-41, FR-bench-42 |
+| documentation | #71 | FR-docs-1, FR-docs-2, FR-docs-3, FR-docs-4, FR-docs-5, FR-docs-6, FR-docs-7, FR-docs-8 |
+| documentation | #72 | FR-docs-9, FR-docs-10, FR-docs-11, FR-docs-12 |
+| documentation | #73 | FR-docs-13, FR-docs-14, FR-docs-15 |
+| documentation | #74 | FR-docs-16, FR-docs-17, FR-docs-18, FR-docs-19, FR-docs-20, FR-docs-21 |
+| documentation | #75 | FR-docs-22, FR-docs-23 |
+
 ## Changelog
 
 - 2026-11-20 — First draft from the user's brief and three interview rounds:
@@ -685,3 +772,4 @@ protocol version, and Unbound root hints for a private class.
   - Unbound `serve-expired: no`. The EDNS version option and Unbound root hints moved to
     the non-goals.
 - 2026-11-20 — The user approved the spec and the project scaffold.
+- 2026-11-20 — spec-to-issues created 12 epics (#1–#12) and 63 sub-issues (#13–#75). Every feature is now `issued`.

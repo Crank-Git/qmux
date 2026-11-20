@@ -2,8 +2,8 @@
 id: documentation
 feature: Documentation
 epic: "Epic 11: Documentation"
-status: planned
-issues: []
+status: issued
+issues: [12, 71, 72, 73, 74, 75]
 mockups: []
 ---
 

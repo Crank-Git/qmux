@@ -2,8 +2,8 @@
 id: protocol-registry
 feature: Protocol registry
 epic: "Epic 1: Protocol registry"
-status: planned
-issues: []
+status: issued
+issues: [2, 17, 18, 19, 20]
 mockups: []
 ---
 

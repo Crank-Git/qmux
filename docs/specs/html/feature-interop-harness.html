@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: Interop harness</h1>
-<p class="meta">Epic 9: Interop harness &nbsp; <span class="badge">planned</span></p>
+<p class="meta">Epic 9: Interop harness &nbsp; <span class="badge">issued</span></p>
 <h3 id="interop-harness-purpose">Purpose</h3>
 <p>This feature measures what happens to QMux queries on each path: direct, through BIND, and through Unbound. It sends one probe per combination of path, transport, class and type. It records the RCODE, the answer, payload integrity, signature verification, sizes, the round-trip time, and whether the probe reached the authoritative server.</p>
 <p>The outcomes are research data, not pass or fail criteria. The one exception is the direct path, which must pass in CI. The docs never claim compatibility beyond the measured rows.</p>

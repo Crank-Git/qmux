@@ -2,8 +2,8 @@
 id: embedded-recovery
 feature: Embedded recovery demonstration
 epic: "Epic 7: Embedded recovery demonstration"
-status: planned
-issues: []
+status: issued
+issues: [8, 49, 50, 51, 52, 53]
 mockups: []
 ---
 

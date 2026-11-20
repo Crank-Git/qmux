@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: Authoritative server</h1>
-<p class="meta">Epic 2: Authoritative server &nbsp; <span class="badge">planned</span></p>
+<p class="meta">Epic 2: Authoritative server &nbsp; <span class="badge">issued</span></p>
 <h3 id="authoritative-server-purpose">Purpose</h3>
 <p>The authoritative server receives DNS queries over UDP and TCP, validates them, and dispatches each one to the handler of its protocol key. It returns the handler's payload as opaque RDATA in one answer RR. The class and the type of the answer RR are the class and the type of the question. It enforces size limits, EDNS(0), timeouts and graceful shutdown, and it logs one record per query.</p>
 <p>In Epic 2 the RDATA is the raw <code>Response.Payload</code>. Epic 4 replaces the raw payload with the envelope. The server never recurses and never delegates.</p>

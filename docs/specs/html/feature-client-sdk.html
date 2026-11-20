@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: Client SDK</h1>
-<p class="meta">Epic 3: Client SDK &nbsp; <span class="badge">planned</span></p>
+<p class="meta">Epic 3: Client SDK &nbsp; <span class="badge">issued</span></p>
 <h3 id="client-sdk-purpose">Purpose</h3>
 <p>The client SDK sends a query for one QNAME, QCLASS and QTYPE directly to a configured server, and returns a result. It builds every DNS packet itself and never uses the operating system's stub resolver. It retries on a UDP timeout, repeats a truncated query over TCP, and checks that the answer matches the question exactly. It reports DNS failures and application outcomes as separate error types.</p>
 <p><code>qmuxctl query</code> exposes the SDK on the command line. This epic also adds the root <code>qmux</code> facade, so the brief's API examples compile as written. The Phase 1 deliverable closes this epic: two protocols answer through two private classes.</p>

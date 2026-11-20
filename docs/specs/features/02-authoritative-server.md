@@ -2,8 +2,8 @@
 id: authoritative-server
 feature: Authoritative server
 epic: "Epic 2: Authoritative server"
-status: planned
-issues: []
+status: issued
+issues: [3, 21, 22, 23, 24, 25]
 mockups: []
 ---
 
