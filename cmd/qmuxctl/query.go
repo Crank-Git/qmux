@@ -228,7 +228,7 @@ func printText(w io.Writer, out queryOutput) error {
 //   - 0 for nil.
 //   - 1 for a *client.DNSError.
 //   - 2 for a *client.AppError.
-//   - 3 for a client.VerifyError.
+//   - 3 for a *client.VerifyError.
 //   - 64 for every other error.
 //
 // Query returns an error of no QMux type only when it cannot build the query from the
@@ -237,7 +237,7 @@ func printText(w io.Writer, out queryOutput) error {
 func exitCode(err error) int {
 	var dnsErr *client.DNSError
 	var appErr *client.AppError
-	var verifyErr client.VerifyError
+	var verifyErr *client.VerifyError
 	switch {
 	case err == nil:
 		return exitResult

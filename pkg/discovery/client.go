@@ -22,9 +22,9 @@ var DefaultKey = protocol.ProtocolKey{Class: 65280, Type: 65534}
 var INKey = protocol.ProtocolKey{Class: 1, Type: 65534}
 
 var (
-	// ErrInsecure is the error that Client.Discover returns when InsecureSkipVerify is
-	// false. The client cannot verify a manifest before Epic 6.
-	ErrInsecure = errors.New("discovery: manifest verification is not available, set InsecureSkipVerify")
+	// ErrInsecure is the error that Client.Discover returns when the client has no
+	// TrustAnchors and InsecureSkipVerify is false.
+	ErrInsecure = errors.New("discovery: the client has no trust anchors and InsecureSkipVerify is false")
 	// ErrProtocolNotFound is the error that Negotiate returns when the manifest has no
 	// entry for the protocol ID.
 	ErrProtocolNotFound = errors.New("discovery: protocol not found in the manifest")
@@ -40,8 +40,9 @@ type Client struct {
 	Client *client.Client
 	// Key is the discovery key. The zero value means DefaultKey.
 	Key protocol.ProtocolKey
-	// InsecureSkipVerify lets Discover return a manifest that it did not verify. In
-	// Epic 5, Discover returns ErrInsecure when it is false.
+	// InsecureSkipVerify lets Discover return a manifest that it did not verify, when
+	// Client has no TrustAnchors. A Client with TrustAnchors verifies the manifest
+	// whatever the value of InsecureSkipVerify.
 	InsecureSkipVerify bool
 }
 
@@ -49,13 +50,14 @@ type Client struct {
 // discovery name "_qmux.<zone>" at c.Key.
 //
 // Discover returns:
-//   - ErrInsecure, with no query, when c.InsecureSkipVerify is false.
-//   - The error of client.Client.Query, for example a *client.DNSError or a
-//     *client.AppError.
+//   - ErrInsecure, with no query, when c.Client has no TrustAnchors and
+//     c.InsecureSkipVerify is false.
+//   - The error of client.Client.Query, for example a *client.DNSError, a
+//     *client.AppError or a *client.VerifyError.
 //   - An error that wraps ErrInvalidManifest when the envelope is not a manifest of
 //     ProtocolID, or when the manifest fails manifest validation.
 func (c *Client) Discover(ctx context.Context, zone string) (*Manifest, error) {
-	if !c.InsecureSkipVerify {
+	if c.Client.TrustAnchors() == nil && !c.InsecureSkipVerify {
 		return nil, ErrInsecure
 	}
 	zone = strings.ToLower(zone)

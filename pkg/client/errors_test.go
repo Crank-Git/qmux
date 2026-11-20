@@ -13,6 +13,7 @@ import (
 
 	"github.com/Crank-Git/qmux/pkg/client"
 	"github.com/Crank-Git/qmux/pkg/protocol"
+	"github.com/Crank-Git/qmux/pkg/security"
 	"github.com/Crank-Git/qmux/pkg/transport"
 	"github.com/Crank-Git/qmux/pkg/transport/transporttest"
 )
@@ -471,13 +472,21 @@ func TestAppErrorNamesTheStatus(t *testing.T) { // FR-client-24
 }
 
 func TestVerifyErrorNamesTheReason(t *testing.T) { // FR-client-25
-	cause := errors.New("signature time is past")
-	err := client.VerifyError{Reason: "expired", Err: cause}
+	cause := fmt.Errorf("verify: %w: org.qmux.firmware %s", security.ErrExpired, testName)
+	err := &client.VerifyError{Reason: security.ErrExpired, Err: cause}
 
-	if !strings.Contains(err.Error(), "expired") {
-		t.Errorf("Error() = %q, want the reason expired", err.Error())
+	if err.Error() != cause.Error() {
+		t.Errorf("Error() = %q, want the text of Err %q", err.Error(), cause.Error())
 	}
-	if !errors.Is(err, cause) {
-		t.Error("errors.Is(VerifyError, its Err) = false")
+	if !errors.Is(err, cause) || !errors.Is(err, security.ErrExpired) {
+		t.Error("errors.Is(VerifyError, its Err or its Reason) = false")
+	}
+}
+
+func TestVerifyErrorWithoutErrNamesTheReason(t *testing.T) { // FR-client-25
+	err := &client.VerifyError{Reason: security.ErrExpired}
+
+	if !strings.Contains(err.Error(), security.ErrExpired.Error()) || !errors.Is(err, security.ErrExpired) {
+		t.Errorf("Error() = %q, want the reason %q", err.Error(), security.ErrExpired)
 	}
 }

@@ -1,9 +1,12 @@
 package client
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/Crank-Git/qmux/pkg/protocol"
+	"github.com/Crank-Git/qmux/pkg/security"
 	"github.com/Crank-Git/qmux/pkg/transport"
 )
 
@@ -98,24 +101,49 @@ func (e *AppError) Error() string {
 		" from " + e.ProtocolID + " version " + strconv.FormatUint(uint64(e.Version), 10)
 }
 
-// VerifyError is a response that did not verify against the trust anchors. The client
-// returns it from Epic 6.
+// VerifyError is a response that did not verify against the trust anchors.
+// Client.Query returns it as a *VerifyError, and no result.
 type VerifyError struct {
-	// Reason names the check that failed, for example "expired".
-	Reason string
-	Err    error
+	// Reason is the security sentinel of the failed check, for example
+	// security.ErrExpired. For RDATA that is not a valid envelope, Reason is the codec
+	// error, because no sentinel exists for it.
+	Reason error
+	// Err is the error of security.Verifier.Verify. It names the protocol ID and the
+	// QNAME.
+	Err error
 }
 
-// Error returns the reason and the cause.
-func (e VerifyError) Error() string {
-	s := "client: verification failed: " + e.Reason
+// Error returns the text of Err, which qmuxctl prints after "error: ". Without Err,
+// the text names Reason.
+func (e *VerifyError) Error() string {
 	if e.Err != nil {
-		s += ": " + e.Err.Error()
+		return e.Err.Error()
 	}
-	return s
+	return "verify: " + fmt.Sprint(e.Reason)
 }
 
-// Unwrap returns the cause.
-func (e VerifyError) Unwrap() error {
-	return e.Err
+// Unwrap returns Reason and Err, so that errors.Is finds the sentinel in each.
+func (e *VerifyError) Unwrap() []error {
+	return []error{e.Reason, e.Err}
+}
+
+// sentinels are the errors of security.Verifier.Verify, one for each check.
+var sentinels = []error{
+	security.ErrNotDeterministic, security.ErrUnsigned, security.ErrAlgorithm,
+	security.ErrUnknownKey, security.ErrProtocolNotAllowed, security.ErrBadSignature,
+	security.ErrNotYetValid, security.ErrExpired, security.ErrWindowTooLong, security.ErrReplay,
+}
+
+// reason returns the sentinel that err wraps. It returns the codec error that err wraps
+// when err holds no sentinel, because Verify wraps it with the QNAME only.
+func reason(err error) error {
+	for _, s := range sentinels {
+		if errors.Is(err, s) {
+			return s
+		}
+	}
+	if u := errors.Unwrap(err); u != nil {
+		return u
+	}
+	return err
 }

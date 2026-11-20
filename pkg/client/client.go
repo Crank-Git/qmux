@@ -12,6 +12,7 @@ import (
 
 	"github.com/Crank-Git/qmux/pkg/codec"
 	"github.com/Crank-Git/qmux/pkg/protocol"
+	"github.com/Crank-Git/qmux/pkg/security"
 	"github.com/Crank-Git/qmux/pkg/transport"
 )
 
@@ -20,6 +21,9 @@ const (
 	defaultAttemptTimeout = time.Second
 	defaultAttempts       = 3
 	defaultUDPSize        = 1232
+	// maxEnvelope is the largest RDATA that the client accepts, with or without trust
+	// anchors. It is the default limit of the codec.
+	maxEnvelope = 16384
 )
 
 // ClientConfig is the configuration of a Client. NewClient replaces each zero or
@@ -46,6 +50,10 @@ type ClientConfig struct {
 	DisableTCPFallback bool
 	// Recursion sets the RD bit, for a query through a recursive resolver.
 	Recursion bool
+	// TrustAnchors verifies every envelope before Query returns a field of it. nil
+	// means that the client verifies no envelope, and Result.Verified is false. No
+	// option lets a client with TrustAnchors accept an envelope that fails Verify.
+	TrustAnchors *security.Verifier
 }
 
 // Query names the resource that Client.Query asks for.
@@ -89,8 +97,8 @@ type Result struct {
 	// TCP length prefix.
 	QueryBytes    int
 	ResponseBytes int
-	// Verified is true when the client verified the signed envelope of the payload. The
-	// client does not verify envelopes yet, so Verified is always false.
+	// Verified is true when TrustAnchors verified the envelope. It is false for a
+	// client with no TrustAnchors.
 	Verified bool
 }
 
@@ -115,6 +123,12 @@ func NewClient(cfg ClientConfig) *Client {
 	return &Client{cfg: cfg}
 }
 
+// TrustAnchors returns the verifier of the client configuration, or nil when the
+// client verifies no envelope.
+func (c *Client) TrustAnchors() *security.Verifier {
+	return c.cfg.TrustAnchors
+}
+
 // Query sends q to the resolver and returns the matching response.
 //
 // Query sends over TCP when Network is "tcp", and over UDP otherwise. Each attempt uses
@@ -136,8 +150,13 @@ func NewClient(cfg ClientConfig) *Client {
 //     q.Version. A version-unsupported envelope gives the *AppError and not this
 //     error, because it carries the highest version of the registration.
 //   - KindMalformed when the response does not parse, when a TCP response has the TC
-//     bit, or when codec.Decode rejects the RDATA of the answer RR.
+//     bit, when the RDATA of the answer RR is longer than 16384 bytes, or when
+//     codec.Decode rejects the RDATA without TrustAnchors.
 //   - KindRCode when the RCODE is not NOERROR.
+//
+// When TrustAnchors is set, Query verifies the RDATA of the answer RR before every
+// envelope check. If Verify fails, Query returns a *VerifyError and no result. This
+// includes RDATA that is not a valid envelope.
 //
 // When the envelope has an application status other than protocol.StatusOK, Query
 // returns the result and a *AppError together.
@@ -220,7 +239,7 @@ func (c *Client) attempt(ctx context.Context, q Query, network string, server ne
 	got, err := exchange(ctx, network, server, p)
 	rtt := time.Since(start)
 	if err == nil {
-		res, err := result(q, p, got)
+		res, err := result(c.cfg.TrustAnchors, q, p, got)
 		if res != nil {
 			res.Transport, res.RTT = network, rtt
 		}
@@ -267,20 +286,23 @@ func exchange(ctx context.Context, network string, server netip.AddrPort, p tran
 // decode or does not match q. The TC bit comes first, because a truncated response
 // holds no answer RR whatever its RCODE.
 //
+// When v is not nil, result returns a *VerifyError when v rejects the RDATA. The check
+// comes before the envelope checks, so that no error holds a field of an envelope that
+// failed verification.
+//
 // result returns the result and a *AppError when the application status is not
 // protocol.StatusOK. For the status protocol.StatusVersionUnsupported, result skips the
 // version check, so the caller gets the *AppError.
-func result(q Query, p transport.Packet, got transport.Received) (*Result, error) {
+func result(v *security.Verifier, q Query, p transport.Packet, got transport.Received) (*Result, error) {
 	if got.Truncated {
 		return nil, &DNSError{Kind: KindTruncation, Name: p.Name, Key: p.Key, Err: errTruncated}
 	}
 	if got.RCode != transport.RCodeNoError {
 		return nil, &DNSError{Kind: KindRCode, RCode: int(got.RCode), Name: p.Name, Key: p.Key}
 	}
-	e, err := codec.Decode(got.Payload, codec.Limits{})
+	e, err := envelope(v, p, got.Payload)
 	if err != nil {
-		return nil, &DNSError{Kind: KindMalformed, Name: p.Name, Key: p.Key,
-			Err: fmt.Errorf("%w: %w", transport.ErrMalformed, err)}
+		return nil, err
 	}
 	if q.ExpectedProtocolID != "" && e.ProtocolID != q.ExpectedProtocolID {
 		return nil, &DNSError{Kind: KindMismatch, Name: p.Name, Key: p.Key,
@@ -300,11 +322,36 @@ func result(q Query, p transport.Packet, got transport.Received) (*Result, error
 		ProtocolID: e.ProtocolID, Version: uint16(e.Version), MessageType: protocol.MessageType(e.MessageType),
 		Status: protocol.Status(e.Status), Payload: e.Payload,
 		QueryBytes: len(p.Wire), ResponseBytes: got.WireSize,
+		Verified: v != nil,
 	}
 	if res.Status != protocol.StatusOK {
 		return res, &AppError{Status: res.Status, ProtocolID: res.ProtocolID, Version: res.Version}
 	}
 	return res, nil
+}
+
+// envelope returns the envelope that rdata encodes. Without a verifier v, it returns a
+// malformed DNSError when codec.Decode rejects rdata. With v, it returns a
+// *VerifyError when v.Verify rejects rdata.
+func envelope(v *security.Verifier, p transport.Packet, rdata []byte) (codec.Envelope, error) {
+	if v == nil {
+		e, err := codec.Decode(rdata, codec.Limits{MaxEnvelope: maxEnvelope})
+		if err != nil {
+			return codec.Envelope{}, &DNSError{Kind: KindMalformed, Name: p.Name, Key: p.Key,
+				Err: fmt.Errorf("%w: %w", transport.ErrMalformed, err)}
+		}
+		return e, nil
+	}
+	// Verify accepts up to 65000 bytes, so the client applies its own limit first.
+	if len(rdata) > maxEnvelope {
+		return codec.Envelope{}, &DNSError{Kind: KindMalformed, Name: p.Name, Key: p.Key,
+			Err: fmt.Errorf("%w: %w: %d bytes, limit %d", transport.ErrMalformed, codec.ErrTooLarge, len(rdata), maxEnvelope)}
+	}
+	e, err := v.Verify(rdata, p.Name, p.Key)
+	if err != nil {
+		return codec.Envelope{}, &VerifyError{Reason: reason(err), Err: err}
+	}
+	return e, nil
 }
 
 // errTruncated is the cause of a truncation DNSError, because the transport reports the
