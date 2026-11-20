@@ -5,7 +5,7 @@ owns a `(QCLASS, QTYPE)` protocol key, and the QNAME names the resource. QMux ha
 three command-line tools (`qmuxd`, `qmuxctl`, `qmux-probe`) and a research harness. The
 harness measures whether private DNS classes give a benefit over IN-class DNS.
 
-Current state: the spec is approved, and no code exists yet. Epic 0 creates the module.
+Current state: the spec is approved. The module exists. Feature work is built epic by epic through issue-flow.
 
 ## Design
 
@@ -16,7 +16,7 @@ code (images, module versions, host requirements) are in `docs/external.md`.
 
 ## Stack
 
-- Go. The library module `github.com/Crank-Git/qmux` declares `go 1.25`.
+- Go. The library module `github.com/Crank-Git/qmux` declares `go 1.25.0`.
 - `github.com/miekg/dns` v1.1.73. Only `pkg/transport` imports it.
 - `github.com/fxamacker/cbor/v2` v2.10.0 with core deterministic encoding.
 - Standard library for Ed25519 (`crypto/ed25519`) and logging (`log/slog`).
