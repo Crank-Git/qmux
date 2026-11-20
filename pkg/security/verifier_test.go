@@ -300,6 +300,22 @@ func TestVerifySignsTheLowercaseQName(t *testing.T) { // FR-security-13
 	}
 }
 
+func TestVerifyRejectsASignatureForANameThatDiffersOnlyByAKelvinSign(t *testing.T) { // RFC 4343: case folding is ASCII only
+	s := newSignedEnvelope(t)
+	s.qname = "_v1.kiosk.zone."
+	if _, err := testVerifier(t).Verify(s.raw(t), "_v1.Kiosk.zone.", testProtocolKey); !errors.Is(err, ErrBadSignature) {
+		t.Fatalf("Verify for the Kelvin sign name = %v, want ErrBadSignature", err)
+	}
+}
+
+func TestVerifyAcceptsANameThatDiffersOnlyByASCIILetterCase(t *testing.T) { // FR-security-13
+	s := newSignedEnvelope(t)
+	s.qname = "device42.fleet.example."
+	if _, err := testVerifier(t).Verify(s.raw(t), "DEVICE42.Fleet.Example.", testProtocolKey); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFailedVerifyLeavesTheStoreUnchanged(t *testing.T) { // FR-security-30
 	failures := map[string]func(s *signedEnvelope){
 		"bad signature": func(s *signedEnvelope) { s.qname = "_v1.other.fleet.example." },
