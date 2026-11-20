@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -313,6 +314,15 @@ func TestVerifyAcceptsANameThatDiffersOnlyByASCIILetterCase(t *testing.T) { // F
 	s.qname = "device42.fleet.example."
 	if _, err := testVerifier(t).Verify(s.raw(t), "DEVICE42.Fleet.Example.", testProtocolKey); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestUnixTimeLimitsAValueAbove2To40(t *testing.T) {
+	if got, want := UnixTime(1_800_000_000), time.Unix(1_800_000_000, 0); !got.Equal(want) {
+		t.Errorf("UnixTime(1800000000) = %v, want %v", got, want)
+	}
+	if got, want := UnixTime(math.MaxUint64), time.Unix(1<<40, 0); !got.Equal(want) {
+		t.Errorf("UnixTime(MaxUint64) = %v, want %v", got, want)
 	}
 }
 

@@ -32,12 +32,8 @@ type cached struct {
 // newCached returns the memory cache value for the manifest m of the verified envelope e.
 func newCached(m *Manifest, e codec.Envelope) cached {
 	return cached{manifest: m, issuedAt: e.Signature.IssuedAt,
-		expiresAt: time.Unix(int64(min(e.Signature.ExpiresAt, maxUnixSeconds)), 0)}
+		expiresAt: security.UnixTime(e.Signature.ExpiresAt)}
 }
-
-// maxUnixSeconds keeps an expires_at inside the range of time.Time. It is far later
-// than any clock, so the expiry comparison keeps its result.
-const maxUnixSeconds = 1 << 40
 
 // lookup returns a copy of the manifest of zone from the memory cache, or from the
 // cache file when the memory cache has no manifest. The bool is false when neither
