@@ -148,7 +148,7 @@ func (c *Client) Query(ctx context.Context, q Query) (*Result, error) {
 	}
 
 	var last *DNSError
-	for range attempts {
+	for i := range attempts {
 		p, err := transport.NewQuery(name, key, c.cfg.UDPSize, c.cfg.Recursion)
 		if err != nil {
 			return nil, fmt.Errorf("client: %w", err)
@@ -157,27 +157,37 @@ func (c *Client) Query(ctx context.Context, q Query) (*Result, error) {
 		// Only a UDP attempt can return a truncation error, because a TCP response with
 		// the TC bit is malformed.
 		if errors.As(err, &last) && last.Kind == KindTruncation && !c.cfg.DisableTCPFallback {
-			return c.fallback(ctx, server, p)
+			return c.fallback(ctx, server, p, i+2)
 		}
 		// Only the end of the attempt timeout starts a new attempt. A result, the end of
 		// ctx and every other error stop the query.
 		if !errors.As(err, &last) || last.Kind != KindTimeout || ctx.Err() != nil {
-			return res, err
+			return res, counted(err, i+1, server)
 		}
 	}
-	last.Err = fmt.Errorf("no response after %d attempts to %s: %w", attempts, server, last.Err)
-	return nil, last
+	return nil, counted(last, attempts, server)
 }
 
 // fallback repeats p once over TCP after a UDP response with the TC bit. This TCP
-// attempt is one extra attempt beyond Attempts.
-func (c *Client) fallback(ctx context.Context, server netip.AddrPort, p transport.Packet) (*Result, error) {
+// attempt is one extra attempt beyond Attempts, so n counts the UDP attempts and the
+// TCP attempt.
+func (c *Client) fallback(ctx context.Context, server netip.AddrPort, p transport.Packet, n int) (*Result, error) {
 	res, err := c.attempt(ctx, transport.TCP, server, p)
 	if err != nil {
-		return nil, err
+		return nil, counted(err, n, server)
 	}
 	res.FellBack = true
 	return res, nil
+}
+
+// counted returns err with n attempts and server recorded, when err is a timeout
+// DNSError. The text of a timeout DNSError names them.
+func counted(err error, n int, server netip.AddrPort) error {
+	var de *DNSError
+	if errors.As(err, &de) && de.Kind == KindTimeout {
+		de.Attempts, de.Resolver = n, server.String()
+	}
+	return err
 }
 
 // attempt sends p to server once over a new socket. network is transport.UDP or
