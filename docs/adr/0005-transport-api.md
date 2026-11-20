@@ -102,12 +102,21 @@ contexts do not come from the `Serve` context.
 ### The rules for `Exchange`
 
 1. `ExchangeUDP` ignores a response with a different ID until `ctx` expires.
+   `ExchangeTCP` also ignores a response with a different ID, because an earlier
+   exchange on the connection can leave a late response.
 2. A response that does not parse returns `ErrMalformed`.
 3. TC over TCP returns `ErrMalformed`.
 4. If the question count is not 1, or the name, class or type differs, the function
-   returns `ErrMismatch`. Names compare without regard to case.
+   returns `ErrMismatch`. Names compare without regard to case. One exception applies:
+   if the RCODE is not NOERROR and the response holds no question, the function returns
+   `Received` with that RCODE and no error. An absent question does not differ from the
+   query, so the RCODE applies (FR-client-17, FR-client-21). For example, BIND can
+   answer NOTIMP without the question.
 5. For NOERROR, the response must hold exactly one answer RR with the question name,
-   class and type. Otherwise the function returns `ErrMismatch`.
+   class and type. Otherwise the function returns `ErrMismatch`. One exception applies:
+   if a UDP response has the TC bit, the function returns `Received` with `Truncated`
+   true and no error. Write rule 6 removes the answer RR from a truncated response, and
+   the client then retries over TCP.
 6. `Payload` comes from the hex `Rdata`. For a type that miekg knows, for example TXT,
    the payload is the packed RDATA of the RR.
 
