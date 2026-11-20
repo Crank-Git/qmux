@@ -57,7 +57,8 @@ func recordPayload(fr fileRecord, path string) ([]byte, error) {
 
 // payloadCBOR returns the deterministic CBOR encoding of the JSON value raw at the JSON
 // path path, with the JSON-to-CBOR rule of FR-qmuxd-21. The error names the JSON path
-// of the first value that has no CBOR kind.
+// of the first value that has no CBOR kind. payloadCBOR returns an error that names
+// path when codec.Unmarshal rejects the encoding, for example above a decode limit.
 func payloadCBOR(raw json.RawMessage, path string) ([]byte, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	// UseNumber keeps the JSON text of each number, so that an integer above 2^53
@@ -73,6 +74,12 @@ func payloadCBOR(raw json.RawMessage, path string) ([]byte, error) {
 	}
 	b, err := codec.Marshal(c)
 	if err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	// Marshal accepts a payload above the decode limits of codec.Unmarshal, and
+	// every client that decodes such a payload rejects it.
+	var decoded any
+	if err := codec.Unmarshal(b, &decoded); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return b, nil

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"strings"
 	"testing"
@@ -213,5 +214,58 @@ func TestNewDaemonRejectsARecordThatMakesTheEnvelopeLargerThanTheLimit(t *testin
 	}
 	if !errors.Is(err, codec.ErrTooLarge) {
 		t.Errorf("newDaemon error = %v, want codec.ErrTooLarge", err)
+	}
+}
+
+// nestedArrays returns a JSON value of n nested arrays around the number 1.
+func nestedArrays(n int) any {
+	var v any = 1
+	for range n {
+		v = []any{v}
+	}
+	return v
+}
+
+// textMap returns a JSON object with n pairs. No key is a decimal integer, so the
+// payload is a map with text keys.
+func textMap(n int) map[string]any {
+	m := make(map[string]any, n)
+	for i := range n {
+		m[fmt.Sprintf("k%d", i)] = i
+	}
+	return m
+}
+
+// numberArray returns a JSON array of the n numbers 0 to n-1.
+func numberArray(n int) []any {
+	a := make([]any, n)
+	for i := range a {
+		a[i] = i
+	}
+	return a
+}
+
+func TestLoadConfigLoadsAPayloadAtEachCodecDecodeLimit(t *testing.T) { // #159
+	cases := []struct {
+		name    string
+		payload any
+	}{
+		{"8 nesting levels", nestedArrays(8)},
+		{"1024 array elements", numberArray(1024)},
+		{"64 map pairs", textMap(64)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := baseConfig("127.0.0.1:0")
+			firstRecord(c)["payload"] = tc.payload
+			cfg, err := loadConfig(writeConfigFile(t, c), "")
+			if err != nil {
+				t.Fatalf("loadConfig: %v", err)
+			}
+			var v any
+			if err := codec.Unmarshal(cfg.Protocols[0].Records[testRecord].Payload, &v); err != nil {
+				t.Errorf("codec.Unmarshal of the loaded payload: %v", err)
+			}
+		})
 	}
 }

@@ -149,6 +149,9 @@ func TestServeExitsTwoBeforeItListensForAnInvalidConfigFile(t *testing.T) {
 			firstProtocol(c)["records"] = map[string]any{testRecord: map[string]any{"payload_hex": "0g"}}
 		}, `protocols[0].records["device42.fleet.example."].payload_hex`},
 		{"FR-qmuxd-21 null in the payload", func(c map[string]any) { firstRecord(c)["payload"] = map[string]any{"1": nil} }, `protocols[0].records["device42.fleet.example."].payload["1"]: null`},
+		{"#159 payload with 9 nesting levels", func(c map[string]any) { firstRecord(c)["payload"] = nestedArrays(9) }, `protocols[0].records["device42.fleet.example."].payload: `},
+		{"#159 payload with 65 map pairs", func(c map[string]any) { firstRecord(c)["payload"] = textMap(65) }, `protocols[0].records["device42.fleet.example."].payload: `},
+		{"#159 payload with 1025 array elements", func(c map[string]any) { firstRecord(c)["payload"] = numberArray(1025) }, `protocols[0].records["device42.fleet.example."].payload: `},
 		{"status integer above 65535", func(c map[string]any) { firstRecord(c)["status"] = 65536 }, `protocols[0].records["device42.fleet.example."].status`},
 	}
 	for _, tc := range cases {
