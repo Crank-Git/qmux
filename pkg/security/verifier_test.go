@@ -442,3 +442,19 @@ func TestLoadFreshnessStoreRejectsAMalformedFile(t *testing.T) {
 		})
 	}
 }
+
+func TestVerifyAcceptsAnEnvelopeThatTheSignerSigned(t *testing.T) {
+	e := newSignedEnvelope(t).env
+	e.Signature = nil
+	s := &Signer{Key: testKey(t), Now: func() time.Time { return verifyNow }}
+	if err := s.Sign(&e, testQName, testProtocolKey); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := codec.Encode(e, codec.Limits{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := testVerifier(t).Verify(raw, testQName, testProtocolKey); err != nil {
+		t.Fatal(err)
+	}
+}
