@@ -27,4 +27,17 @@ imports it.
 - The default `MsgAcceptFunc` accepts NOTIFY and does not check the class. QMux supplies
   its own accept function.
 - A later port to the codeberg module changes one package.
-- Epic 0 adds the limitations that its wire-format test observes to this section.
+- `Question.Qclass` and `RR_Header.Class` are `uint16`, so QMux can use any private
+  class value in the range 65280–65534.
+- `Msg.Truncate(size)` treats a size below 512 as 512. It keeps the OPT RR and sets the
+  TC bit when it removes answer RRs.
+- `Msg.SetEdns0(udpsize uint16, do bool)` adds an OPT RR to the additional section with
+  the given UDP size.
+- `RFC3597.Rdata` is a hex-encoded string, not raw bytes. `pkg/transport` must call
+  `encoding/hex.EncodeToString` to set it and compare unpacked values as strings.
+- `dns.UnpackRR` takes two arguments: the wire buffer and the offset.
+- `dns.Msg.Truncated` (not `TC`) holds the truncation flag; `dns.Msg` embeds
+  `dns.MsgHdr` which carries the field.
+- `dns.ClassHESIOD` (4) is the constant for HS class; there is no `dns.ClassHS`.
+- Any type not in `dns.TypeToRR` unpacks as `*dns.RFC3597`, so `pkg/transport` must
+  handle all private types through RFC3597.
