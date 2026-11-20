@@ -56,9 +56,13 @@ jobs:
           go-version: ${{ matrix.go }}
       - run: go test ./...
       # The harness is a separate module, so go test ./... at the root does not build it.
-      # Its go.mod declares go 1.26. On the 1.25 job, the go command downloads that toolchain.
+      # Its go.mod declares go 1.26. setup-go exports GOTOOLCHAIN=local, which stops the 1.25 job
+      # from downloading that toolchain. This step sets GOTOOLCHAIN=auto to allow the download.
+      # The other steps keep GOTOOLCHAIN=local, so the root module still runs on the matrix Go.
       - name: Build tests/interoperability
         working-directory: tests/interoperability
+        env:
+          GOTOOLCHAIN: auto
         run: go build ./...
 
   race:
