@@ -506,13 +506,26 @@ body.rv-open .layout { padding-right:21rem; }
 </li>
 </ol>
 <h3 id="envelope-codec-screens-states">Screens &amp; states</h3>
-<p>No screens: library only. <code>qmuxctl query</code> output gains these lines:</p>
-<pre class="code"><code>protocol   org.qmux.firmware
-version    1
-type       record
-status     ok
-payload    74 bytes</code></pre>
-<p>When the status is not <code>ok</code>, the <code>status</code> line shows the status name, and <code>qmuxctl</code> exits with code 2.</p>
+<p>No screens: library only. <code>qmuxctl query</code> output gains these <code>key: value</code> lines after the <code>verified:</code> line and before the <code>payload:</code> line:</p>
+<pre class="code"><code>protocol_id: org.qmux.firmware
+version: 1
+message_type: record
+status: ok
+payload_bytes: 74</code></pre>
+<ul>
+<li><code>message_type</code> shows <code>record</code> or <code>manifest</code>, or the decimal number for 256 and above.
+</li>
+<li><code>status</code> shows the status name (<code>ok</code>, <code>not-found</code>, <code>bad-request</code>,
+</li>
+</ul>
+<p><code>version-unsupported</code>, <code>unavailable</code>), or the decimal number for 5 and above.</p>
+<ul>
+<li><code>qmuxctl query --json</code> has the same names as keys.
+</li>
+<li>When the status is not <code>ok</code>, <code>qmuxctl</code> prints the full result to stdout. Then it
+</li>
+</ul>
+<p>prints <code>error: …</code> to stderr and exits with code 2.</p>
 <h3 id="envelope-codec-behaviour-rules">Behaviour rules</h3>
 <ul>
 <li>The envelope keys are unsigned integers 0–6. No other key is valid in format 1.
