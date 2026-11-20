@@ -200,6 +200,8 @@ func TestEncodeRejectsInvalidFields(t *testing.T) {
 		{"message type 0", func(e *Envelope) { e.MessageType = 0 }, ErrInvalidMessageType},
 		{"message type 3", func(e *Envelope) { e.MessageType = 3 }, ErrInvalidMessageType},
 		{"message type 255", func(e *Envelope) { e.MessageType = 255 }, ErrInvalidMessageType},
+		{"message type 65536", func(e *Envelope) { e.MessageType = 65536 }, ErrInvalidMessageType},
+		{"status 65536", func(e *Envelope) { e.Status = 65536 }, ErrInvalidStatus},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -228,6 +230,7 @@ func TestEncodeAcceptsBoundaryFieldValues(t *testing.T) {
 		{"message type 256", func(e *Envelope) { e.MessageType = 256 }},
 		{"message type 65535", func(e *Envelope) { e.MessageType = 65535 }},
 		{"status 256", func(e *Envelope) { e.Status = 256 }},
+		{"status 65535", func(e *Envelope) { e.Status = 65535 }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
