@@ -277,7 +277,7 @@ wrote keys/qmuxd.anchor.json
 key_id 3f9a1c0b7d2e4a65
 ```
 
-`qmuxctl query` with `--trust-anchors` adds the line `verified   yes`. A failure prints:
+`qmuxctl query` with `--trust-anchors` prints the line `verified: true`. A failure prints:
 
 ```
 error: verify: ErrExpired: org.qmux.firmware device42.fleet.example.
