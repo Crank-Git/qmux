@@ -212,7 +212,7 @@ func TestQueryCompletesWithoutTheSystemResolver(t *testing.T) { // FR-client-6
 	}
 }
 
-func TestQueryReturnsAnErrorForAHostNameResolver(t *testing.T) {
+func TestQueryReturnsANetworkErrorForAHostNameResolver(t *testing.T) {
 	c := client.NewClient(client.ClientConfig{Resolver: "localhost:53"})
 
 	_, err := c.Query(context.Background(), client.Query{Name: testName, Class: testKey.Class, Type: testKey.Type})
@@ -220,6 +220,7 @@ func TestQueryReturnsAnErrorForAHostNameResolver(t *testing.T) {
 	if err == nil {
 		t.Fatal("Query with a host name resolver returned no error")
 	}
+	wantKind(t, err, client.KindNetwork)
 }
 
 func TestQueryUsesANewQueryIDForEachAttempt(t *testing.T) { // FR-client-7
