@@ -252,3 +252,59 @@ func TestObservationLogLogsOneErrorPerMinuteAndKeepsAnswering(t *testing.T) {
 		t.Fatalf("got %d error records for 3 failed writes in one minute, want 1", errs)
 	}
 }
+
+func TestObservationLogWritesARefusedLineWithStatusNullForARateLimitedQuery(t *testing.T) {
+	var buf syncBuffer
+	s := newTestServer(t, ServerConfig{RateLimit: RateLimit{QPS: 1, Burst: 1}, ObservationLog: &buf}, payloadHandler([]byte("ok")))
+	answer(s, queryFrom("192.0.2.1", start))
+	checkRCode(t, answer(s, queryFrom("192.0.2.1", start)), transport.RCodeRefused)
+
+	lines := observationLines(t, buf.String())
+	if len(lines) != 2 {
+		t.Fatalf("got %d observation lines for 2 queries, want 2", len(lines))
+	}
+	if got := lines[1]["rcode"]; got != "REFUSED" {
+		t.Errorf("rcode = %#v, want REFUSED", got)
+	}
+	if v, ok := lines[1]["status"]; !ok || v != nil {
+		t.Errorf("status = %#v (present %v), want null", v, ok)
+	}
+}
+
+// failResponseWriter fails every response write, as a closed TCP connection does.
+type failResponseWriter struct{}
+
+func (failResponseWriter) Write(transport.Answer) (transport.Sent, error) {
+	return transport.Sent{}, errors.New("write: connection reset by peer")
+}
+
+func TestObservationLogWritesALineWithBytesOutZeroWhenTheResponseWriteFails(t *testing.T) {
+	var buf syncBuffer
+	h := &recordHandler{}
+	s := newTestServer(t, ServerConfig{Logger: slog.New(h), ObservationLog: &buf}, payloadHandler([]byte("ok")))
+	s.serveQuery(context.Background(), validQuery(), failResponseWriter{})
+
+	got := oneObservationLine(t, buf.String())
+	if got["rcode"] != "NOERROR" || got["bytes_out"] != float64(0) {
+		t.Errorf("rcode = %#v, bytes_out = %#v, want the attempted NOERROR and 0", got["rcode"], got["bytes_out"])
+	}
+	if v, ok := got["status"]; !ok || v != nil {
+		t.Errorf("status = %#v (present %v), want null because no envelope was sent", v, ok)
+	}
+
+	rec := oneQueryRecord(t, h)
+	if rec["rcode"].String() != "NOERROR" || rec["bytes_out"].Int64() != 0 || rec["status"].String() != "" {
+		t.Errorf("query record = %v, want rcode NOERROR, bytes_out 0 and no status", rec)
+	}
+	var debug int
+	h.mu.Lock()
+	for _, r := range h.records {
+		if r.Level == slog.LevelDebug && r.Message == "server: write response" {
+			debug++
+		}
+	}
+	h.mu.Unlock()
+	if debug != 1 {
+		t.Errorf("got %d debug records for the write error, want 1", debug)
+	}
+}

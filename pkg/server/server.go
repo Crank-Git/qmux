@@ -69,7 +69,8 @@ type ServerConfig struct {
 	// context ends. The default is 5s.
 	ShutdownGrace time.Duration
 	// Logger receives the log records. The default is slog.Default(). The server logs
-	// one info record "query" per answered query. The record never holds payload bytes.
+	// one info record "query" per answered query, also when the response write fails.
+	// The record never holds payload bytes.
 	Logger *slog.Logger
 	// Registry holds the options of the registry of the server.
 	Registry registry.Options
@@ -84,8 +85,9 @@ type ServerConfig struct {
 	// ObservationLog receives one JSON object and a newline for each answered query.
 	// The fields are ts, transport, source, qname, qclass, qtype, rcode, status,
 	// bytes_in, bytes_out and duration_us. status is null when the response holds no
-	// envelope. The server serializes the writes, so ObservationLog needs no lock of
-	// its own. When a write fails, the server logs one error per minute and continues.
+	// envelope. When the response write fails, the line holds bytes_out 0. The server
+	// serializes the writes, so ObservationLog needs no lock of its own. When a write
+	// to ObservationLog fails, the server logs one error per minute and continues.
 	// Nil disables the observation log.
 	ObservationLog io.Writer
 }
@@ -299,8 +301,7 @@ func (s *Server) matchZone(name string) (string, bool) {
 }
 
 // write sends a through w as the response to q. It logs one info record for q, and
-// writes one line to the observation log when it is set. A write error ends only this
-// query, so the server logs it at debug level and continues.
+// writes one line to the observation log when it is set.
 //
 // status is the application status of the envelope in a, or nil when a holds no
 // envelope. Every answer to a parsed query goes through write, so that each one gets
@@ -308,11 +309,16 @@ func (s *Server) matchZone(name string) (string, bool) {
 // size from transport.Sent, because the transport can change the RCODE after the size
 // rules. They have the status only when the sent response carries the answer RR. The
 // record holds no payload bytes.
+//
+// A write error ends only this query. The server logs the error at debug level. The
+// record and the line then hold the RCODE of a, bytes_out 0 and no status. The line
+// shows that the query reached the server also when no response left it.
 func (s *Server) write(ctx context.Context, q *transport.Query, w transport.Writer, a transport.Answer, status *protocol.Status) {
 	sent, err := w.Write(a)
 	if err != nil {
 		s.cfg.Logger.Debug("server: write response", "error", err)
-		return
+		sent = transport.Sent{RCode: a.RCode}
+		status = nil
 	}
 	if sent.RCode != transport.RCodeNoError || sent.Truncated {
 		status = nil
