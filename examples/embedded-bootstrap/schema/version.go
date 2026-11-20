@@ -29,24 +29,14 @@ func ParseFirmwareVersion(s string) (FirmwareVersion, error) {
 	}
 	var fields [3]uint64
 	for i, part := range parts {
-		n, ok := parseField(part)
-		if !ok {
+		// ParseUint with base 10 accepts only digits: no sign, no space, no underscore.
+		n, err := strconv.ParseUint(part, 10, 64)
+		if err != nil || (len(part) > 1 && part[0] == '0') {
 			return FirmwareVersion{}, fmt.Errorf("%w: %q", ErrFirmwareVersionSyntax, s)
 		}
 		fields[i] = n
 	}
 	return FirmwareVersion{Major: fields[0], Minor: fields[1], Patch: fields[2]}, nil
-}
-
-// parseField returns the value of one firmware version field, and false when part is
-// not a decimal number without a sign or a leading zero.
-func parseField(part string) (uint64, bool) {
-	if len(part) > 1 && part[0] == '0' {
-		return 0, false
-	}
-	// ParseUint with base 10 accepts only digits: no sign, no space, no underscore.
-	n, err := strconv.ParseUint(part, 10, 64)
-	return n, err == nil
 }
 
 // Compare returns -1 when v is older than w, 0 when they are equal, and +1 when v is

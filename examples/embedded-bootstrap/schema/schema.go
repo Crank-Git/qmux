@@ -139,9 +139,9 @@ type Firmware struct {
 	KeyID []byte `cbor:"4,keyasint"`
 }
 
-// Marshal returns the deterministic CBOR encoding of p. It returns the error of
-// p.check for a field that breaks the schema. Every other failure is a wrapped codec
-// error.
+// Marshal returns the deterministic CBOR encoding of p. It returns
+// ErrFirmwareVersionSyntax, ErrDigestLength or ErrKeyIDLength for a field that breaks
+// the schema. Every other failure is a wrapped codec error.
 func (p Firmware) Marshal() ([]byte, error) {
 	if err := p.check(); err != nil {
 		return nil, fmt.Errorf("schema: encode firmware: %w", err)
