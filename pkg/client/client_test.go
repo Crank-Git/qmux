@@ -5,12 +5,15 @@ import (
 	"context"
 	"errors"
 	"net"
+	"slices"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/Crank-Git/qmux/pkg/client"
 	"github.com/Crank-Git/qmux/pkg/protocol"
+	"github.com/Crank-Git/qmux/pkg/transport"
 	"github.com/Crank-Git/qmux/pkg/transport/transporttest"
 )
 
@@ -21,18 +24,21 @@ var (
 	testPayload = []byte{0xa1, 0x01, 0x02}
 )
 
-// recorder is a fake server that records each query it receives. It answers a query
-// with testPayload, or drops it when drop returns true for the query number. The first
-// query has number 1.
+// recorder is a fake server that records each query it receives and its network. It
+// answers a query with testPayload, or drops it when drop returns true for the query
+// number. The first query has number 1. When edit is set, it changes each response
+// before the server sends it.
 type recorder struct {
 	drop func(n int) bool
+	edit func(network string, m *transporttest.Message)
 
-	mu      sync.Mutex
-	queries []transporttest.Message
-	errs    []error
+	mu       sync.Mutex
+	queries  []transporttest.Message
+	networks []string
+	errs     []error
 }
 
-func (r *recorder) respond(_ string, wire []byte) [][]byte {
+func (r *recorder) respond(network string, wire []byte) [][]byte {
 	q, err := transporttest.Unpack(wire)
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -41,15 +47,20 @@ func (r *recorder) respond(_ string, wire []byte) [][]byte {
 		return nil
 	}
 	r.queries = append(r.queries, q)
+	r.networks = append(r.networks, network)
 	if r.drop != nil && r.drop(len(r.queries)) {
 		return nil
 	}
-	resp, err := transporttest.Pack(transporttest.Message{
+	m := transporttest.Message{
 		ID:       q.ID,
 		Response: true,
 		Question: q.Question,
 		Answer:   []transporttest.RR{{Name: q.Question[0].Name, Key: q.Question[0].Key, TTL: 60, Data: testPayload}},
-	})
+	}
+	if r.edit != nil {
+		r.edit(network, &m)
+	}
+	resp, err := transporttest.Pack(m)
 	if err != nil {
 		r.errs = append(r.errs, err)
 		return nil
@@ -67,6 +78,13 @@ func (r *recorder) received(t *testing.T) []transporttest.Message {
 		t.Errorf("fake server: %v", err)
 	}
 	return append([]transporttest.Message(nil), r.queries...)
+}
+
+// receivedOver returns the network of each query that r received, in order.
+func (r *recorder) receivedOver() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string(nil), r.networks...)
 }
 
 // start starts a fake server that uses r and returns its address.
@@ -240,5 +258,96 @@ func TestQueryUsesANewQueryIDForEachAttempt(t *testing.T) { // FR-client-7
 	}
 	if len(ids) != 3 {
 		t.Errorf("the 3 attempts used %d different IDs, want 3", len(ids))
+	}
+}
+
+func TestQuerySendsOverUDPWhenNetworkIsUDPOrEmpty(t *testing.T) { // FR-client-8
+	for _, network := range []string{"", "udp"} {
+		t.Run("Network "+strconv.Quote(network), func(t *testing.T) {
+			var r recorder
+			c := client.NewClient(client.ClientConfig{Resolver: r.start(t), Network: network})
+
+			query(t, c, testQuery)
+
+			if got := r.receivedOver(); !slices.Equal(got, []string{transport.UDP}) {
+				t.Errorf("server received queries over %v, want one over udp", got)
+			}
+		})
+	}
+}
+
+func TestQuerySendsOverTCPOnlyWhenNetworkIsTCP(t *testing.T) { // FR-client-9
+	var r recorder
+	c := client.NewClient(client.ClientConfig{Resolver: r.start(t), Network: "tcp"})
+
+	res := query(t, c, testQuery)
+
+	if got := r.receivedOver(); !slices.Equal(got, []string{transport.TCP}) {
+		t.Errorf("server received queries over %v, want one over tcp", got)
+	}
+	if !bytes.Equal(res.Payload, testPayload) {
+		t.Errorf("Payload = %x, want %x", res.Payload, testPayload)
+	}
+	if res.FellBack {
+		t.Error("FellBack = true for a query that the client sent over TCP first")
+	}
+}
+
+func TestQueryReturnsANetworkErrorForAnUnknownNetwork(t *testing.T) {
+	var r recorder
+	c := client.NewClient(client.ClientConfig{Resolver: r.start(t), Network: "sctp"})
+
+	_, err := c.Query(context.Background(), testQuery)
+
+	wantKind(t, err, client.KindNetwork)
+	if got := r.received(t); len(got) != 0 {
+		t.Errorf("server received %d queries, want 0", len(got))
+	}
+}
+
+func TestQueryMakesNoNewAttemptAfterAServfailResponse(t *testing.T) { // FR-client-11
+	r := recorder{edit: func(_ string, m *transporttest.Message) {
+		m.RCode = transport.RCodeServFail
+		m.Answer = nil
+	}}
+	c := client.NewClient(client.ClientConfig{Resolver: r.start(t), AttemptTimeout: 50 * time.Millisecond})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := c.Query(ctx, testQuery)
+
+	wantKind(t, err, client.KindRCode)
+	onlyQuery(t, &r)
+}
+
+func TestQueryRepeatsATruncatedUDPQueryOnceOverTCP(t *testing.T) { // FR-client-14
+	r := recorder{edit: func(network string, m *transporttest.Message) {
+		if network == transport.UDP {
+			m.Truncated = true
+			m.Answer = nil
+		}
+	}}
+	// One attempt shows that the TCP query is an extra attempt beyond Attempts.
+	c := client.NewClient(client.ClientConfig{Resolver: r.start(t), Attempts: 1})
+
+	res := query(t, c, testQuery)
+
+	if got := r.receivedOver(); !slices.Equal(got, []string{transport.UDP, transport.TCP}) {
+		t.Errorf("server received queries over %v, want udp then tcp", got)
+	}
+	if !res.FellBack {
+		t.Error("FellBack = false after the TCP fallback")
+	}
+	if !bytes.Equal(res.Payload, testPayload) {
+		t.Errorf("Payload = %x, want %x from the TCP response", res.Payload, testPayload)
+	}
+}
+
+func TestQuerySetsFellBackToFalseForAUDPAnswer(t *testing.T) {
+	var r recorder
+	c := client.NewClient(client.ClientConfig{Resolver: r.start(t)})
+
+	if res := query(t, c, testQuery); res.FellBack {
+		t.Error("FellBack = true for an answer over UDP")
 	}
 }

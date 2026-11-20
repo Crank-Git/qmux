@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"net"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -206,18 +208,84 @@ func TestQueryReturnsAMalformedErrorForAUDPResponseThatDoesNotParse(t *testing.T
 	}
 }
 
-func TestQueryReturnsATruncationErrorForAUDPResponseWithTheTCBit(t *testing.T) { // FR-client-15
-	err := queryErr(t, reply(func(_, ok transporttest.Message) []transporttest.Message {
-		ok.Truncated = true
-		ok.Answer = nil
-		return []transporttest.Message{ok}
-	}))
+func TestQueryReturnsATruncationErrorForTheTCBitWithDisableTCPFallback(t *testing.T) { // FR-client-15
+	r := recorder{edit: func(_ string, m *transporttest.Message) {
+		m.Truncated = true
+		m.Answer = nil
+	}}
+	c := client.NewClient(client.ClientConfig{Resolver: r.start(t), DisableTCPFallback: true})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := c.Query(ctx, testQuery)
 
 	wantKind(t, err, client.KindTruncation)
+	if got := r.receivedOver(); !slices.Equal(got, []string{transport.UDP}) {
+		t.Errorf("server received queries over %v, want one over udp", got)
+	}
 }
 
-func TestQueryReturnsATimeoutErrorWhenEveryAttemptTimesOut(t *testing.T) { // FR-client-10
-	err := queryErr(t, func(string, []byte) [][]byte { return nil })
+func TestQueryReturnsAMalformedErrorWhenTheTCPFallbackResponseHasTheTCBit(t *testing.T) {
+	r := recorder{edit: func(_ string, m *transporttest.Message) {
+		m.Truncated = true
+		m.Answer = nil
+	}}
+	c := client.NewClient(client.ClientConfig{Resolver: r.start(t)})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := c.Query(ctx, testQuery)
+
+	wantKind(t, err, client.KindMalformed)
+	if got := r.receivedOver(); !slices.Equal(got, []string{transport.UDP, transport.TCP}) {
+		t.Errorf("server received queries over %v, want udp then tcp", got)
+	}
+}
+
+func TestQueryReturnsANetworkErrorWhenNothingListensOnTheTCPPortDuringFallback(t *testing.T) {
+	// The server listens only on UDP, so the TCP dial of the fallback fails.
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = pc.Close() })
+	go answerTruncated(pc)
+	c := client.NewClient(client.ClientConfig{Resolver: pc.LocalAddr().String()})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err = c.Query(ctx, testQuery)
+
+	wantKind(t, err, client.KindNetwork)
+}
+
+// answerTruncated answers each UDP query on pc with the TC bit until pc closes.
+func answerTruncated(pc net.PacketConn) {
+	buf := make([]byte, 65535)
+	for {
+		n, addr, err := pc.ReadFrom(buf)
+		if err != nil {
+			return
+		}
+		q, err := transporttest.Unpack(buf[:n])
+		if err != nil {
+			continue
+		}
+		resp, err := transporttest.Pack(transporttest.Message{ID: q.ID, Response: true, Truncated: true, Question: q.Question})
+		if err != nil {
+			continue
+		}
+		_, _ = pc.WriteTo(resp, addr) // A lost response makes the test fail with a timeout.
+	}
+}
+
+func TestQueryMakesExactlyThreeAttemptsWhenTheServerDropsEveryPacket(t *testing.T) { // FR-client-10
+	r := recorder{drop: func(int) bool { return true }}
+	c := client.NewClient(client.ClientConfig{Resolver: r.start(t), AttemptTimeout: 50 * time.Millisecond})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := c.Query(ctx, testQuery)
 
 	wantKind(t, err, client.KindTimeout)
 	if !errors.Is(err, context.DeadlineExceeded) {
@@ -226,32 +294,107 @@ func TestQueryReturnsATimeoutErrorWhenEveryAttemptTimesOut(t *testing.T) { // FR
 	if !strings.Contains(err.Error(), "3 attempts") {
 		t.Errorf("Error() = %q, want the attempt count", err.Error())
 	}
+	if got := r.receivedOver(); !slices.Equal(got, []string{transport.UDP, transport.UDP, transport.UDP}) {
+		t.Errorf("server received queries over %v, want 3 over udp", got)
+	}
 }
 
-func TestQueryReturnsATimeoutErrorWhenTheContextExpires(t *testing.T) { // FR-client-12
-	c := client.NewClient(client.ClientConfig{
-		Resolver: transporttest.StartServer(t, func(string, []byte) [][]byte { return nil }),
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+func TestQueryMakesOneTCPAttemptAndNoRetryOnATimeout(t *testing.T) {
+	r := recorder{drop: func(int) bool { return true }}
+	c := client.NewClient(client.ClientConfig{Resolver: r.start(t), Network: "tcp", AttemptTimeout: 50 * time.Millisecond})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	_, err := c.Query(ctx, testQuery)
 
 	wantKind(t, err, client.KindTimeout)
+	if got := r.receivedOver(); !slices.Equal(got, []string{transport.TCP}) {
+		t.Errorf("server received queries over %v, want one over tcp", got)
+	}
 }
 
-func TestQueryReturnsAnErrorThatWrapsCanceledWhenTheContextIsCancelled(t *testing.T) { // FR-client-13
+func TestQueryReturnsATimeoutErrorWhenTheContextExpires(t *testing.T) { // FR-client-12
+	// The default AttemptTimeout of 1s is longer than ctx, so ctx stops the attempt.
 	c := client.NewClient(client.ClientConfig{
 		Resolver: transporttest.StartServer(t, func(string, []byte) [][]byte { return nil }),
 	})
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
 
 	_, err := c.Query(ctx, testQuery)
 
-	if !errors.Is(err, context.Canceled) {
-		t.Errorf("errors.Is(err, context.Canceled) = false for %v", err)
+	if elapsed := time.Since(start); elapsed >= 300*time.Millisecond {
+		t.Errorf("Query returned after %v, want less than 300ms", elapsed)
 	}
+	wantKind(t, err, client.KindTimeout)
+}
+
+func TestQueryReturnsAnErrorThatWrapsCanceledWhenTheContextIsCancelled(t *testing.T) { // FR-client-13
+	tests := []struct {
+		name    string
+		network string
+	}{
+		{"udp", transport.UDP},
+		{"tcp", transport.TCP},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			// The server cancels ctx when the query arrives, so the cancel comes during
+			// the attempt.
+			server := transporttest.StartServer(t, func(string, []byte) [][]byte {
+				cancel()
+				return nil
+			})
+			c := client.NewClient(client.ClientConfig{Resolver: server, Network: tt.network})
+
+			_, err := c.Query(ctx, testQuery)
+
+			if !errors.Is(err, context.Canceled) {
+				t.Errorf("errors.Is(err, context.Canceled) = false for %v", err)
+			}
+		})
+	}
+}
+
+func TestQueryReturnsAMalformedErrorForATruncatedTCPResponse(t *testing.T) { // FR-client-22
+	whole := reply(func(_, ok transporttest.Message) []transporttest.Message { return []transporttest.Message{ok} })
+	// The server frames the cut message with its own length, so the read succeeds and
+	// the parse fails.
+	cut := func(network string, wire []byte) [][]byte {
+		var out [][]byte
+		for _, resp := range whole(network, wire) {
+			out = append(out, resp[:len(resp)-3])
+		}
+		return out
+	}
+	c := client.NewClient(client.ClientConfig{Resolver: transporttest.StartServer(t, cut), Network: "tcp"})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := c.Query(ctx, testQuery)
+
+	wantKind(t, err, client.KindMalformed)
+}
+
+func TestQueryReturnsANetworkErrorForAClosedTCPPort(t *testing.T) { // FR-client-23
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	server := l.Addr().String()
+	if err := l.Close(); err != nil {
+		t.Fatalf("close listener: %v", err)
+	}
+	c := client.NewClient(client.ClientConfig{Resolver: server, Network: "tcp"})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err = c.Query(ctx, testQuery)
+
+	wantKind(t, err, client.KindNetwork)
 }
 
 func TestDNSErrorNamesTheKindTheNameAndTheProtocolKey(t *testing.T) {
