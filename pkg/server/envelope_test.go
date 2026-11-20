@@ -148,3 +148,18 @@ func TestDispatchAnswersServFailAndLogsOneErrorWhenTheSchemaRejectsThePayload(t 
 		t.Fatalf("the log holds %d error records, want 1:\n%s", n, buf.String())
 	}
 }
+
+func TestDispatchDoesNotValidateAHandlerAnswerWithAStatusOtherThanOK(t *testing.T) { // FR-server-28
+	// A not-found answer has no payload. A schema that requires fields rejects an empty
+	// payload, so a schema call would turn the answer into SERVFAIL.
+	schema := &countingSchema{err: errors.New("required field missing")}
+	info := twoVersionInfo
+	info.Schema = schema
+	e := decodeAnswer(t, serveResponse(t, ServerConfig{}, info, protocol.Response{Status: protocol.StatusNotFound}))
+	if e.Status != uint64(protocol.StatusNotFound) || len(e.Payload) != 0 {
+		t.Errorf("envelope status, payload = %d, %x, want %d and no payload", e.Status, e.Payload, protocol.StatusNotFound)
+	}
+	if n := schema.calls(); n != 0 {
+		t.Errorf("Validate calls = %d, want 0", n)
+	}
+}
