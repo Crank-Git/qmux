@@ -17,7 +17,9 @@
     "ddd": false,
     "e2e": false,
     "coverage": 0,
-    "commitStyle": "signed",
+    "commitStyle": "imperative mood, author Crank-Git <info@nocturnaltendenciesllc.com>, no GPG signing",
     "docs": true
-  }
+  },
+  "pluginVersion": "0.19.0",
+  "docsMcp": "none (WebFetch fallback)"
 }
