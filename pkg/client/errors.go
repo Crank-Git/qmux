@@ -38,18 +38,39 @@ type DNSError struct {
 	// Name is the QNAME that the client sent.
 	Name string
 	Key  protocol.ProtocolKey
+	// Attempts is the number of attempts that Query made for the kind KindTimeout, and 0
+	// for other kinds. A TCP fallback attempt counts.
+	Attempts int
+	// Resolver is the IP address and port that Query sent to for the kind KindTimeout,
+	// and empty for other kinds.
+	Resolver string
 	// Err is the cause. It is nil for the kind KindRCode, because the RCODE is the
 	// complete outcome.
 	Err error
 }
 
-// Error returns the kind, the QNAME and the protocol key. For the kind KindRCode, it
-// also returns the RCODE text, for example "REFUSED".
+// Error returns the text that qmuxctl prints after "error: ".
+//
+// For the kind KindRCode, the text is "dns: rcode <RCODE> for <QNAME> <class>/<type>",
+// for example "dns: rcode REFUSED for device42.fleet.example. 65283/65280".
+//
+// For the kind KindTimeout with Attempts set, the text is
+// "dns: timeout after <Attempts> attempts to <Resolver>". The text gives no cause,
+// because the cause of a timeout is always the end of a deadline.
+//
+// For every other DNSError, the text is "dns: <kind> for <QNAME> <class>/<type>: <cause>".
 func (e *DNSError) Error() string {
-	s := "client: " + string(e.Kind) + " error for " + e.Name + " " + e.Key.String()
-	if e.Kind == KindRCode {
-		s += ": " + transport.RCode(e.RCode).String()
+	switch {
+	case e.Kind == KindRCode:
+		return "dns: rcode " + transport.RCode(e.RCode).String() + " for " + e.Name + " " + e.Key.String()
+	case e.Kind == KindTimeout && e.Attempts > 0:
+		unit := " attempts"
+		if e.Attempts == 1 {
+			unit = " attempt"
+		}
+		return "dns: timeout after " + strconv.Itoa(e.Attempts) + unit + " to " + e.Resolver
 	}
+	s := "dns: " + string(e.Kind) + " for " + e.Name + " " + e.Key.String()
 	if e.Err != nil {
 		s += ": " + e.Err.Error()
 	}
