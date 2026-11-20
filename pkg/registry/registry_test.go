@@ -1,17 +1,11 @@
 package registry
 
 import (
-	"context"
 	"errors"
 	"testing"
 
 	"github.com/Crank-Git/qmux/pkg/protocol"
 )
-
-// noopHandler is a no-op handler for tests.
-var noopHandler protocol.HandlerFunc = func(_ context.Context, _ *protocol.Request) (*protocol.Response, error) {
-	return &protocol.Response{Status: protocol.StatusOK}, nil
-}
 
 // TestValidateIDValid checks that valid protocol IDs pass validation.
 func TestValidateIDValid(t *testing.T) {

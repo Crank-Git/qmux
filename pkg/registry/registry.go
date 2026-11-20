@@ -166,6 +166,50 @@ func (r *Registry) List() []Registration {
 	return result
 }
 
+// Remap moves the registration of the protocol ID to the new protocol key
+// and frees the old protocol key.
+//
+// Validation order: ID existence, new key allowed, new key not held by another ID.
+// Remapping to the same key returns nil and changes nothing.
+// A failed Remap leaves the registry unchanged.
+//
+// Returns ErrNotFound when the ID has no registration,
+// ErrInvalidKey when the new key fails class/type rules,
+// ErrKeyConflict when the new key is held by a different protocol ID.
+func (r *Registry) Remap(id string, newKey protocol.ProtocolKey) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Check protocol ID exists (FR-registry-35).
+	oldKey, ok := r.byID[id]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrNotFound, id)
+	}
+
+	// Remap to the same key is a no-op (behavior rule).
+	if oldKey == newKey {
+		return nil
+	}
+
+	// Check new key is allowed (FR-registry-37).
+	if err := r.validateKey(newKey); err != nil {
+		return err
+	}
+
+	// Check new key not held by a different protocol ID (FR-registry-36).
+	if existingReg, ok := r.byKey[newKey]; ok {
+		return fmt.Errorf("%w: %s (held by %s)", ErrKeyConflict, newKey, existingReg.Info.ID)
+	}
+
+	// Move the registration.
+	reg := r.byKey[oldKey]
+	reg.Key = newKey
+	r.byKey[newKey] = reg
+	delete(r.byKey, oldKey)
+
+	return nil
+}
+
 // validateID checks protocol ID validity (FR-registry-12).
 func validateID(id string) error {
 	if len(id) == 0 || len(id) > 128 {
