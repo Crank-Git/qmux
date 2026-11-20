@@ -49,13 +49,13 @@ func (s *Server) dispatch(ctx context.Context, q *transport.Query, zone string, 
 		ReceivedAt: q.ReceivedAt,
 	})
 	if !ok {
-		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail}, "")
+		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail}, nil)
 		return
 	}
 	rdata, err := s.envelope(q, reg, resp)
 	if err != nil {
 		s.cfg.Logger.Error("server: build envelope", "key", q.Key.String(), "error", err)
-		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail}, "")
+		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail}, nil)
 		return
 	}
 	s.answerEnvelope(ctx, q, w, rdata, resp.TTL, resp.Status)
@@ -70,7 +70,7 @@ func (s *Server) answerStatus(ctx context.Context, q *transport.Query, reg regis
 	rdata, err := s.encodeEnvelope(q, reg, highestVersion(reg), &protocol.Response{Status: status})
 	if err != nil {
 		s.cfg.Logger.Error("server: build envelope", "key", q.Key.String(), "error", err)
-		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail}, "")
+		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail}, nil)
 		return
 	}
 	s.answerEnvelope(ctx, q, w, rdata, 0, status)
@@ -82,8 +82,7 @@ func (s *Server) answerEnvelope(ctx context.Context, q *transport.Query, w trans
 	if ttl == 0 {
 		ttl = s.cfg.TTL
 	}
-	s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeNoError, TTL: ttl, Payload: rdata},
-		strconv.FormatUint(uint64(status), 10))
+	s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeNoError, TTL: ttl, Payload: rdata}, &status)
 }
 
 // highestVersion returns the highest version of reg. The registry keeps the versions

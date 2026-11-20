@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -76,6 +78,13 @@ type ServerConfig struct {
 	// label. When signing fails, the server answers SERVFAIL. Nil means that the
 	// server returns unsigned envelopes. Handlers never sign.
 	Signer *security.Signer
+	// ObservationLog receives one JSON object and a newline for each answered query.
+	// The fields are ts, transport, source, qname, qclass, qtype, rcode, status,
+	// bytes_in, bytes_out and duration_us. status is null when the response holds no
+	// envelope. The server serializes the writes, so ObservationLog needs no lock of
+	// its own. When a write fails, the server logs one error per minute and continues.
+	// Nil disables the observation log.
+	ObservationLog io.Writer
 }
 
 // Server is a QMux authoritative server. It answers each registered protocol key over
@@ -83,6 +92,8 @@ type ServerConfig struct {
 type Server struct {
 	cfg ServerConfig
 	reg *registry.Registry
+	// obs is nil when cfg.ObservationLog is nil.
+	obs *observationLog
 
 	mu   sync.Mutex
 	addr net.Addr
@@ -118,7 +129,11 @@ func NewServer(cfg ServerConfig) *Server {
 		zones[i] = protocol.FoldName(z)
 	}
 	cfg.Zones = zones
-	return &Server{cfg: cfg, reg: registry.New(cfg.Registry)}
+	s := &Server{cfg: cfg, reg: registry.New(cfg.Registry)}
+	if cfg.ObservationLog != nil {
+		s.obs = &observationLog{logger: cfg.Logger, w: cfg.ObservationLog}
+	}
+	return s
 }
 
 // Register registers h for key with the Info that h.Info() returns.
@@ -212,17 +227,17 @@ func (s *Server) serveQuery(ctx context.Context, q *transport.Query, w transport
 		return
 	}
 	if rcode, ok := s.checkHeader(q); !ok {
-		s.write(ctx, q, w, transport.Answer{RCode: rcode}, "")
+		s.write(ctx, q, w, transport.Answer{RCode: rcode}, nil)
 		return
 	}
 	zone, ok := s.matchZone(q.Name)
 	if !ok {
-		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeRefused}, "")
+		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeRefused}, nil)
 		return
 	}
 	reg, ok := s.reg.Lookup(q.Key)
 	if !ok {
-		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeRefused}, "")
+		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeRefused}, nil)
 		return
 	}
 	s.dispatch(ctx, q, zone, reg, w)
@@ -272,22 +287,31 @@ func (s *Server) matchZone(name string) (string, bool) {
 	return best, bestLabels >= 0
 }
 
-// write sends a through w as the response to q, and logs one info record for q. A write
-// error ends only this query, so the server logs it at debug level and continues.
+// write sends a through w as the response to q. It logs one info record for q, and
+// writes one line to the observation log when it is set. A write error ends only this
+// query, so the server logs it at debug level and continues.
 //
-// status is the application status of the envelope in a, in decimal, or empty when a
-// holds no envelope. The record takes the RCODE and the size from transport.Sent,
-// because the transport can change the RCODE after the size rules. The record has the
-// status only when the sent response carries the answer RR. The record holds no
-// payload bytes.
-func (s *Server) write(ctx context.Context, q *transport.Query, w transport.Writer, a transport.Answer, status string) {
+// status is the application status of the envelope in a, or nil when a holds no
+// envelope. Every answer to a parsed query goes through write, so that each one gets
+// its observation line (FR-qmuxd-34). The record and the line take the RCODE and the
+// size from transport.Sent, because the transport can change the RCODE after the size
+// rules. They have the status only when the sent response carries the answer RR. The
+// record holds no payload bytes.
+func (s *Server) write(ctx context.Context, q *transport.Query, w transport.Writer, a transport.Answer, status *protocol.Status) {
 	sent, err := w.Write(a)
 	if err != nil {
 		s.cfg.Logger.Debug("server: write response", "error", err)
 		return
 	}
 	if sent.RCode != transport.RCodeNoError || sent.Truncated {
-		status = ""
+		status = nil
+	}
+	if s.obs != nil {
+		s.obs.record(ctx, q, sent, status)
+	}
+	var statusAttr string
+	if status != nil {
+		statusAttr = strconv.FormatUint(uint64(*status), 10)
 	}
 	s.cfg.Logger.LogAttrs(ctx, slog.LevelInfo, "query",
 		slog.String("qname", q.Name),
@@ -296,7 +320,7 @@ func (s *Server) write(ctx context.Context, q *transport.Query, w transport.Writ
 		slog.String("transport", q.Transport),
 		slog.String("source", q.Source.String()),
 		slog.String("rcode", sent.RCode.String()),
-		slog.String("status", status),
+		slog.String("status", statusAttr),
 		slog.Int("bytes_in", q.WireSize),
 		slog.Int("bytes_out", sent.WireSize),
 		slog.Float64("duration_ms", float64(time.Since(q.ReceivedAt))/float64(time.Millisecond)),
