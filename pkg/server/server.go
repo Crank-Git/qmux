@@ -13,6 +13,7 @@ import (
 
 	"github.com/Crank-Git/qmux/pkg/protocol"
 	"github.com/Crank-Git/qmux/pkg/registry"
+	"github.com/Crank-Git/qmux/pkg/security"
 	"github.com/Crank-Git/qmux/pkg/transport"
 )
 
@@ -71,6 +72,11 @@ type ServerConfig struct {
 	Logger *slog.Logger
 	// Registry holds the options of the registry of the server.
 	Registry registry.Options
+	// Signer signs every envelope that the server returns, for every application
+	// status. The server signs with the full QNAME of the question, with the version
+	// label. When signing fails, the server answers SERVFAIL. Nil means that the
+	// server returns unsigned envelopes. Handlers never sign.
+	Signer *security.Signer
 }
 
 // Server is a QMux authoritative server. It answers each registered protocol key over

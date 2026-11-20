@@ -52,7 +52,7 @@ func (s *Server) dispatch(ctx context.Context, q *transport.Query, zone string, 
 		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail}, "")
 		return
 	}
-	rdata, err := s.envelope(reg, resp)
+	rdata, err := s.envelope(q, reg, resp)
 	if err != nil {
 		s.cfg.Logger.Error("server: build envelope", "key", q.Key.String(), "error", err)
 		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail}, "")
@@ -67,7 +67,7 @@ func (s *Server) dispatch(ctx context.Context, q *transport.Query, zone string, 
 // The schema of reg checks handler payloads only, so answerStatus does not call it.
 // A schema that rejects an empty payload would otherwise hide the status.
 func (s *Server) answerStatus(ctx context.Context, q *transport.Query, reg registry.Registration, status protocol.Status, w transport.Writer) {
-	rdata, err := encodeEnvelope(reg, highestVersion(reg), &protocol.Response{Status: status})
+	rdata, err := s.encodeEnvelope(q, reg, highestVersion(reg), &protocol.Response{Status: status})
 	if err != nil {
 		s.cfg.Logger.Error("server: build envelope", "key", q.Key.String(), "error", err)
 		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeServFail}, "")
@@ -92,11 +92,12 @@ func highestVersion(reg registry.Registration) uint16 {
 	return reg.Info.Versions[len(reg.Info.Versions)-1]
 }
 
-// envelope returns the encoded envelope of resp for the registration reg.
+// envelope returns the encoded envelope of resp to q for the registration reg.
 //
 // It returns errVersion when resp.Version is not a version of reg, the error of
-// reg.Info.Schema when the schema rejects the payload, and the error of codec.Encode.
-func (s *Server) envelope(reg registry.Registration, resp *protocol.Response) ([]byte, error) {
+// reg.Info.Schema when the schema rejects the payload, and the error of
+// encodeEnvelope.
+func (s *Server) envelope(q *transport.Query, reg registry.Registration, resp *protocol.Response) ([]byte, error) {
 	version := resp.Version
 	if version == 0 {
 		version = highestVersion(reg)
@@ -108,24 +109,33 @@ func (s *Server) envelope(reg registry.Registration, resp *protocol.Response) ([
 			return nil, fmt.Errorf("schema rejects the payload of version %d: %w", version, err)
 		}
 	}
-	return encodeEnvelope(reg, version, resp)
+	return s.encodeEnvelope(q, reg, version, resp)
 }
 
-// encodeEnvelope returns the encoded envelope of resp with the protocol ID of reg and
-// version. It returns the error of codec.Encode.
-func encodeEnvelope(reg registry.Registration, version uint16, resp *protocol.Response) ([]byte, error) {
+// encodeEnvelope returns the encoded envelope of resp to q with the protocol ID of
+// reg and version. When cfg.Signer is set, the envelope holds a signature block for
+// q.Name and q.Key. It returns the error of the signer and the error of codec.Encode.
+func (s *Server) encodeEnvelope(q *transport.Query, reg registry.Registration, version uint16, resp *protocol.Response) ([]byte, error) {
 	messageType := resp.MessageType
 	if messageType == 0 {
 		messageType = protocol.MessageRecord
 	}
-	b, err := codec.Encode(codec.Envelope{
+	e := codec.Envelope{
 		Format:      1,
 		ProtocolID:  reg.Info.ID,
 		Version:     uint64(version),
 		MessageType: uint64(messageType),
 		Status:      uint64(resp.Status),
 		Payload:     resp.Payload,
-	}, codec.Limits{})
+	}
+	if s.cfg.Signer != nil {
+		// The signature covers the QNAME with the version label, so an envelope
+		// for one version does not verify for another version (FR-security-16).
+		if err := s.cfg.Signer.Sign(&e, q.Name, q.Key); err != nil {
+			return nil, fmt.Errorf("signer: %w", err)
+		}
+	}
+	b, err := codec.Encode(e, codec.Limits{})
 	if err != nil {
 		return nil, fmt.Errorf("encode: %w", err)
 	}
