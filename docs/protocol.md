@@ -120,7 +120,8 @@ limits. Then it applies these checks in this order:
 1. If `Query.ExpectedProtocolID` is set and differs from the envelope protocol ID, it
    returns a `*client.DNSError` of kind `mismatch`.
 2. If the QNAME has a version label and the envelope version differs from the label, it
-   returns a `*client.DNSError` of kind `mismatch`.
+   returns a `*client.DNSError` of kind `mismatch`. The client skips this check when the
+   application status is `version-unsupported`.
 3. If the application status is not `ok`, it returns the result and a
    `*client.AppError` together.
 
@@ -346,9 +347,11 @@ with the version label on every query. The client then requires these envelope f
 - The protocol ID equals the negotiated protocol ID.
 - The protocol version equals `N`.
 
-If a field differs, the client returns a `*client.DNSError` of kind `mismatch`. A
-`version-unsupported` envelope carries the highest version of the registration, not `N`.
-The client therefore returns a `mismatch` error for it, and not a `*client.AppError`.
+If a field differs, the client returns a `*client.DNSError` of kind `mismatch`. One
+exception applies to the protocol version. A `version-unsupported` envelope carries the
+highest version of the registration, not `N`. The client skips the version check for this
+status. It returns the result and a `*client.AppError` with the status
+`version-unsupported`. The caller can then discover again.
 
 If the operator remaps or unregisters the protocol after the discovery, the query gets
 `REFUSED`. The client then discovers again and uses the new manifest.

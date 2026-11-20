@@ -321,6 +321,29 @@ func TestQueryProtocolRejectsAnEnvelopeOfAnotherProtocolID(t *testing.T) { // FR
 	}
 }
 
+// A stale manifest lists version 2, but the server now supports only version 1.
+func TestQueryProtocolReturnsTheAppErrorForAVersionUnsupportedEnvelope(t *testing.T) { // FR-discovery-19, FR-discovery-20
+	m, err := discovery.Static(testZone, testEntries())
+	if err != nil {
+		t.Fatalf("Static() error = %v", err)
+	}
+	s := &fakeServer{envelope: codec.Envelope{Format: 1, ProtocolID: "org.qmux.firmware", Version: 1,
+		MessageType: uint64(protocol.MessageRecord), Status: uint64(protocol.StatusVersionUnsupported)}}
+	c := s.start(t, true)
+
+	res, err := c.QueryProtocol(testContext(t), m, "org.qmux.firmware", "device42.fleet.example.", []uint16{2})
+	var ae *client.AppError
+	if !errors.As(err, &ae) || ae.Status != protocol.StatusVersionUnsupported {
+		t.Fatalf("QueryProtocol() error = %v, want an AppError with status version-unsupported", err)
+	}
+	if res == nil || res.Version != 1 {
+		t.Fatalf("QueryProtocol() result = %+v, want a result with version 1", res)
+	}
+	if got := s.received(t); len(got) != 1 || got[0].Name != "_v2.device42.fleet.example." {
+		t.Fatalf("server received %+v, want one query for _v2.device42.fleet.example.", got)
+	}
+}
+
 func TestStaticReturnsAnErrorForADuplicateProtocolID(t *testing.T) { // FR-discovery-32
 	entries := append(testEntries(), discovery.Entry{ID: "org.qmux.firmware", Versions: []uint16{1}, Class: 65282, Type: 65280})
 	m, err := discovery.Static(testZone, entries)
