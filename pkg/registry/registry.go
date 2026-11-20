@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"slices"
@@ -45,21 +46,32 @@ type Registry struct {
 	opts  Options
 	mu    sync.RWMutex
 	byKey map[protocol.ProtocolKey]Registration
+	// byID maps each protocol ID to the protocol key of its registration.
+	// Register and Unregister update byKey and byID under one write lock.
+	byID map[string]protocol.ProtocolKey
 }
 
 // New returns an empty registry that applies opts to every protocol key.
 func New(opts Options) *Registry {
-	return &Registry{opts: opts, byKey: make(map[protocol.ProtocolKey]Registration)}
+	return &Registry{
+		opts:  opts,
+		byKey: make(map[protocol.ProtocolKey]Registration),
+		byID:  make(map[string]protocol.ProtocolKey),
+	}
 }
 
 // Register adds a registration for key.
 //
 // It checks the rules in this order, and the first failed rule decides the
-// error: handler, protocol ID, versions, protocol key. The registry stores its
-// own copy of info.Versions in ascending order.
+// error: handler, protocol ID, versions, protocol key, key conflict, ID
+// conflict. The registry stores its own copy of info.Versions in ascending
+// order.
 //
-// Errors wrap ErrInvalidHandler, ErrInvalidID, ErrInvalidVersions or
-// ErrInvalidKey.
+// Errors wrap one of these sentinels:
+//   - ErrInvalidHandler, ErrInvalidID, ErrInvalidVersions or ErrInvalidKey
+//     when the arguments are invalid.
+//   - ErrKeyConflict when key already has a registration.
+//   - ErrIDConflict when info.ID already has a registration at another key.
 func (r *Registry) Register(key protocol.ProtocolKey, info protocol.Info, h protocol.Handler) error {
 	if h == nil {
 		return fmt.Errorf("register %s %q: %w", key, info.ID, ErrInvalidHandler)
@@ -90,14 +102,73 @@ func (r *Registry) Register(key protocol.ProtocolKey, info protocol.Info, h prot
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if _, ok := r.byKey[key]; ok {
+		return fmt.Errorf("register %s %q: %w", key, info.ID, ErrKeyConflict)
+	}
+	if held, ok := r.byID[info.ID]; ok {
+		return fmt.Errorf("register %s %q: held by %s: %w", key, info.ID, held, ErrIDConflict)
+	}
 	r.byKey[key] = Registration{Key: key, Info: info, Handler: h}
+	r.byID[info.ID] = key
 	return nil
 }
 
-// Lookup returns the registration of key and true, or a zero value and false.
+// Unregister removes the registration of key. The protocol ID of the
+// registration becomes free for a later Register.
+//
+// The error wraps ErrNotFound when key has no registration.
+func (r *Registry) Unregister(key protocol.ProtocolKey) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	reg, ok := r.byKey[key]
+	if !ok {
+		return fmt.Errorf("unregister %s: %w", key, ErrNotFound)
+	}
+	delete(r.byKey, key)
+	delete(r.byID, reg.Info.ID)
+	return nil
+}
+
+// Lookup returns a copy of the registration of key and true, or a zero value
+// and false.
 func (r *Registry) Lookup(key protocol.ProtocolKey) (Registration, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	reg, ok := r.byKey[key]
-	return reg, ok
+	return reg.clone(), ok
+}
+
+// LookupID returns a copy of the registration of the protocol ID id and true,
+// or a zero value and false.
+func (r *Registry) LookupID(id string) (Registration, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	key, ok := r.byID[id]
+	if !ok {
+		return Registration{}, false
+	}
+	return r.byKey[key].clone(), true
+}
+
+// List returns a copy of every registration, ordered by class and then by
+// type. A change to the returned slice or to its Versions slices does not
+// change the registry.
+func (r *Registry) List() []Registration {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	regs := make([]Registration, 0, len(r.byKey))
+	for _, reg := range r.byKey {
+		regs = append(regs, reg.clone())
+	}
+	slices.SortFunc(regs, func(a, b Registration) int {
+		return cmp.Or(cmp.Compare(a.Key.Class, b.Key.Class), cmp.Compare(a.Key.Type, b.Key.Type))
+	})
+	return regs
+}
+
+// clone returns reg with its own Versions slice. A caller that changes the
+// Versions of a returned registration then cannot change the registry.
+func (reg Registration) clone() Registration {
+	reg.Info.Versions = slices.Clone(reg.Info.Versions)
+	return reg
 }
