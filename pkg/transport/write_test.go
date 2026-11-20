@@ -1,6 +1,7 @@
 package transport_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/netip"
@@ -267,5 +268,50 @@ func TestRCodeStringNamesTheRCode(t *testing.T) {
 		if got := rc.String(); got != want {
 			t.Errorf("RCode(%d).String() = %q, want %q", uint16(rc), got, want)
 		}
+	}
+}
+
+// txtQuery returns a packed query for name at class 1, QTYPE 16, without EDNS(0).
+func txtQuery(t *testing.T, name string) []byte {
+	t.Helper()
+	wire, err := transporttest.Pack(transporttest.Message{
+		ID:       4242,
+		Question: []transporttest.RR{{Name: name, Key: protocol.ProtocolKey{Class: 1, Type: 16}}},
+	})
+	if err != nil {
+		t.Fatalf("pack query: %v", err)
+	}
+	return wire
+}
+
+func TestWriteSplitsAQTYPE16PayloadIntoCharacterStringsOfAtMost255Bytes(t *testing.T) { // FR-interop-7
+	payload := make([]byte, 300)
+	for i := range payload {
+		payload[i] = byte(i)
+	}
+	r := serveAnswer(t, txtQuery(t, "abc.probe.fleet.example."), transport.TCP,
+		transport.Answer{RCode: transport.RCodeNoError, TTL: 60, Payload: payload})
+	if r.err != nil {
+		t.Fatalf("Write: %v", r.err)
+	}
+	m := unpack(t, r.resp)
+	if len(m.Answer) != 1 {
+		t.Fatalf("response has %d answer RRs, want 1", len(m.Answer))
+	}
+	want := append(append([]byte{255}, payload[:255]...), append([]byte{45}, payload[255:]...)...)
+	if got := m.Answer[0].Data; !bytes.Equal(got, want) {
+		t.Errorf("RDATA = %x, want two character-strings %x", got, want)
+	}
+}
+
+func TestWriteSendsOneEmptyCharacterStringForAnEmptyQTYPE16Payload(t *testing.T) { // FR-interop-7
+	r := serveAnswer(t, txtQuery(t, "abc.probe.fleet.example."), transport.UDP,
+		transport.Answer{RCode: transport.RCodeNoError, TTL: 60})
+	if r.err != nil {
+		t.Fatalf("Write: %v", r.err)
+	}
+	m := unpack(t, r.resp)
+	if len(m.Answer) != 1 || !bytes.Equal(m.Answer[0].Data, []byte{0}) {
+		t.Errorf("answer = %+v, want one RR with RDATA 00", m.Answer)
 	}
 }
