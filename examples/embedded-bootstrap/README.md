@@ -46,8 +46,16 @@ envelope with it. The handlers answer the QNAME `device42.fleet.example.`. The r
   start.
 - `Requests` returns the number of HTTPS requests that the mock HTTPS service received.
 
-`Options.BindFlags` defines `--remote-generation` (default `7`) and `--remote-firmware`
-(default `2.4.1`).
+`Options.BindFlags` defines `--remote-generation` (default `7`), `--remote-firmware`
+(default `2.4.1`), `--tamper-dns` and `--tamper-https` (default false).
+
+The tamper flags show the security model of the device:
+
+- `Options.TamperDNS` changes one byte of the signature in each configuration envelope
+  after the server signs it. The device reports `verification failed: bad signature`
+  and sends no HTTPS request.
+- `Options.TamperHTTPS` serves a configuration bundle whose bytes differ from the signed
+  digest. The device reports `digest mismatch` and keeps the device state.
 
 ## Device reconcile
 
@@ -68,3 +76,33 @@ reconcile and returns a `device.Report`:
 `cfg.Log` receives one line per step, without the `[device]` prefix. Each failure is a
 `*device.StepError`. Its text is the log line for the failure, for example
 `configuration: digest mismatch, resource discarded`.
+
+## Run the demonstration
+
+`make demo` runs the program with a state file and a data directory in a new temporary
+directory. The device has no device state, so it reconciles as a stale device.
+
+To run the program yourself:
+
+```bash
+go run ./examples/embedded-bootstrap --state ./device-state.json --data-dir ./device-data
+```
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--state` | `./device-state.json` | Path of the device state file. |
+| `--data-dir` | `./device-data` | Directory for downloaded resources. |
+| `--remote-generation` | `7` | Configuration generation that the server publishes. |
+| `--remote-firmware` | `2.4.1` | Firmware version that the server publishes. |
+| `--tamper-dns` | false | Change one byte of the configuration envelope after signing. |
+| `--tamper-https` | false | Serve a configuration bundle that does not match its digest. |
+
+The program prints one log line per step. The `[server]` and `[https]` lines come from
+the server side. The `[device]` lines come from the device, and the last one is the
+result.
+
+Exit codes:
+
+- `0`: the device reconciles or is already current.
+- `1`: a step fails, for example a verification failure or a digest mismatch.
+- `2`: a flag does not parse.

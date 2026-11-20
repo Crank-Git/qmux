@@ -1,4 +1,4 @@
-.PHONY: check build test race vet lint fuzz
+.PHONY: check build test race vet lint fuzz demo
 
 FUZZTIME ?= 30s
 
@@ -12,6 +12,12 @@ check:
 
 build:
 	go build -o bin/ ./cmd/...
+
+# demo starts with no device state file, so the device reconciles as a stale device.
+# The trap removes the temporary directory and keeps the exit code of the program.
+demo:
+	@dir=$$(mktemp -d) && trap 'rm -rf "$$dir"' EXIT && \
+		go run ./examples/embedded-bootstrap --state "$$dir/device-state.json" --data-dir "$$dir/device-data"
 
 test:
 	go test ./...
