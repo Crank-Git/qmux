@@ -833,3 +833,4 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   client leaf package. The measured result on the direct path: `qmux-private` and `dns-in`
   have the same latency, bytes and size within the run noise. Private classes do not reach
   the authoritative server through BIND or Unbound.
+- 2026-11-20 — Baseline benchmarks is `built` (#182).
