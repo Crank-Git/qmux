@@ -540,6 +540,8 @@ qmux-probe: wrote tests/interoperability/results/results.json (60 records)</code
 <tr><td><code>error</code></td><td>text, empty when <code>ok</code></td></tr>
 <tr><td><code>reached_authoritative</code></td><td>bool, or null when no observation log exists</td></tr>
 <tr><td><code>observed_qclass</code>, <code>observed_qtype</code></td><td>uint, or null</td></tr>
+<tr><td><code>host_arch</code></td><td>text: the architecture of the probe host (FR-interop-39c)</td></tr>
+<tr><td><code>emulated</code></td><td>bool: true when the image of the path runs on another architecture (FR-interop-39c)</td></tr>
 </table></div>
 <p>Files: <code>tests/interoperability/qmuxd.json</code>, <code>compose.yaml</code>, <code>bind/named.conf</code>, <code>bind/named-view-65281.conf</code>, <code>unbound/unbound.conf</code>, <code>results/results.json</code>.</p>
 <h3 id="interop-harness-interfaces">Interfaces</h3>

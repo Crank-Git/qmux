@@ -264,6 +264,8 @@ Probe record (one JSON object per probe):
 | `error` | text, empty when `ok` |
 | `reached_authoritative` | bool, or null when no observation log exists |
 | `observed_qclass`, `observed_qtype` | uint, or null |
+| `host_arch` | text: the architecture of the probe host (FR-interop-39c) |
+| `emulated` | bool: true when the image of the path runs on another architecture (FR-interop-39c) |
 
 Files: `tests/interoperability/qmuxd.json`, `compose.yaml`, `bind/named.conf`,
 `bind/named-view-65281.conf`, `unbound/unbound.conf`, `results/results.json`.
