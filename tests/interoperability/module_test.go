@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	// The harness must build against the root module in this checkout. This import
@@ -55,5 +56,38 @@ func TestRootModuleResolvesToTheLocalCheckoutThroughReplace(t *testing.T) {
 	}
 	if gotDir != wantDir {
 		t.Fatalf("github.com/Crank-Git/qmux replace directory = %q, want the repository root %q", gotDir, wantDir)
+	}
+}
+
+// goList returns the output of `go list -m` with args, run in dir.
+func goList(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	goTool, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatalf("find the go command: %v", err)
+	}
+	cmd := exec.CommandContext(t.Context(), goTool, append([]string{"list", "-m"}, args...)...)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("go list -m %v in %s: %v", args, dir, err)
+	}
+	return string(out)
+}
+
+func TestHarnessModuleRequiresGoCoAPV382(t *testing.T) {
+	got := strings.TrimSpace(goList(t, ".", "github.com/plgd-dev/go-coap/v3"))
+	if want := "github.com/plgd-dev/go-coap/v3 v3.8.2"; got != want {
+		t.Fatalf("go list -m github.com/plgd-dev/go-coap/v3 = %q, want %q", got, want)
+	}
+}
+
+// The root module keeps go-coap out, so a user who imports QMux never downloads it
+// (FR-bench-3, ADR 0002).
+func TestRootModuleDoesNotRequireGoCoAP(t *testing.T) {
+	for line := range strings.Lines(goList(t, filepath.Join("..", ".."), "all")) {
+		if strings.HasPrefix(line, "github.com/plgd-dev/go-coap") {
+			t.Fatalf("go list -m all in the root module shows %q", strings.TrimSpace(line))
+		}
 	}
 }
