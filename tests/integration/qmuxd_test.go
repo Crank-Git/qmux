@@ -126,12 +126,12 @@ func writeJSON(t *testing.T, path string, v any) {
 
 var readyListen = regexp.MustCompile(`msg="qmuxd ready" listen=(\S+)`)
 
-// startQmuxd starts "qmuxd serve" in dir on a free loopback port, and returns the
+// startQmuxd runs qmuxd with args in dir on a free loopback port, and returns the
 // process and the listen address of its ready record. The process ends when the test
-// ends.
-func startQmuxd(t *testing.T, bins tools, dir string) (*exec.Cmd, string) {
+// ends. The appended --listen flag replaces any earlier --listen flag in args.
+func startQmuxd(t *testing.T, bins tools, dir string, args ...string) (*exec.Cmd, string) {
 	t.Helper()
-	cmd := exec.Command(bins.qmuxd, "serve", "--config", "qmuxd.json", "--listen", "127.0.0.1:0")
+	cmd := exec.Command(bins.qmuxd, append(args, "--listen", "127.0.0.1:0")...)
 	cmd.Dir = dir
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -234,7 +234,7 @@ func TestQmuxdServesTheExampleConfigurationAfterKeygen(t *testing.T) { // FR-qmu
 		t.Fatalf("WriteFile: %v", err)
 	}
 	anchors := keygen(t, bins, dir)
-	_, addr := startQmuxd(t, bins, dir)
+	_, addr := startQmuxd(t, bins, dir, "serve", "--config", "qmuxd.json")
 
 	if len(protocols) != len(exampleDecoders) {
 		t.Errorf("the example has %d protocols, want %d", len(protocols), len(exampleDecoders))
@@ -324,7 +324,7 @@ func TestQmuxdRefusesQueriesAboveTheRateLimitAndLogsEveryQuery(t *testing.T) { /
 	dir := t.TempDir()
 	writeJSON(t, filepath.Join(dir, "qmuxd.json"), cfg)
 	anchors := keygen(t, bins, dir)
-	cmd, addr := startQmuxd(t, bins, dir)
+	cmd, addr := startQmuxd(t, bins, dir, "serve", "--config", "qmuxd.json")
 
 	p := protocols[0]
 	if code, _, stderr := qmuxctlQuery(t, bins, addr, anchors, p, "device42.fleet.example."); code != 0 {
