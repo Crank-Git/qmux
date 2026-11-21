@@ -228,7 +228,10 @@ go test ./...
 
 ## Observed results
 
-One local run of `make interop REQUIRE_DIRECT=true` gave the results below.
+One local run of `make interop REQUIRE_DIRECT=true` gave the results below. The file
+`docs/results/interop-2026-11-21.json` is a copy of the `results.json` of this run. It
+holds the 60 probe records. `.gitignore` excludes `tests/interoperability/results/`, so
+the repository keeps the dated copy in `docs/results/`.
 
 | Property | Value |
 |---|---|
