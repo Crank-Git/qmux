@@ -210,7 +210,7 @@ Criteria from [`docs/specs/features/03-client-sdk.md`](specs/features/03-client-
 | 30 | `Result.RTT` is greater than 0. (FR-client-30) | `TestResultRTTIsTheTimeOfTheFinalAttemptOnly` in [`pkg/client`](../pkg/client) |
 | 31 | `Result.QueryBytes` and `Result.ResponseBytes` equal the packed sizes the test server records. (FR-client-31) | `TestResultBytesEqualTheWireSizesOfTheFinalAttempt` in [`pkg/client`](../pkg/client) |
 | 32 | `Result.Verified` is false. (FR-client-32) | `TestResultIsNotVerifiedWithoutTrustAnchors` in [`pkg/client`](../pkg/client) |
-| 33 | `qmuxctl query --help` lists the eight flags. (FR-client-33) | `TestQueryHelpListsTheNineFlags` in [`cmd/qmuxctl`](../cmd/qmuxctl) (the spec now lists nine flags (FR-security-50)) |
+| 33 | `qmuxctl query --help` lists the eight flags of FR-client-33, and from Epic 6 also `--trust-anchors` (FR-security-50). (FR-client-33) | `TestQueryHelpListsTheNineFlags` in [`cmd/qmuxctl`](../cmd/qmuxctl) (the spec now lists nine flags (FR-security-50)) |
 | 34 | `qmuxctl query` prints `payload:` followed by lowercase hex. (FR-client-34) | `TestQueryPrintsOneKeyValueLinePerResultFieldWithTheHexPayloadAndExitsZero` in [`cmd/qmuxctl`](../cmd/qmuxctl) |
 | 35 | `qmuxctl query --json` output parses as one JSON object. (FR-client-35) | `TestQueryJSONPrintsTheResultAsOneJSONObject` in [`cmd/qmuxctl`](../cmd/qmuxctl) |
 | 36 | `qmuxctl query` against a registered protocol key exits 0. (FR-client-36) | `TestQueryPrintsOneKeyValueLinePerResultFieldWithTheHexPayloadAndExitsZero` in [`cmd/qmuxctl`](../cmd/qmuxctl) (checks exit code 0 for a registered key) |

@@ -402,7 +402,7 @@ miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73)
 - `Result.QueryBytes` and `Result.ResponseBytes` equal the packed sizes the test server
   records. (FR-client-31)
 - `Result.Verified` is false. (FR-client-32)
-- `qmuxctl query --help` lists the eight flags. (FR-client-33)
+- `qmuxctl query --help` lists the eight flags of FR-client-33, and from Epic 6 also `--trust-anchors` (FR-security-50). (FR-client-33)
 - `qmuxctl query` prints `payload:` followed by lowercase hex. (FR-client-34)
 - `qmuxctl query --json` output parses as one JSON object. (FR-client-35)
 - `qmuxctl query` against a registered protocol key exits 0. (FR-client-36)

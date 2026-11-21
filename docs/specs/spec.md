@@ -837,3 +837,9 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   have the same latency, bytes and size within the run noise. Private classes do not reach
   the authoritative server through BIND or Unbound.
 - 2026-11-20 — Baseline benchmarks is `built` (#182).
+- 2026-11-20 — Documentation decisions (#12): the user ruled that `docs/acceptance.md` maps
+  the acceptance criteria of the spec, because the source brief is not in the repository.
+  Dated results snapshots live in `docs/results/` (FR-docs-15). The `qmuxd` example and
+  default address is `127.0.0.1:5300`, because mDNS holds port 5353 on macOS (#186, #189).
+  `docs/acceptance.md` maps 414 criteria: 405 name a proof, and 9 are listed as having no
+  automated proof.
