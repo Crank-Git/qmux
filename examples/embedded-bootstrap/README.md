@@ -55,7 +55,10 @@ The tamper flags show the security model of the device:
   after the server signs it. The device reports `verification failed: bad signature`
   and sends no HTTPS request.
 - `Options.TamperHTTPS` serves a configuration bundle whose bytes differ from the signed
-  digest. The device reports `digest mismatch` and keeps the device state.
+  digest. The device reports `digest mismatch` and keeps the device state. The device
+  gets the tampered bundle only when it downloads a configuration bundle. If the
+  configuration of the device is up to date, the flag has no effect, and the program
+  prints a `tamper:` line that tells you so.
 
 ## Device reconcile
 
@@ -106,3 +109,46 @@ Exit codes:
 - `0`: the device reconciles or is already current.
 - `1`: a step fails, for example a verification failure or a digest mismatch.
 - `2`: a flag does not parse.
+
+`go run` reports each non-zero exit code of the program as `1`, and prints the real
+code as `exit status 2`. To get exit code 2 from the shell, build the program with
+`go build -o ./embedded-bootstrap ./examples/embedded-bootstrap` and run the binary.
+
+## See the tamper flags work
+
+Run these steps in order. Each step uses the same state file and data directory.
+
+1. Run the stale case. The device has no device state, so it downloads the
+   configuration bundle and the firmware image, and writes generation 7:
+
+   ```bash
+   go run ./examples/embedded-bootstrap --state ./device-state.json --data-dir ./device-data
+   ```
+
+   The last line is `[device]  result: reconciled (2 downloads)`, and the exit code is 0.
+
+2. Tamper with the DNS answer. The device verifies the configuration envelope on each
+   run, so this step fails although the device is up to date:
+
+   ```bash
+   go run ./examples/embedded-bootstrap --state ./device-state.json --data-dir ./device-data --tamper-dns
+   ```
+
+   The output holds `[device]  configuration: verification failed: bad signature`, the
+   last line is `[device]  result: failed`, and the exit code is 1.
+
+3. Tamper with the HTTPS resource. The device state holds generation 7 after step 1, so
+   `--remote-generation 8` makes the device download the configuration bundle:
+
+   ```bash
+   go run ./examples/embedded-bootstrap --state ./device-state.json --data-dir ./device-data --remote-generation 8 --tamper-https
+   ```
+
+   The output holds `[device]  configuration: digest mismatch, resource discarded`, the
+   last line is `[device]  result: failed, state unchanged`, and the exit code is 1.
+
+Without `--remote-generation 8`, step 3 downloads nothing. The program then prints
+`[device]  tamper: --tamper-https has no effect, the device downloads no configuration
+bundle; use a new --state path or a higher --remote-generation` and exits with code 0.
+
+To start again from a stale device, remove `./device-state.json` and `./device-data`.

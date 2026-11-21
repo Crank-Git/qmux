@@ -109,10 +109,20 @@ func demo(ctx context.Context, cfg config, stdout io.Writer) (int64, error) {
 	case err != nil:
 		logLine(err.Error())
 		logLine("result: failed")
-	case report.StateWritten:
-		logLine(fmt.Sprintf("result: reconciled (%d downloads)", report.Downloads))
 	default:
-		logLine(fmt.Sprintf("result: up to date (%d downloads)", report.Downloads))
+		// A configuration download with --tamper-https always fails the digest check,
+		// so a reconcile without an error never downloaded the tampered bundle. The
+		// --tamper-dns flag needs no such line: the device verifies the configuration
+		// envelope on each run, so that flag always fails the run.
+		if cfg.fleet.TamperHTTPS {
+			logLine("tamper: --tamper-https has no effect, the device downloads no configuration bundle; " +
+				"use a new --state path or a higher --remote-generation")
+		}
+		if report.StateWritten {
+			logLine(fmt.Sprintf("result: reconciled (%d downloads)", report.Downloads))
+		} else {
+			logLine(fmt.Sprintf("result: up to date (%d downloads)", report.Downloads))
+		}
 	}
 	if writeErr != nil {
 		err = errors.Join(err, fmt.Errorf("write step log: %w", writeErr))
