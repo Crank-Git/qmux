@@ -7,6 +7,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
@@ -29,6 +31,51 @@ func probeConfig(classes, types []any) map[string]any {
 	return c
 }
 
+// defaultProbeConfig returns probeConfig with the default classes and types of
+// qmux-probe (FR-interop-13, FR-interop-14), and with the two options that they need.
+// The probe holds 65280/65280, so the protocol of baseConfig moves to 65282/65280.
+func defaultProbeConfig() map[string]any {
+	c := probeConfig([]any{1, 3, 4, 65280, 65281}, []any{16, 65280})
+	firstProtocol(c)["class"] = 65282
+	c["allow_reserved_classes"] = true
+	c["allow_non_private_types"] = true
+	return c
+}
+
+// defaultProbeKeys returns the 10 protocol keys of defaultProbeConfig.
+func defaultProbeKeys() []protocol.ProtocolKey {
+	var keys []protocol.ProtocolKey
+	for _, c := range []uint16{1, 3, 4, 65280, 65281} {
+		for _, t := range []uint16{16, 65280} {
+			keys = append(keys, protocol.ProtocolKey{Class: c, Type: t})
+		}
+	}
+	return keys
+}
+
+// writeTestAnchors writes a trust anchor file with the public key of testSeed and
+// returns its path.
+func writeTestAnchors(t *testing.T) string {
+	t.Helper()
+	anchors := filepath.Join(t.TempDir(), "anchors.json")
+	pub := ed25519.NewKeyFromSeed(testSeed).Public().(ed25519.PublicKey)
+	if err := security.WriteTrustAnchors(anchors, []security.TrustAnchor{{KeyID: security.KeyID(pub), PublicKey: pub}}); err != nil {
+		t.Fatalf("WriteTrustAnchors: %v", err)
+	}
+	return anchors
+}
+
+// buildCommand builds the command of the module path pkg into a temporary directory
+// and returns the path of the binary.
+func buildCommand(t *testing.T, pkg string) string {
+	t.Helper()
+	bin := filepath.Join(t.TempDir(), filepath.Base(pkg))
+	if out, err := exec.Command("go", "build", "-o", bin, pkg).CombinedOutput(); err != nil {
+		t.Fatalf("go build %s: %v\n%s", pkg, err, out)
+	}
+	return bin
+}
+
 // queryProbe queries name at key over network, and verifies the envelope with the test
 // key. A status other than ok is a result, not a test failure.
 func queryProbe(t *testing.T, addr, network, name string, key protocol.ProtocolKey) *client.Result {
@@ -43,7 +90,7 @@ func queryProbe(t *testing.T, addr, network, name string, key protocol.ProtocolK
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), startTimeout)
 	defer cancel()
-	res, err := c.Query(ctx, client.Query{Name: name, Class: key.Class, Type: key.Type, ExpectedProtocolID: probeID})
+	res, err := c.Query(ctx, client.Query{Name: name, Class: key.Class, Type: key.Type, ExpectedProtocolID: probeID(key)})
 	// Query returns a *client.AppError with the result for a status other than ok.
 	var appErr *client.AppError
 	if err != nil && !errors.As(err, &appErr) {
@@ -133,15 +180,33 @@ func TestLoadConfigWithoutAProbeSectionHasNoProbe(t *testing.T) { // FR-interop-
 	}
 }
 
-func TestServeRegistersTheProbeProtocolAtTheProbeKey(t *testing.T) { // FR-interop-2
-	d, err := newDaemon(writeConfigFile(t, probeConfig([]any{65281}, []any{65280})), "", &bytes.Buffer{})
+func TestServeRegistersOneProbeProtocolIDForEachProbeKey(t *testing.T) { // FR-interop-2
+	d, err := newDaemon(writeConfigFile(t, defaultProbeConfig()), "", &bytes.Buffer{})
 	if err != nil {
 		t.Fatalf("newDaemon: %v", err)
 	}
-	reg, ok := d.srv.Registry().LookupID(probeID)
-	want := protocol.Info{ID: probeID, Versions: []uint16{1}}
-	if !ok || reg.Key != (protocol.ProtocolKey{Class: 65281, Type: 65280}) || !reflect.DeepEqual(reg.Info, want) {
-		t.Errorf("probe registration = %s %+v, %v; want 65281/65280 %+v, true", reg.Key, reg.Info, ok, want)
+	for _, key := range defaultProbeKeys() {
+		id := fmt.Sprintf("org.qmux.probe.%d-%d", key.Class, key.Type)
+		reg, ok := d.srv.Registry().LookupID(id)
+		want := protocol.Info{ID: id, Versions: []uint16{1}}
+		if !ok || reg.Key != key || !reflect.DeepEqual(reg.Info, want) {
+			t.Errorf("registration of %s = %s %+v, %v; want %s %+v, true", id, reg.Key, reg.Info, ok, key, want)
+		}
+	}
+}
+
+func TestProbeAnswersEveryProbeKeyOfOneDaemonOverUDPAndTCP(t *testing.T) { // FR-interop-2, FR-interop-5
+	addr := startDaemon(t, defaultProbeConfig())
+	const name = "abc.probe.fleet.example."
+	digest := sha256.Sum256([]byte(name))
+	for _, key := range defaultProbeKeys() {
+		for _, network := range []string{"udp", "tcp"} {
+			res := queryProbe(t, addr, network, name, key)
+			if res.Status != protocol.StatusOK || res.ProtocolID != probeID(key) || !bytes.Equal(res.Payload, digest[:]) {
+				t.Errorf("%s over %s: status, ID, payload = %v, %s, %x; want ok, %s, %x",
+					key, network, res.Status, res.ProtocolID, res.Payload, probeID(key), digest)
+			}
+		}
 	}
 }
 
@@ -168,11 +233,8 @@ func TestProbeAnswersNotFoundForAQNAMEOutsideTheProbeZone(t *testing.T) { // FR-
 func TestProbeAnswersAQTYPE16QueryWithAVerifiedEnvelope(t *testing.T) { // FR-interop-7, FR-interop-8
 	c := probeConfig([]any{1, 65281}, []any{16})
 	c["allow_non_private_types"] = true
-	// The registry holds one protocol key for each protocol ID, so a test of two keys
-	// starts two daemons.
+	addr := startDaemon(t, c)
 	for _, class := range []uint16{1, 65281} {
-		c["probe"].(map[string]any)["classes"] = []any{class}
-		addr := startDaemon(t, c)
 		key := protocol.ProtocolKey{Class: class, Type: 16}
 		for _, network := range []string{"udp", "tcp"} {
 			const name = "abc.probe.fleet.example."
@@ -199,29 +261,21 @@ func TestNoRegistrationOutsideTheProbeProtocolHasQTYPE16(t *testing.T) { // FR-i
 			txt = append(txt, r.Info.ID)
 		}
 	}
-	if !reflect.DeepEqual(txt, []string{probeID}) {
-		t.Errorf("registrations with QTYPE 16 = %v, want only %s", txt, probeID)
+	want := []string{probeID(protocol.ProtocolKey{Class: 1, Type: 16})}
+	if !reflect.DeepEqual(txt, want) {
+		t.Errorf("registrations with QTYPE 16 = %v, want only %v", txt, want)
 	}
 }
 
-func TestQmuxctlDiscoverListsTheProbeProtocolAtTheProbeKey(t *testing.T) { // FR-interop-1, FR-interop-2
+func TestQmuxctlDiscoverListsTenProbeIDsEachAtItsOwnKey(t *testing.T) { // FR-interop-1, FR-interop-2
 	if testing.Short() {
 		t.Skip("the test builds qmuxctl")
 	}
-	bin := filepath.Join(t.TempDir(), "qmuxctl")
-	if out, err := exec.Command("go", "build", "-o", bin, "github.com/Crank-Git/qmux/cmd/qmuxctl").CombinedOutput(); err != nil {
-		t.Fatalf("go build qmuxctl: %v\n%s", err, out)
-	}
-	anchors := filepath.Join(t.TempDir(), "anchors.json")
-	pub := ed25519.NewKeyFromSeed(testSeed).Public().(ed25519.PublicKey)
-	if err := security.WriteTrustAnchors(anchors, []security.TrustAnchor{{KeyID: security.KeyID(pub), PublicKey: pub}}); err != nil {
-		t.Fatalf("WriteTrustAnchors: %v", err)
-	}
-	path := writeConfigFile(t, probeConfig([]any{65281}, []any{65280}))
-	p := startQmuxd(t, filepath.Dir(path))
+	bin := buildCommand(t, "github.com/Crank-Git/qmux/cmd/qmuxctl")
+	p := startQmuxd(t, filepath.Dir(writeConfigFile(t, defaultProbeConfig())))
 	addr := readyAddr(t, p.waitReady(t))
 
-	out, err := exec.Command(bin, "discover", "--server", addr, "--name", testZone, "--trust-anchors", anchors, "--json").Output()
+	out, err := exec.Command(bin, "discover", "--server", addr, "--name", testZone, "--trust-anchors", writeTestAnchors(t), "--json").Output()
 	if err != nil {
 		t.Fatalf("qmuxctl discover: %v", err)
 	}
@@ -235,13 +289,55 @@ func TestQmuxctlDiscoverListsTheProbeProtocolAtTheProbeKey(t *testing.T) { // FR
 	if err := json.Unmarshal(out, &m); err != nil {
 		t.Fatalf("decode the qmuxctl output %q: %v", out, err)
 	}
-	found := false
+	got := map[string]protocol.ProtocolKey{}
 	for _, e := range m.Protocols {
-		if e.ID == probeID {
-			found = e.Class == 65281 && e.Type == 65280
+		if strings.HasPrefix(e.ID, "org.qmux.probe") {
+			got[e.ID] = protocol.ProtocolKey{Class: e.Class, Type: e.Type}
 		}
 	}
-	if !found {
-		t.Errorf("manifest = %s, want %s at 65281/65280", out, probeID)
+	want := map[string]protocol.ProtocolKey{}
+	for _, key := range defaultProbeKeys() {
+		want[fmt.Sprintf("org.qmux.probe.%d-%d", key.Class, key.Type)] = key
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("probe entries of the manifest = %v, want %v", got, want)
+	}
+}
+
+func TestQmuxProbeWithDefaultsGivesOkForEveryDirectProbe(t *testing.T) { // FR-interop-2, FR-interop-27
+	if testing.Short() {
+		t.Skip("the test builds qmux-probe")
+	}
+	bin := buildCommand(t, "github.com/Crank-Git/qmux/cmd/qmux-probe")
+	p := startQmuxd(t, filepath.Dir(writeConfigFile(t, defaultProbeConfig())))
+	addr := readyAddr(t, p.waitReady(t))
+
+	results := filepath.Join(t.TempDir(), "results.json")
+	cmd := exec.Command(bin, "--server", addr, "--trust-anchors", writeTestAnchors(t), "--output", results, "--require-direct")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("qmux-probe: %v\n%s", err, out)
+	}
+	b, err := os.ReadFile(results)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var recs []struct {
+		Path      string `json:"path"`
+		Outcome   string `json:"outcome"`
+		PayloadOK bool   `json:"payload_ok"`
+		Transport string `json:"transport"`
+		QClass    uint16 `json:"qclass"`
+		QType     uint16 `json:"qtype"`
+	}
+	if err := json.Unmarshal(b, &recs); err != nil {
+		t.Fatalf("decode %s: %v", b, err)
+	}
+	if len(recs) != 20 {
+		t.Fatalf("got %d records, want 20", len(recs))
+	}
+	for _, r := range recs {
+		if r.Path != "direct" || r.Outcome != "ok" || !r.PayloadOK {
+			t.Errorf("record %+v, want path direct, outcome ok and payload_ok true", r)
+		}
 	}
 }

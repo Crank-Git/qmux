@@ -12,8 +12,9 @@
 // with code 0.
 //
 // An optional probe section of the configuration file holds the fields zone, classes
-// and types. For each class and type pair, qmuxd serves the probe protocol
-// org.qmux.probe, version 1. The probe answers every QNAME at or below the probe zone
+// and types. For each class and type pair, qmuxd serves the probe protocol, version 1,
+// with the protocol ID org.qmux.probe.<class>-<type>, for example
+// org.qmux.probe.65281-65280. The probe answers every QNAME at or below the probe zone
 // with the SHA-256 digest of the lowercase QNAME. Class 3 and class 4 need
 // allow_reserved_classes, and type 16 needs allow_non_private_types. Only the probe
 // section can use type 16.

@@ -39,9 +39,9 @@ type testServer struct {
 }
 
 // startProbeServer runs a server that answers probeKey like the probe protocol of
-// qmuxd, signed with seed. payload returns the payload for a request. It writes its
+// qmuxd, with the protocol ID id, signed with seed. payload returns the payload for a request. It writes its
 // observation log to a file in a temporary directory.
-func startProbeServer(t *testing.T, seed []byte, payload func(*protocol.Request) []byte) testServer {
+func startProbeServer(t *testing.T, id string, seed []byte, payload func(*protocol.Request) []byte) testServer {
 	t.Helper()
 	logPath := filepath.Join(t.TempDir(), "observations.jsonl")
 	f, err := os.Create(logPath)
@@ -59,7 +59,7 @@ func startProbeServer(t *testing.T, seed []byte, payload func(*protocol.Request)
 	h := protocol.HandlerFunc(func(_ context.Context, r *protocol.Request) (*protocol.Response, error) {
 		return &protocol.Response{Payload: payload(r)}, nil
 	})
-	if err := s.RegisterProtocol(probeKey, protocol.Info{ID: probeProtocolID, Versions: []uint16{1}}, h); err != nil {
+	if err := s.RegisterProtocol(probeKey, protocol.Info{ID: id, Versions: []uint16{1}}, h); err != nil {
 		t.Fatalf("RegisterProtocol: %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -175,7 +175,7 @@ func oneKey() []string {
 }
 
 func TestDirectProbeHasOutcomeOkAndPayloadOkWhenThePayloadIsTheDigestOfTheQNAME(t *testing.T) { // FR-interop-6, FR-interop-27
-	srv := startProbeServer(t, anchorSeed, digestPayload)
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, digestPayload)
 	recs := readRecords(t, append(oneKey(), "--server", srv.addr, "--trust-anchors", writeAnchors(t, anchorSeed))...)
 	if len(recs) != 1 {
 		t.Fatalf("got %d records, want 1", len(recs))
@@ -193,7 +193,7 @@ func TestDirectProbeHasOutcomeOkAndPayloadOkWhenThePayloadIsTheDigestOfTheQNAME(
 }
 
 func TestProbeHasOutcomeVerifyWhenThePayloadIsNotTheDigestOfTheQNAME(t *testing.T) { // FR-interop-27
-	srv := startProbeServer(t, anchorSeed, func(*protocol.Request) []byte { return []byte{1, 2, 3} })
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, func(*protocol.Request) []byte { return []byte{1, 2, 3} })
 	recs := readRecords(t, append(oneKey(), "--server", srv.addr, "--trust-anchors", writeAnchors(t, anchorSeed))...)
 	if r := recs[0]; r["outcome"] != "verify" || r["payload_ok"] != false || r["verified"] != true || r["error"] == "" {
 		t.Errorf("record = %v, want outcome verify, payload_ok false, verified true and an error", r)
@@ -211,7 +211,7 @@ func TestPayloadCheckFoldsTheQNAMEToLowercase(t *testing.T) { // FR-interop-27
 }
 
 func TestRunWithDefaultsAndTwoPathsWritesFortyRecords(t *testing.T) { // FR-interop-10, FR-interop-13 to FR-interop-15
-	srv := startProbeServer(t, anchorSeed, digestPayload)
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, digestPayload)
 	recs := readRecords(t, "--server", srv.addr, "--resolver", "bind="+srv.addr,
 		"--trust-anchors", writeAnchors(t, anchorSeed), "--timeout", "200ms")
 	if len(recs) != 40 {
@@ -245,7 +245,7 @@ func jsonNumber(v any) string {
 }
 
 func TestResolverFlagAddsARecordWithTheResolverNameAsPath(t *testing.T) { // FR-interop-11, FR-interop-12
-	srv := startProbeServer(t, anchorSeed, digestPayload)
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, digestPayload)
 	recs := readRecords(t, append(oneKey(), "--server", srv.addr, "--resolver", "bind="+srv.addr,
 		"--resolver", "unbound="+srv.addr, "--trust-anchors", writeAnchors(t, anchorSeed))...)
 	var paths []string
@@ -261,7 +261,7 @@ func TestResolverFlagAddsARecordWithTheResolverNameAsPath(t *testing.T) { // FR-
 }
 
 func TestEveryQNAMEIsUniqueAndIsASixteenHexNonceBelowTheZone(t *testing.T) { // FR-interop-16, FR-interop-17
-	srv := startProbeServer(t, anchorSeed, digestPayload)
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, digestPayload)
 	recs := readRecords(t, "--server", srv.addr, "--trust-anchors", writeAnchors(t, anchorSeed), "--timeout", "200ms")
 	re := regexp.MustCompile(`^[0-9a-f]{16}\.probe\.fleet\.example\.$`)
 	seen := map[string]bool{}
@@ -286,8 +286,24 @@ func TestZoneFlagSetsTheProbeZone(t *testing.T) { // FR-interop-16
 	}
 }
 
+func TestProbeHasOutcomeVerifyWhenTheProtocolIDIsTheIDOfAnotherPair(t *testing.T) { // FR-interop-2
+	other := probeID(protocol.ProtocolKey{Class: 65281, Type: 16})
+	srv := startProbeServer(t, other, anchorSeed, digestPayload)
+	recs := readRecords(t, append(oneKey(), "--server", srv.addr, "--trust-anchors", writeAnchors(t, anchorSeed))...)
+	r := recs[0]
+	if r["outcome"] != "verify" || r["verified"] != true || !strings.Contains(r["error"].(string), other) {
+		t.Errorf("record = %v, want outcome verify, verified true and an error that names %s", r, other)
+	}
+}
+
+func TestProbeIDNamesTheClassAndTheType(t *testing.T) { // FR-interop-2
+	if got := probeID(protocol.ProtocolKey{Class: 65281, Type: 65280}); got != "org.qmux.probe.65281-65280" {
+		t.Errorf("probeID(65281/65280) = %q, want org.qmux.probe.65281-65280", got)
+	}
+}
+
 func TestWrongTrustAnchorFileGivesOutcomeVerifyOnTheDirectPath(t *testing.T) { // FR-interop-18
-	srv := startProbeServer(t, anchorSeed, digestPayload)
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, digestPayload)
 	recs := readRecords(t, append(oneKey(), "--server", srv.addr, "--trust-anchors", writeAnchors(t, otherSeed))...)
 	if r := recs[0]; r["outcome"] != "verify" || r["verified"] != false || !strings.Contains(r["error"].(string), "ErrUnknownKey") {
 		t.Errorf("record = %v, want outcome verify, verified false and an ErrUnknownKey error", r)
@@ -359,7 +375,7 @@ func TestResolverPathQueryHasRDSetAndDirectPathQueryHasRDClear(t *testing.T) { /
 }
 
 func TestDirectProbeReachedTheAuthoritativeServerWithTheObservedClassAndType(t *testing.T) { // FR-interop-20 to FR-interop-22
-	srv := startProbeServer(t, anchorSeed, digestPayload)
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, digestPayload)
 	recs := readRecords(t, append(oneKey(), "--server", srv.addr, "--trust-anchors", writeAnchors(t, anchorSeed),
 		"--observation-log", srv.log)...)
 	r := recs[0]
@@ -369,7 +385,7 @@ func TestDirectProbeReachedTheAuthoritativeServerWithTheObservedClassAndType(t *
 }
 
 func TestProbeThatNeverReachedTheServerHasReachedAuthoritativeFalse(t *testing.T) { // FR-interop-21
-	srv := startProbeServer(t, anchorSeed, digestPayload)
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, digestPayload)
 	addr, _ := silentUDP(t)
 	recs := readRecords(t, append(oneKey(), "--server", addr, "--trust-anchors", writeAnchors(t, anchorSeed),
 		"--observation-log", srv.log, "--timeout", "20ms")...)
@@ -379,7 +395,7 @@ func TestProbeThatNeverReachedTheServerHasReachedAuthoritativeFalse(t *testing.T
 }
 
 func TestMissingObservationLogGivesNullReachedAndAWarning(t *testing.T) { // FR-interop-20
-	srv := startProbeServer(t, anchorSeed, digestPayload)
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, digestPayload)
 	out := filepath.Join(t.TempDir(), "results.json")
 	missing := filepath.Join(t.TempDir(), "absent.jsonl")
 	code, stdout, stderr := probeCmd(append(oneKey(), "--server", srv.addr, "--trust-anchors", writeAnchors(t, anchorSeed),
@@ -422,7 +438,7 @@ func TestObservedClassAndTypeComeFromTheLogLineAlsoWhenTheyDifferFromTheProbe(t 
 }
 
 func TestOutputIsAJSONArrayWithEveryFieldOfDataTouched(t *testing.T) { // FR-interop-23
-	srv := startProbeServer(t, anchorSeed, digestPayload)
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, digestPayload)
 	addr, _ := silentUDP(t)
 	recs := readRecords(t, append(oneKey(), "--server", srv.addr, "--resolver", "bind="+addr,
 		"--trust-anchors", writeAnchors(t, anchorSeed), "--observation-log", srv.log, "--timeout", "20ms")...)
@@ -447,7 +463,7 @@ func TestOutputIsAJSONArrayWithEveryFieldOfDataTouched(t *testing.T) { // FR-int
 }
 
 func TestMarkdownPrintsATableWithOneRowPerProbe(t *testing.T) { // FR-interop-24
-	srv := startProbeServer(t, anchorSeed, digestPayload)
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, digestPayload)
 	code, stdout, stderr := probeCmd("--server", srv.addr, "--trust-anchors", writeAnchors(t, anchorSeed),
 		"--types", "65280", "--markdown")
 	if code != 0 {
@@ -469,7 +485,7 @@ func TestMarkdownPrintsATableWithOneRowPerProbe(t *testing.T) { // FR-interop-24
 }
 
 func TestRunInWhichEveryResolverProbeFailsExitsZero(t *testing.T) { // FR-interop-25
-	srv := startProbeServer(t, anchorSeed, digestPayload)
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, digestPayload)
 	addr, _ := silentUDP(t)
 	code, _, stderr := probeCmd(append(oneKey(), "--server", srv.addr, "--resolver", "bind="+addr,
 		"--trust-anchors", writeAnchors(t, anchorSeed), "--timeout", "20ms", "--require-direct")...)

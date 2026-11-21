@@ -36,8 +36,6 @@ const (
 )
 
 const (
-	// probeProtocolID is the protocol ID of the probe protocol of qmuxd (FR-interop-2).
-	probeProtocolID = "org.qmux.probe"
 	// nonceBytes gives a nonce of 16 hex characters (FR-interop-17).
 	nonceBytes = 8
 	// udpSize is the client default. qmux-probe sets it, so that query_bytes of a probe
@@ -150,7 +148,10 @@ func probeAll(ctx context.Context, f probeFlags, v *security.Verifier) []record 
 func probe(ctx context.Context, c *client.Client, p path, network string, key protocol.ProtocolKey, qname string) record {
 	r := record{Path: p.name, Transport: network, QClass: key.Class, QType: key.Type, QName: qname}
 	start := time.Now()
-	res, err := c.Query(ctx, client.Query{Name: qname, Class: key.Class, Type: key.Type, ExpectedProtocolID: probeProtocolID})
+	// The query sets no ExpectedProtocolID: the client reports a protocol ID that
+	// differs as KindMismatch, and the spec keeps mismatch for a class or a type that
+	// differs. probe checks the protocol ID itself.
+	res, err := c.Query(ctx, client.Query{Name: qname, Class: key.Class, Type: key.Type})
 	r.RTTMillis = millis(time.Since(start))
 	// A query with no result gives no sizes, so the size of the query comes from the
 	// same packet that the client builds. The zone check of parseFlags excludes an error.
@@ -171,7 +172,11 @@ func probe(ctx context.Context, c *client.Client, p path, network string, key pr
 		r.QueryBytes, r.ResponseBytes = res.QueryBytes, res.ResponseBytes
 		r.Verified = res.Verified
 		r.PayloadOK = payloadOK(qname, res.Payload)
-		if err == nil && !r.PayloadOK {
+		switch {
+		case err == nil && res.ProtocolID != probeID(key):
+			r.Outcome = outcomeVerify
+			r.Error = fmt.Sprintf("envelope protocol ID %q, want %q", res.ProtocolID, probeID(key))
+		case err == nil && !r.PayloadOK:
 			r.Outcome, r.Error = outcomeVerify, "payload is not the SHA-256 digest of the lowercase QNAME"
 		}
 	case errors.As(err, &ve):
@@ -214,6 +219,12 @@ func outcomeOf(err error) string {
 		}
 	}
 	return outcomeNetwork
+}
+
+// probeID returns the protocol ID that qmuxd gives the probe protocol at key, for
+// example org.qmux.probe.65281-65280 (FR-interop-2).
+func probeID(key protocol.ProtocolKey) string {
+	return fmt.Sprintf("org.qmux.probe.%d-%d", key.Class, key.Type)
 }
 
 // payloadOK reports whether payload is the SHA-256 digest of the lowercase qname

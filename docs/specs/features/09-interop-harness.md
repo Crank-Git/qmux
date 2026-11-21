@@ -36,7 +36,8 @@ measured rows.
 - FR-interop-1 — `qmuxd` reads an optional `probe` section of the configuration file with
   the fields `zone` (text), `classes` (list of uint16) and `types` (list of uint16).
 - FR-interop-2 — For each class and type pair in the `probe` section, `qmuxd` registers
-  the probe protocol `org.qmux.probe`, version 1.
+  the probe protocol, version 1, with the protocol ID `org.qmux.probe.<class>-<type>`.
+  For example, the pair `(65281, 65280)` has the ID `org.qmux.probe.65281-65280`.
 - FR-interop-3 — `qmuxd` rejects a `probe` section with a reserved class unless
   `allow_reserved_classes` is true.
 - FR-interop-4 — `qmuxd` rejects a `probe` section with QTYPE 16 unless
@@ -309,7 +310,9 @@ External interfaces:
 ## Acceptance criteria
 
 - FR-interop-1 and FR-interop-2: with `probe.classes = [65281]` and `probe.types =
-  [65280]`, `qmuxctl discover` lists `org.qmux.probe` at `(65281, 65280)`.
+  [65280]`, `qmuxctl discover` lists `org.qmux.probe.65281-65280` at `(65281, 65280)`.
+- FR-interop-2: with the default classes and types of `qmux-probe`, `qmuxctl discover`
+  lists 10 probe protocol IDs, each at its own protocol key.
 - FR-interop-3: a `probe` section with class 3 and no `allow_reserved_classes` makes
   `qmuxd` exit with an error that names the class.
 - FR-interop-4: a `probe` section with type 16 and no `allow_non_private_types` makes

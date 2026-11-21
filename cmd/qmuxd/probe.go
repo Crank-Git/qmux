@@ -13,8 +13,12 @@ import (
 	"github.com/Crank-Git/qmux/pkg/server"
 )
 
-// probeID is the protocol ID of the probe protocol (FR-interop-2).
-const probeID = "org.qmux.probe"
+// probeID returns the protocol ID of the probe protocol at key, for example
+// org.qmux.probe.65281-65280 (FR-interop-2). The registry holds one protocol key for
+// each protocol ID, so each key needs its own ID.
+func probeID(key protocol.ProtocolKey) string {
+	return fmt.Sprintf("org.qmux.probe.%d-%d", key.Class, key.Type)
+}
 
 // The DNS numbers that the configuration checks.
 const (
@@ -84,15 +88,15 @@ func probeNumbers(raw []json.RawMessage, path, noun string, rejected func(uint16
 	return nums, nil
 }
 
-// registerProbe registers the probe protocol, version 1, at each key of p
-// (FR-interop-2). A nil p registers nothing. The error wraps the registry error.
+// registerProbe registers the probe protocol, version 1, at each key of p with the
+// protocol ID of probeID (FR-interop-2). Each registration uses the same handler. A nil p registers nothing. The error wraps the registry error.
 func registerProbe(srv *server.Server, p *probeSection) error {
 	if p == nil {
 		return nil
 	}
 	h := probeHandler(p.Zone)
 	for _, key := range p.Keys {
-		if err := srv.RegisterProtocol(key, protocol.Info{ID: probeID, Versions: []uint16{1}}, h); err != nil {
+		if err := srv.RegisterProtocol(key, protocol.Info{ID: probeID(key), Versions: []uint16{1}}, h); err != nil {
 			return fmt.Errorf("probe: %w", err)
 		}
 	}

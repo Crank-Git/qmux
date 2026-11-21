@@ -129,7 +129,7 @@ planning interview.
 | static record | noun | A payload for one QNAME that the configuration file declares. | fixture, entry |
 | observation log | noun | The JSONL file in which `qmuxd` writes one line per received query. | query log, access log |
 | probe | noun | One query that `qmux-probe` sends for one combination of path, transport, class and type. | test case, check |
-| probe protocol | noun | The echo protocol `org.qmux.probe` that `qmuxd` serves for interop runs. | test protocol |
+| probe protocol | noun | The echo protocol `org.qmux.probe.<class>-<type>` that `qmuxd` serves for interop runs, one protocol ID for each class and type pair. | test protocol |
 | path | noun | The route of a probe: direct, through BIND, or through Unbound. | route, hop |
 | interop matrix | noun | The table of probe outcomes over every path, transport, class and type. | compatibility table |
 | baseline | noun | One of the comparison implementations: IN-class DNS, IN + TXT, CoAP or HTTPS. | alternative, competitor |
@@ -457,7 +457,7 @@ The demonstration uses these defaults:
 | `org.qmux.bootstrap` | 65280 | 65280 |
 | `org.qmux.configuration` | 65281 | 65280 |
 | `org.qmux.firmware` | 65282 | 65280 |
-| `org.qmux.probe` | as the interop configuration lists | as the interop configuration lists |
+| `org.qmux.probe.<class>-<type>` | as the interop configuration lists | as the interop configuration lists |
 
 ### Error semantics
 

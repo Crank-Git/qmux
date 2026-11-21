@@ -190,7 +190,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li>FR-interop-2 — For each class and type pair in the <code>probe</code> section, <code>qmuxd</code> registers
 </li>
 </ul>
-<p>the probe protocol <code>org.qmux.probe</code>, version 1.</p>
+<p>the probe protocol, version 1, with the protocol ID <code>org.qmux.probe.&lt;class&gt;-&lt;type&gt;</code>. For example, the pair <code>(65281, 65280)</code> has the ID <code>org.qmux.probe.65281-65280</code>.</p>
 <ul>
 <li>FR-interop-3 — <code>qmuxd</code> rejects a <code>probe</code> section with a reserved class unless
 </li>
@@ -598,7 +598,12 @@ qmux-probe: wrote tests/interoperability/results/results.json (60 records)</code
 <li>FR-interop-1 and FR-interop-2: with <code>probe.classes = [65281]</code> and `probe.types =
 </li>
 </ul>
-<p>[65280]<code>, </code>qmuxctl discover<code> lists </code>org.qmux.probe<code> at </code>(65281, 65280)`.</p>
+<p>[65280]<code>, </code>qmuxctl discover<code> lists </code>org.qmux.probe.65281-65280<code> at </code>(65281, 65280)`.</p>
+<ul>
+<li>FR-interop-2: with the default classes and types of <code>qmux-probe</code>, <code>qmuxctl discover</code>
+</li>
+</ul>
+<p>lists 10 probe protocol IDs, each at its own protocol key.</p>
 <ul>
 <li>FR-interop-3: a <code>probe</code> section with class 3 and no <code>allow_reserved_classes</code> makes
 </li>
