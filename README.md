@@ -61,14 +61,13 @@ You need Go 1.25 or later. Run each command from the repository root.
 4. Start the authoritative server:
 
    ```bash
-   bin/qmuxd serve --config examples/qmuxd.json --listen 127.0.0.1:5300
+   bin/qmuxd serve --config examples/qmuxd.json
    ```
 
    `examples/qmuxd.json` serves the zone `fleet.example.` with the three demonstration
-   protocols. It names the signing key `keys/qmuxd.key`, relative to the directory of
-   the file. The `--listen` flag replaces the `listen` field of the file. On macOS,
-   `mDNSResponder` holds UDP port 5353, so the `listen` value `127.0.0.1:5353` does not
-   bind.
+   protocols on `127.0.0.1:5300`. It names the signing key `keys/qmuxd.key`, relative to
+   the directory of the file. The file does not use port 5353, because `mDNSResponder`
+   holds UDP port 5353 on macOS. To use a different address, add `--listen <addr>`.
 
 5. In a second terminal, query the bootstrap record and verify it:
 
@@ -130,7 +129,7 @@ The server answers the firmware protocol at the protocol key `65280/65280`:
 <!-- example: ExampleNewServer -->
 ```go
 srv := qmux.NewServer(qmux.ServerConfig{
-	Address: "127.0.0.1:5353",
+	Address: "127.0.0.1:5300",
 	Zones:   []string{"fleet.example."},
 })
 key := qmux.ProtocolKey{Class: 65280, Type: 65280}
@@ -151,7 +150,7 @@ The client asks the server above for the firmware metadata of `device42.fleet.ex
 
 <!-- example: ExampleNewClient -->
 ```go
-c := qmux.NewClient(qmux.ClientConfig{Resolver: "127.0.0.1:5353"})
+c := qmux.NewClient(qmux.ClientConfig{Resolver: "127.0.0.1:5300"})
 res, err := c.Query(context.Background(), qmux.Query{
 	Name:  "device42.fleet.example.",
 	Class: 65280,

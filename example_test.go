@@ -29,7 +29,7 @@ func (firmwareHandler) Info() protocol.Info {
 // The example has no Output comment, because ListenAndServe runs until an interrupt.
 func ExampleNewServer() {
 	srv := qmux.NewServer(qmux.ServerConfig{
-		Address: "127.0.0.1:5353",
+		Address: "127.0.0.1:5300",
 		Zones:   []string{"fleet.example."},
 	})
 	key := qmux.ProtocolKey{Class: 65280, Type: 65280}
@@ -47,7 +47,7 @@ func ExampleNewServer() {
 // ExampleNewClient asks the server of ExampleNewServer for the firmware metadata.
 // The example has no Output comment, because it needs a running server.
 func ExampleNewClient() {
-	c := qmux.NewClient(qmux.ClientConfig{Resolver: "127.0.0.1:5353"})
+	c := qmux.NewClient(qmux.ClientConfig{Resolver: "127.0.0.1:5300"})
 	res, err := c.Query(context.Background(), qmux.Query{
 		Name:  "device42.fleet.example.",
 		Class: 65280,
