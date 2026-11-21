@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"sync"
@@ -18,9 +19,9 @@ import (
 const holdDelay = 20 * time.Millisecond
 
 // recorder is a UDP server in front of a baseline server. It records the start of a
-// lookup when a request arrives and the end when it sends the answer back. It serves
-// each request on a goroutine of its own, so it does not put parallel lookups in
-// sequence.
+// lookup when a request arrives and the end immediately before it sends the answer
+// back. It serves each request on a goroutine of its own, so it does not put
+// parallel lookups in sequence.
 type recorder struct {
 	conn     *net.UDPConn
 	upstream *net.UDPAddr
@@ -76,40 +77,50 @@ func (r *recorder) addr() string {
 // holdDelay before it sends the answer back to from.
 func (r *recorder) serve(t *testing.T, from *net.UDPAddr, req []byte) {
 	now := r.inFlight.Add(1)
-	defer r.inFlight.Add(-1)
 	for {
 		peak := r.peak.Load()
 		if now <= peak || r.peak.CompareAndSwap(peak, now) {
 			break
 		}
 	}
+	answer, err := r.forward(req)
+	if err != nil {
+		r.inFlight.Add(-1)
+		t.Error(err)
+		return
+	}
+	time.Sleep(holdDelay)
+	// The lookup ends before the write of the answer. After the write, the client can
+	// send its next request, and runLookups can return, before this goroutine runs
+	// again. An end recorded after the write then counts two lookups in sequence as
+	// parallel, and the test can read served before it counts the last lookup.
+	r.inFlight.Add(-1)
+	r.served.Add(1)
+	// A write after the close of the recorder occurs only at the end of the test.
+	if _, err := r.conn.WriteToUDP(answer, from); err != nil && !errors.Is(err, net.ErrClosed) {
+		t.Errorf("send the answer: %v", err)
+	}
+}
+
+// forward sends req to the upstream server and returns its answer.
+func (r *recorder) forward(req []byte) ([]byte, error) {
 	up, err := net.DialUDP("udp", nil, r.upstream)
 	if err != nil {
-		t.Errorf("DialUDP: %v", err)
-		return
+		return nil, fmt.Errorf("DialUDP: %w", err)
 	}
 	defer up.Close() //nolint:errcheck // The test reads nothing more from the socket.
 	if _, err := up.Write(req); err != nil {
-		t.Errorf("forward the request: %v", err)
-		return
+		return nil, fmt.Errorf("forward the request: %w", err)
 	}
 	if err := up.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
-		t.Errorf("SetReadDeadline: %v", err)
-		return
+		return nil, fmt.Errorf("SetReadDeadline: %w", err)
 	}
 	buf := make([]byte, 65535)
 	n, err := up.Read(buf)
 	if err != nil {
-		t.Errorf("read the answer: %v", err)
-		return
+		return nil, fmt.Errorf("read the answer: %w", err)
 	}
-	time.Sleep(holdDelay)
-	// The write of the answer is the end of the lookup. A write after the close of
-	// the recorder occurs only at the end of the test.
-	if _, err := r.conn.WriteToUDP(buf[:n], from); err != nil && !errors.Is(err, net.ErrClosed) {
-		t.Errorf("send the answer: %v", err)
-	}
-	r.served.Add(1)
+	return buf[:n], nil
 }
 
 func TestOneBenchmarkRunSendsNoTwoLookupsInParallel(t *testing.T) {
