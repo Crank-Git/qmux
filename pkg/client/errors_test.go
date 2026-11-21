@@ -427,6 +427,23 @@ func TestDNSErrorTextMatchesTheQmuxctlScreens(t *testing.T) {
 	}
 }
 
+func TestAppErrorTextNamesAFrameworkStatusAndPrintsOthersInDecimal(t *testing.T) {
+	tests := []struct {
+		status protocol.Status
+		want   string
+	}{
+		{protocol.StatusNotFound, "client: application status not-found from org.example.kv version 1"},
+		{protocol.StatusVersionUnsupported, "client: application status version-unsupported from org.example.kv version 1"},
+		{300, "client: application status 300 from org.example.kv version 1"},
+	}
+	for _, tt := range tests {
+		err := &client.AppError{Status: tt.status, ProtocolID: "org.example.kv", Version: 1}
+		if got := err.Error(); got != tt.want {
+			t.Errorf("Error() = %q, want %q", got, tt.want)
+		}
+	}
+}
+
 func TestDNSErrorNamesTheKindTheNameAndTheProtocolKeyForEveryOtherKind(t *testing.T) {
 	cause := errors.New("cause")
 	tests := []struct {

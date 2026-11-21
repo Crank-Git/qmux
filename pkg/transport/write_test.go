@@ -262,7 +262,16 @@ func TestRCodeStringNamesTheRCode(t *testing.T) {
 		transport.RCodeNotImp:   "NOTIMP",
 		transport.RCodeRefused:  "REFUSED",
 		transport.RCodeBadVers:  "BADVERS",
-		transport.RCode(3):      "RCODE3",
+		transport.RCode(3):      "NXDOMAIN",
+		transport.RCode(6):      "YXDOMAIN",
+		transport.RCode(7):      "YXRRSET",
+		transport.RCode(8):      "NXRRSET",
+		transport.RCode(9):      "NOTAUTH",
+		transport.RCode(10):     "NOTZONE",
+		transport.RCode(11):     "RCODE11",
+		transport.RCode(15):     "RCODE15",
+		transport.RCode(17):     "RCODE17",
+		transport.RCode(4095):   "RCODE4095",
 	}
 	for rc, want := range tests {
 		if got := rc.String(); got != want {
