@@ -408,10 +408,10 @@ func TestExchangeReportsTheReceivedFields(t *testing.T) {
 	}
 }
 
-func TestExchangeReturnsThePackedRDATAOfAKnownType(t *testing.T) {
-	txtKey := protocol.ProtocolKey{Class: 1, Type: 16}
-	// One TXT character-string of length 2.
-	rdata := []byte{2, 'h', 'i'}
+// exchangeRDATA answers one UDP query for key with one answer RR that holds rdata, and
+// returns the Received of the exchange.
+func exchangeRDATA(t *testing.T, key protocol.ProtocolKey, rdata []byte) transport.Received {
+	t.Helper()
 	addr := transporttest.StartServer(t, func(_ string, query []byte) [][]byte {
 		q, err := transporttest.Unpack(query)
 		if err != nil {
@@ -420,7 +420,7 @@ func TestExchangeReturnsThePackedRDATAOfAKnownType(t *testing.T) {
 		}
 		resp, err := transporttest.Pack(transporttest.Message{
 			ID: q.ID, Response: true, Question: q.Question,
-			Answer: []transporttest.RR{{Name: q.Question[0].Name, Key: txtKey, TTL: 60, Data: rdata}},
+			Answer: []transporttest.RR{{Name: q.Question[0].Name, Key: key, TTL: 60, Data: rdata}},
 		})
 		if err != nil {
 			t.Errorf("pack response: %v", err)
@@ -433,7 +433,7 @@ func TestExchangeReturnsThePackedRDATAOfAKnownType(t *testing.T) {
 		t.Fatalf("dial: %v", err)
 	}
 	defer c.Close() //nolint:errcheck // The test reads nothing after the exchange.
-	p, err := transport.NewQuery(testName, txtKey, 1232, false)
+	p, err := transport.NewQuery(testName, key, 1232, false)
 	if err != nil {
 		t.Fatalf("NewQuery: %v", err)
 	}
@@ -443,8 +443,33 @@ func TestExchangeReturnsThePackedRDATAOfAKnownType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ExchangeUDP: %v", err)
 	}
+	return got
+}
+
+func TestExchangeReturnsThePackedRDATAOfAKnownTypeOtherThanTXT(t *testing.T) {
+	// miekg/dns unpacks type A into a typed RR, so the exchange packs it again.
+	rdata := []byte{192, 0, 2, 1}
+	got := exchangeRDATA(t, protocol.ProtocolKey{Class: 1, Type: 1}, rdata)
 	if !bytes.Equal(got.Payload, rdata) {
 		t.Errorf("Payload = %x, want %x", got.Payload, rdata)
+	}
+}
+
+func TestExchangeJoinsTheCharacterStringsOfAQTYPE16Answer(t *testing.T) { // FR-interop-8
+	// The second character-string holds every byte value, so no escape of miekg/dns
+	// changes a byte.
+	all := make([]byte, 255)
+	for i := range all {
+		all[i] = byte(i)
+	}
+	rdata := append([]byte{2, 'h', 'i', 255}, all...)
+	rdata = append(rdata, 0, 1, 0xff)
+	want := append(append([]byte("hi"), all...), 0xff)
+	for _, class := range []uint16{1, 65281} {
+		got := exchangeRDATA(t, protocol.ProtocolKey{Class: class, Type: 16}, rdata)
+		if !bytes.Equal(got.Payload, want) {
+			t.Errorf("class %d: Payload = %x, want %x", class, got.Payload, want)
+		}
 	}
 }
 

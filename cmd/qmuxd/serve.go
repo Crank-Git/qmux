@@ -148,6 +148,9 @@ func newDaemon(path, listen string, stderr io.Writer) (d *daemon, err error) {
 			return nil, err
 		}
 	}
+	if err := registerProbe(srv, cfg.Probe); err != nil {
+		return nil, err
+	}
 	if cfg.Discovery.Enabled {
 		// One registration serves every zone, because the registry holds one protocol
 		// key for the discovery protocol ID.

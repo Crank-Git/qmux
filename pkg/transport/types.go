@@ -89,7 +89,8 @@ type Answer struct {
 	// TTL is the TTL of the answer RR.
 	TTL uint32
 	// Payload is the RDATA of the answer RR. Write sends an answer RR only for
-	// RCodeNoError.
+	// RCodeNoError. For QTYPE 16, Write splits Payload into TXT character-strings of
+	// at most 255 bytes.
 	Payload []byte
 }
 

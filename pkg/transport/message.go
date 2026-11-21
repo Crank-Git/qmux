@@ -88,17 +88,21 @@ func (w *writer) Write(a Answer) (Sent, error) {
 // pack returns the response wire bytes for a, after the size rules.
 func (w *writer) pack(a Answer) ([]byte, Sent, error) {
 	m := w.reply(a.RCode)
+	rdata := a.Payload
+	if w.q.Key.Type == dns.TypeTXT {
+		rdata = splitTXT(a.Payload)
+	}
 	if a.RCode == RCodeNoError {
 		m.Authoritative = true
 		m.Answer = []dns.RR{&dns.RFC3597{
 			Hdr:   dns.RR_Header{Name: w.q.Name, Rrtype: w.q.Key.Type, Class: w.q.Key.Class, Ttl: a.TTL},
-			Rdata: hex.EncodeToString(a.Payload),
+			Rdata: hex.EncodeToString(rdata),
 		}}
 	}
 
 	limit := w.limit()
-	// RDLENGTH is 16 bits, so a larger payload cannot fit in any message.
-	if len(a.Payload) <= maxMessageSize {
+	// RDLENGTH is 16 bits, so a larger RDATA cannot fit in any message.
+	if len(rdata) <= maxMessageSize {
 		wire, err := packMsg(m)
 		if err != nil || len(wire) <= limit {
 			return wire, Sent{RCode: a.RCode, WireSize: len(wire)}, err
@@ -144,6 +148,42 @@ func (w *writer) limit() int {
 		return minUDPLimit
 	}
 	return max(int(min(w.q.UDPSize, w.udpSize)), minUDPLimit)
+}
+
+// maxCharacterString is the largest TXT character-string, because one length byte
+// starts it.
+const maxCharacterString = 255
+
+// splitTXT returns the TXT RDATA that holds payload as character-strings of at most
+// 255 bytes (FR-interop-7). An empty payload gives one empty character-string, because
+// TXT RDATA holds at least one.
+func splitTXT(payload []byte) []byte {
+	out := make([]byte, 0, len(payload)+len(payload)/maxCharacterString+1)
+	for {
+		n := min(len(payload), maxCharacterString)
+		out = append(out, byte(n))
+		out = append(out, payload[:n]...)
+		payload = payload[n:]
+		if len(payload) == 0 {
+			return out
+		}
+	}
+}
+
+// joinTXT returns the bytes of the character-strings in the TXT RDATA rdata
+// (FR-interop-8). It returns an error that wraps ErrMalformed when a length byte runs
+// past the end of rdata.
+func joinTXT(rdata []byte) ([]byte, error) {
+	out := make([]byte, 0, len(rdata))
+	for len(rdata) > 0 {
+		n := int(rdata[0])
+		if 1+n > len(rdata) {
+			return nil, fmt.Errorf("%w: TXT character-string of %d bytes runs past the RDATA", ErrMalformed, n)
+		}
+		out = append(out, rdata[1:1+n]...)
+		rdata = rdata[1+n:]
+	}
+	return out, nil
 }
 
 func packMsg(m *dns.Msg) ([]byte, error) {

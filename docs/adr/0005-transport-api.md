@@ -80,7 +80,9 @@ func ExchangeTCP(ctx context.Context, c net.Conn, p Packet) (Received, error)
 1. The response copies the ID and the question. It sets RA to 0.
 2. For `RCodeNoError`, the response sets AA and holds one RR. The RR has the QNAME as
    received, the class and type of the question, the TTL and the payload.
-3. The RR is a `*dns.RFC3597`. `Rdata` is `hex.EncodeToString(Payload)`.
+3. The RR is a `*dns.RFC3597`. `Rdata` is `hex.EncodeToString(Payload)`. For QTYPE 16,
+   `Rdata` holds `Payload` split into TXT character-strings of at most 255 bytes
+   (FR-interop-7).
 4. If the query has EDNS(0), the response holds an OPT RR with `cfg.UDPSize`. BADVERS
    goes in the extended RCODE of that OPT RR.
 5. If the query has no EDNS(0), the UDP size limit is 512. Otherwise the limit is the
@@ -117,8 +119,9 @@ contexts do not come from the `Serve` context.
    if a UDP response has the TC bit, the function returns `Received` with `Truncated`
    true and no error. Write rule 6 removes the answer RR from a truncated response, and
    the client then retries over TCP.
-6. `Payload` comes from the hex `Rdata`. For a type that miekg knows, for example TXT,
-   the payload is the packed RDATA of the RR.
+6. `Payload` comes from the hex `Rdata`. For a type that miekg knows, for example A,
+   the payload is the packed RDATA of the RR. For QTYPE 16, the payload is the joined
+   bytes of the TXT character-strings (FR-interop-8).
 
 ### Tests without miekg
 

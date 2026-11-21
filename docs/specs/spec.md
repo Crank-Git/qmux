@@ -129,7 +129,7 @@ planning interview.
 | static record | noun | A payload for one QNAME that the configuration file declares. | fixture, entry |
 | observation log | noun | The JSONL file in which `qmuxd` writes one line per received query. | query log, access log |
 | probe | noun | One query that `qmux-probe` sends for one combination of path, transport, class and type. | test case, check |
-| probe protocol | noun | The echo protocol `org.qmux.probe` that `qmuxd` serves for interop runs. | test protocol |
+| probe protocol | noun | The echo protocol `org.qmux.probe.<class>-<type>` that `qmuxd` serves for interop runs, one protocol ID for each class and type pair. | test protocol |
 | path | noun | The route of a probe: direct, through BIND, or through Unbound. | route, hop |
 | interop matrix | noun | The table of probe outcomes over every path, transport, class and type. | compatibility table |
 | baseline | noun | One of the comparison implementations: IN-class DNS, IN + TXT, CoAP or HTTPS. | alternative, competitor |
@@ -457,7 +457,7 @@ The demonstration uses these defaults:
 | `org.qmux.bootstrap` | 65280 | 65280 |
 | `org.qmux.configuration` | 65281 | 65280 |
 | `org.qmux.firmware` | 65282 | 65280 |
-| `org.qmux.probe` | as the interop configuration lists | as the interop configuration lists |
+| `org.qmux.probe.<class>-<type>` | as the interop configuration lists | as the interop configuration lists |
 
 ### Error semantics
 
@@ -820,3 +820,8 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   `transport.Listen` (#158).
 - 2026-11-20 — qmuxd daemon is `built` (#163). A config error gives the same text on every
   Go version (#164).
+- 2026-11-20 — Interop decisions (#10): the user ruled that each probe pair registers the
+  protocol ID `org.qmux.probe.<class>-<type>` (#168). ADR 0006 records the one-key-per-ID
+  rule. The QTYPE 16 TXT path joins the character-strings in the client (ADR 0005, Exchange
+  rule 6). The observed matrix: every direct probe is ok, and through BIND 9.20 and
+  Unbound 1.26.2 only class IN reaches the authoritative server.

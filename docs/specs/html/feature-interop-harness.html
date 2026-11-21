@@ -190,7 +190,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li>FR-interop-2 — For each class and type pair in the <code>probe</code> section, <code>qmuxd</code> registers
 </li>
 </ul>
-<p>the probe protocol <code>org.qmux.probe</code>, version 1.</p>
+<p>the probe protocol, version 1, with the protocol ID <code>org.qmux.probe.&lt;class&gt;-&lt;type&gt;</code>. For example, the pair <code>(65281, 65280)</code> has the ID <code>org.qmux.probe.65281-65280</code>.</p>
 <ul>
 <li>FR-interop-3 — <code>qmuxd</code> rejects a <code>probe</code> section with a reserved class unless
 </li>
@@ -540,6 +540,8 @@ qmux-probe: wrote tests/interoperability/results/results.json (60 records)</code
 <tr><td><code>error</code></td><td>text, empty when <code>ok</code></td></tr>
 <tr><td><code>reached_authoritative</code></td><td>bool, or null when no observation log exists</td></tr>
 <tr><td><code>observed_qclass</code>, <code>observed_qtype</code></td><td>uint, or null</td></tr>
+<tr><td><code>host_arch</code></td><td>text: the architecture of the probe host (FR-interop-39c)</td></tr>
+<tr><td><code>emulated</code></td><td>bool: true when the image of the path runs on another architecture (FR-interop-39c)</td></tr>
 </table></div>
 <p>Files: <code>tests/interoperability/qmuxd.json</code>, <code>compose.yaml</code>, <code>bind/named.conf</code>, <code>bind/named-view-65281.conf</code>, <code>unbound/unbound.conf</code>, <code>results/results.json</code>.</p>
 <h3 id="interop-harness-interfaces">Interfaces</h3>
@@ -598,7 +600,12 @@ qmux-probe: wrote tests/interoperability/results/results.json (60 records)</code
 <li>FR-interop-1 and FR-interop-2: with <code>probe.classes = [65281]</code> and `probe.types =
 </li>
 </ul>
-<p>[65280]<code>, </code>qmuxctl discover<code> lists </code>org.qmux.probe<code> at </code>(65281, 65280)`.</p>
+<p>[65280]<code>, </code>qmuxctl discover<code> lists </code>org.qmux.probe.65281-65280<code> at </code>(65281, 65280)`.</p>
+<ul>
+<li>FR-interop-2: with the default classes and types of <code>qmux-probe</code>, <code>qmuxctl discover</code>
+</li>
+</ul>
+<p>lists 10 probe protocol IDs, each at its own protocol key.</p>
 <ul>
 <li>FR-interop-3: a <code>probe</code> section with class 3 and no <code>allow_reserved_classes</code> makes
 </li>
@@ -643,7 +650,7 @@ qmux-probe: wrote tests/interoperability/results/results.json (60 records)</code
 </ul>
 <p>direct path.</p>
 <ul>
-<li>FR-interop-19: a probe to a port with no listener has outcome <code>timeout</code> after 3 s.
+<li>FR-interop-19: a probe to an address that never answers has outcome <code>timeout</code> after 3 s. A refused port has outcome <code>network</code>.
 </li>
 <li>FR-interop-12a: a unit test of <code>qmux-probe</code> shows RD=1 in a resolver-path query and RD=0 in a direct-path query.
 </li>
