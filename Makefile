@@ -1,4 +1,4 @@
-.PHONY: check build test race vet lint fuzz demo
+.PHONY: check build test race vet lint fuzz demo interop
 
 FUZZTIME ?= 30s
 
@@ -18,6 +18,11 @@ build:
 demo:
 	@dir=$$(mktemp -d) && trap 'rm -rf "$$dir"' EXIT && \
 		go run ./examples/embedded-bootstrap --state "$$dir/device-state.json" --data-dir "$$dir/device-data"
+
+# interop stops the compose environment on every exit path (FR-interop-41 to FR-interop-43).
+# REQUIRE_DIRECT=true makes the run exit 1 when a direct probe fails.
+interop:
+	REQUIRE_DIRECT=$(REQUIRE_DIRECT) sh tests/interoperability/interop.sh
 
 test:
 	go test ./...
