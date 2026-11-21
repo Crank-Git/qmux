@@ -72,6 +72,17 @@ type config struct {
 	LogLevel       slog.Level
 	LogFormat      string
 	Protocols      []protocolConfig
+	// Probe is the probe section, or nil when the file has none.
+	Probe *probeSection
+}
+
+// probeSection is the probe field of the configuration file after validation.
+type probeSection struct {
+	// Zone is the lowercase probe zone.
+	Zone string
+	// Keys holds one protocol key for each class and type pair, in the order of the
+	// classes and then the types.
+	Keys []protocol.ProtocolKey
 }
 
 // discoveryConfig is the discovery field of the configuration file.
@@ -118,6 +129,14 @@ type fileConfig struct {
 	LogLevel             string            `json:"log_level"`
 	LogFormat            string            `json:"log_format"`
 	Protocols            []json.RawMessage `json:"protocols"`
+	Probe                json.RawMessage   `json:"probe"`
+}
+
+// fileProbe is the probe field as it decodes.
+type fileProbe struct {
+	Zone    string            `json:"zone"`
+	Classes []json.RawMessage `json:"classes"`
+	Types   []json.RawMessage `json:"types"`
 }
 
 // fileRateLimit is the rate_limit field as it decodes.
@@ -179,6 +198,11 @@ func loadConfig(path, listen string) (config, error) {
 	}
 	if err := f.protocolFields(&cfg); err != nil {
 		return config{}, err
+	}
+	if len(f.Probe) > 0 {
+		if cfg.Probe, err = validProbe(f.Probe, cfg.Zones, cfg.Registry); err != nil {
+			return config{}, err
+		}
 	}
 	return cfg, nil
 }
@@ -312,6 +336,10 @@ func validProtocol(raw json.RawMessage, path string, zones []string) (protocolCo
 	var fp fileProtocol
 	if err := decodeStrict(raw, &fp, path); err != nil {
 		return protocolConfig{}, err
+	}
+	// FR-interop-9 keeps the TXT path for the probe protocol and the benchmark.
+	if fp.Type == typeTXT {
+		return protocolConfig{}, fmt.Errorf("%s.type: type %d is TXT, and only the probe section uses TXT", path, fp.Type)
 	}
 	versions, err := decodeArray[uint16](fp.Versions, path+".versions")
 	if err != nil {

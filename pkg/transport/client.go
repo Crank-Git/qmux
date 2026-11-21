@@ -37,7 +37,8 @@ type Received struct {
 	Truncated bool
 	// TTL is the TTL of the answer RR, or 0 without an answer RR.
 	TTL uint32
-	// Payload holds the RDATA bytes of the answer RR, or nil without an answer RR.
+	// Payload holds the RDATA bytes of the answer RR, or nil without an answer RR. For
+	// QTYPE 16, Payload holds the joined bytes of the TXT character-strings.
 	Payload []byte
 	// WireSize is the number of bytes received, without the TCP length prefix.
 	WireSize int
@@ -180,6 +181,11 @@ func match(wire []byte, p Packet, network string) (Received, error) {
 	payload, err := rdata(m.Answer[0])
 	if err != nil {
 		return Received{}, err
+	}
+	if p.Key.Type == dns.TypeTXT {
+		if payload, err = joinTXT(payload); err != nil {
+			return Received{}, err
+		}
 	}
 	r.TTL = h.Ttl
 	r.Payload = payload
