@@ -207,8 +207,8 @@ func TestLoadConfigAppliesTheDefaultsOfTheSchemaTable(t *testing.T) { // FR-qmux
 	if err != nil {
 		t.Fatalf("loadConfig: %v", err)
 	}
-	if cfg.SignatureValidity != time.Hour || cfg.TTL != 60 || cfg.UDPSize != 1232 || cfg.HandlerTimeout != 2*time.Second {
-		t.Errorf("signature_validity, ttl, udp_size, handler_timeout = %v, %d, %d, %v; want 1h, 60, 1232, 2s",
+	if cfg.SignatureValidity != time.Hour || cfg.TTL != 60 || cfg.UDPSize != 1232 || cfg.HandlerTimeout != 800*time.Millisecond {
+		t.Errorf("signature_validity, ttl, udp_size, handler_timeout = %v, %d, %d, %v; want 1h, 60, 1232, 800ms",
 			cfg.SignatureValidity, cfg.TTL, cfg.UDPSize, cfg.HandlerTimeout)
 	}
 	if cfg.RateLimit != (server.RateLimit{QPS: 50, Burst: 100}) {

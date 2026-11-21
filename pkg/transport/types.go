@@ -23,8 +23,9 @@ const (
 	RCodeBadVers  RCode = 16
 )
 
-// String returns the RCODE mnemonic, for example "NOERROR" or "BADVERS". For an RCODE
-// that QMux does not send, it returns "RCODE" and the decimal value.
+// String returns the RCODE mnemonic, for example "NXDOMAIN" or "BADVERS". It names
+// each RCODE of RFC 1035, RFC 2136 and RFC 6891, because a resolver can send RCODEs
+// that QMux never sends. For any other RCODE, it returns "RCODE" and the decimal value.
 func (r RCode) String() string {
 	switch r {
 	case RCodeNoError:
@@ -33,10 +34,22 @@ func (r RCode) String() string {
 		return "FORMERR"
 	case RCodeServFail:
 		return "SERVFAIL"
+	case 3:
+		return "NXDOMAIN"
 	case RCodeNotImp:
 		return "NOTIMP"
 	case RCodeRefused:
 		return "REFUSED"
+	case 6:
+		return "YXDOMAIN"
+	case 7:
+		return "YXRRSET"
+	case 8:
+		return "NXRRSET"
+	case 9:
+		return "NOTAUTH"
+	case 10:
+		return "NOTZONE"
 	case RCodeBadVers:
 		return "BADVERS"
 	}

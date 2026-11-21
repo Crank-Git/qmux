@@ -74,6 +74,25 @@ const (
 	StatusUnavailable Status = 4
 )
 
+// String returns the name of a framework status from the application status table of
+// the spec, for example "not-found". For any other status, it returns the decimal
+// number.
+func (s Status) String() string {
+	switch s {
+	case StatusOK:
+		return "ok"
+	case StatusNotFound:
+		return "not-found"
+	case StatusBadRequest:
+		return "bad-request"
+	case StatusVersionUnsupported:
+		return "version-unsupported"
+	case StatusUnavailable:
+		return "unavailable"
+	}
+	return strconv.FormatUint(uint64(s), 10)
+}
+
 // MessageType is the envelope field that names the kind of envelope.
 type MessageType uint16
 

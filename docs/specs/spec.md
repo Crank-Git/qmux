@@ -520,7 +520,7 @@ private keys.
 |---|---|
 | Server UDP size limit with EDNS(0) | 1232 bytes |
 | Server UDP size limit without EDNS(0) | 512 bytes |
-| Handler timeout | 2 s |
+| Handler timeout | 800 ms |
 | Server read and write timeout | 2 s |
 | Graceful shutdown grace period | 5 s |
 | Default response TTL | 60 s |
@@ -530,6 +530,9 @@ private keys.
 | Client advertised UDP size | 1232 bytes |
 | Allowed clock skew | 60 s |
 | Longest validity window a client accepts | 24 h |
+
+From the review #193, the handler timeout is 800 ms and not 2 s. It is shorter than the
+client attempt timeout, so a slow handler gives SERVFAIL on the first attempt.
 
 ## Environments & config
 

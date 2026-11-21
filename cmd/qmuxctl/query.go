@@ -111,7 +111,7 @@ func runQuery(ctx context.Context, name string, args []string, stdout, stderr io
 		RTTMillis:  float64(res.RTT) / float64(time.Millisecond),
 		QueryBytes: res.QueryBytes, ResponseBytes: res.ResponseBytes,
 		Verified: res.Verified, ProtocolID: res.ProtocolID, Version: res.Version,
-		MessageType: messageTypeName(res.MessageType), Status: statusName(res.Status),
+		MessageType: messageTypeName(res.MessageType), Status: res.Status.String(),
 		PayloadBytes: len(res.Payload), Payload: hex.EncodeToString(res.Payload),
 	}
 	var werr error
@@ -129,24 +129,6 @@ func runQuery(ctx context.Context, name string, args []string, stdout, stderr io
 		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 	}
 	return code
-}
-
-// statusName returns the name of a framework application status, or the decimal
-// number for a reserved or protocol-specific status.
-func statusName(s protocol.Status) string {
-	switch s {
-	case protocol.StatusOK:
-		return "ok"
-	case protocol.StatusNotFound:
-		return "not-found"
-	case protocol.StatusBadRequest:
-		return "bad-request"
-	case protocol.StatusVersionUnsupported:
-		return "version-unsupported"
-	case protocol.StatusUnavailable:
-		return "unavailable"
-	}
-	return strconv.FormatUint(uint64(s), 10)
 }
 
 // messageTypeName returns "record" or "manifest" for a framework message type, or the

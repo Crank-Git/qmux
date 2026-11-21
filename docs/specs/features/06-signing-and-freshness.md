@@ -138,6 +138,17 @@ signed metadata. It also adds the manifest cache, key files, trust anchor files 
 - **FR-security-47** — The cache is never used when `InsecureSkipVerify` is true and no
   trust anchors exist.
 
+**Note.** From the review #193, a stale manifest also ends a cache entry, before its
+`expires_at`. This amends FR-security-42 and FR-security-46:
+
+- `discovery.Client.QueryProtocol` drops the cached manifest of the zone when the query
+  gets the status `version-unsupported`, the RCODE `REFUSED` or a `*client.DNSError` of
+  kind `mismatch`.
+- `discovery.Client.Forget(zone)` drops the cached manifest of the zone.
+- A dropped manifest leaves memory, and its cache file in `CacheDir` is removed. The next
+  `Discover` for the zone sends a query.
+- Any other answer, for example `ok`, keeps the cached manifest.
+
 ### qmuxctl, fuzz and Phase 3 test
 
 - **FR-security-48** — `qmuxctl keygen --out <prefix>` writes `<prefix>.key` and
