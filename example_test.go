@@ -16,13 +16,29 @@ import (
 	"github.com/Crank-Git/qmux/pkg/protocol"
 )
 
+// firmwareRecord is the payload of org.qmux.firmware, protocol version 1 (FR-demo-3).
+type firmwareRecord struct {
+	Version string `cbor:"1,keyasint"`
+	Digest  []byte `cbor:"2,keyasint"`
+	URL     string `cbor:"3,keyasint"`
+	KeyID   []byte `cbor:"4,keyasint"`
+}
+
 // firmwareHandler answers the firmware metadata of a device.
 type firmwareHandler struct{}
 
-// Handle returns the firmware metadata for the device that req.QName names.
-// It uses QName and not Labels, because a query for the zone itself has no labels.
+// Handle returns the same firmware record for each device. The record has no digest
+// and no key ID, so that the example stays short. Handle echoes req.Version, because
+// the server uses the highest registered version when a response holds version 0.
 func (firmwareHandler) Handle(ctx context.Context, req *protocol.Request) (*protocol.Response, error) {
-	return &protocol.Response{Payload: []byte("firmware 1.4.2 for " + req.QName)}, nil
+	payload, err := codec.Marshal(firmwareRecord{
+		Version: "2.4.1",
+		URL:     "https://mgmt.fleet.example/firmware/2.4.1.bin",
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &protocol.Response{Payload: payload, Version: req.Version}, nil
 }
 
 // Info returns the protocol ID and the protocol versions of the firmware protocol.
@@ -30,14 +46,14 @@ func (firmwareHandler) Info() protocol.Info {
 	return protocol.Info{ID: "org.qmux.firmware", Versions: []uint16{1}}
 }
 
-// ExampleNewServer serves the firmware protocol at the protocol key 65280/65280.
+// ExampleNewServer serves the firmware protocol at the protocol key 65282/65280.
 // The example has no Output comment, because ListenAndServe runs until an interrupt.
 func ExampleNewServer() {
 	srv := qmux.NewServer(qmux.ServerConfig{
 		Address: "127.0.0.1:5300",
 		Zones:   []string{"fleet.example."},
 	})
-	key := qmux.ProtocolKey{Class: 65280, Type: 65280}
+	key := qmux.ProtocolKey{Class: 65282, Type: 65280}
 	if err := srv.Register(key, firmwareHandler{}); err != nil {
 		log.Fatal(err)
 	}
@@ -49,27 +65,25 @@ func ExampleNewServer() {
 	}
 }
 
-// ExampleNewClient asks the server of ExampleNewServer for the firmware metadata.
+// ExampleNewClient asks a server for the firmware record of device42.fleet.example.
+// and prints the decoded record. The quick-start server and the server of
+// ExampleNewServer both answer it.
 // The example has no Output comment, because it needs a running server.
 func ExampleNewClient() {
 	c := qmux.NewClient(qmux.ClientConfig{Resolver: "127.0.0.1:5300"})
 	res, err := c.Query(context.Background(), qmux.Query{
 		Name:  "device42.fleet.example.",
-		Class: 65280,
+		Class: 65282,
 		Type:  65280,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%s\n", res.Payload)
-}
-
-// firmwareRecord is the payload of org.qmux.firmware, protocol version 1 (FR-demo-3).
-type firmwareRecord struct {
-	Version string `cbor:"1,keyasint"`
-	Digest  []byte `cbor:"2,keyasint"`
-	URL     string `cbor:"3,keyasint"`
-	KeyID   []byte `cbor:"4,keyasint"`
+	var fw firmwareRecord
+	if err := codec.Unmarshal(res.Payload, &fw); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s v%d: firmware %s at %s\n", res.ProtocolID, res.Version, fw.Version, fw.URL)
 }
 
 func TestFirmwareHandlerEchoesTheRequestVersion(t *testing.T) {
