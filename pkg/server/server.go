@@ -22,7 +22,7 @@ import (
 const (
 	defaultTTL            = 60
 	defaultUDPSize        = 1232
-	defaultHandlerTimeout = 2 * time.Second
+	defaultHandlerTimeout = 800 * time.Millisecond
 	defaultReadTimeout    = 2 * time.Second
 	defaultWriteTimeout   = 2 * time.Second
 	defaultShutdownGrace  = 5 * time.Second
@@ -55,7 +55,7 @@ type ServerConfig struct {
 	TTL uint32
 	// UDPSize is the UDP size limit for a query with EDNS(0). The default is 1232.
 	UDPSize uint16
-	// HandlerTimeout limits each handler call. The default is 2s. At the timeout, the
+	// HandlerTimeout limits each handler call. The default is 800ms. At the timeout, the
 	// server answers SERVFAIL, also when the handler ignores its context.
 	// The server cannot stop a handler goroutine. A handler that never returns keeps
 	// its goroutine until the process ends, so a handler must observe its context.

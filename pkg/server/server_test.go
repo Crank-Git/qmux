@@ -412,7 +412,8 @@ func TestShutdownWaitsForAHandlerThatFinishesWithinTheGrace(t *testing.T) {
 			return nil, ctx.Err()
 		}
 	})
-	s := newTestServer(t, ServerConfig{ShutdownGrace: 5 * time.Second}, h)
+	// The handler timeout must be longer than the 1s handler, so only the grace limits it.
+	s := newTestServer(t, ServerConfig{HandlerTimeout: 2 * time.Second, ShutdownGrace: 5 * time.Second}, h)
 	cancelServe, addr, errc := startServer(t, s)
 
 	type result struct {

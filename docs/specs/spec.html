@@ -654,7 +654,7 @@ body.rv-open .layout { padding-right:21rem; }
 <tr><th>Setting</th><th>Default</th></tr>
 <tr><td>Server UDP size limit with EDNS(0)</td><td>1232 bytes</td></tr>
 <tr><td>Server UDP size limit without EDNS(0)</td><td>512 bytes</td></tr>
-<tr><td>Handler timeout</td><td>2 s</td></tr>
+<tr><td>Handler timeout</td><td>800 ms</td></tr>
 <tr><td>Server read and write timeout</td><td>2 s</td></tr>
 <tr><td>Graceful shutdown grace period</td><td>5 s</td></tr>
 <tr><td>Default response TTL</td><td>60 s</td></tr>
@@ -665,6 +665,7 @@ body.rv-open .layout { padding-right:21rem; }
 <tr><td>Allowed clock skew</td><td>60 s</td></tr>
 <tr><td>Longest validity window a client accepts</td><td>24 h</td></tr>
 </table></div>
+<p>From the review #193, the handler timeout is 800 ms and not 2 s. It is shorter than the client attempt timeout, so a slow handler gives SERVFAIL on the first attempt.</p>
 <h2 id="environments-config">Environments &amp; config</h2>
 <div class="table-wrap"><table>
 <tr><th>Environment</th><th>Purpose</th></tr>
@@ -1070,7 +1071,11 @@ golangci-lint run</code></pre>
 <li>2026-11-20 — Documentation decisions (#12): the user ruled that <code>docs/acceptance.md</code> maps
 </li>
 </ul>
-<p>the acceptance criteria of the spec, because the source brief is not in the repository. Dated results snapshots live in <code>docs/results/</code> (FR-docs-15). The <code>qmuxd</code> example and default address is <code>127.0.0.1:5300</code>, because mDNS holds port 5353 on macOS (#186, #189). <code>docs/acceptance.md</code> maps 414 criteria: 405 name a proof, and 9 are listed as having no automated proof.</p><nav class="pager">
+<p>the acceptance criteria of the spec, because the source brief is not in the repository. Dated results snapshots live in <code>docs/results/</code> (FR-docs-15). The <code>qmuxd</code> example and default address is <code>127.0.0.1:5300</code>, because mDNS holds port 5353 on macOS (#186, #189). <code>docs/acceptance.md</code> maps 414 criteria: 405 name a proof, and 9 are listed as having no automated proof.</p>
+<ul>
+<li>2026-11-20 — Documentation is <code>built</code> (#192). Every feature of the spec is now <code>built</code>.
+</li>
+</ul><nav class="pager">
 <span></span>
 <a href="html/feature-foundation.html">Feature: Foundation &rarr;</a>
 </nav>
