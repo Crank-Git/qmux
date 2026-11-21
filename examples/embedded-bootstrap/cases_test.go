@@ -114,6 +114,48 @@ var demoCases = []demoCase{
 		result:    "[device]  result: failed, state unchanged",
 		wantState: staleState,
 	},
+	{
+		name:     "tamper https on a current device",
+		state:    currentState,
+		flags:    []string{"--tamper-https"},
+		code:     0,
+		requests: 0,
+		lines:    []string{noEffectLine},
+		result:   "[device]  result: up to date (0 downloads)",
+		// The device downloads no configuration bundle, so the tampered bundle is
+		// never served and the device state stays the same.
+		wantState: currentState,
+	},
+	{
+		// The README runs this step after the stale case, so the device state holds
+		// generation 7 and a higher remote generation makes the device download.
+		name:     "tamper https after the stale case with a higher remote generation",
+		state:    reconciledState,
+		flags:    []string{"--remote-generation", "8", "--tamper-https"},
+		code:     1,
+		requests: 1,
+		lines: []string{
+			"[device]  configuration: digest mismatch, resource discarded",
+		},
+		result:    "[device]  result: failed, state unchanged",
+		wantState: reconciledState,
+	},
+}
+
+// noEffectLine is the line that the program prints when --tamper-https is set and
+// the device downloads no configuration bundle.
+const noEffectLine = "[device]  tamper: --tamper-https has no effect, the device downloads no configuration bundle; " +
+	"use a new --state path or a higher --remote-generation"
+
+func TestAnUntamperedCurrentDevicePrintsNoTamperLine(t *testing.T) {
+	_, args := files(t, currentState)
+	out, code := runDemo(t, args...)
+	if code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+	if strings.Contains(out, "tamper:") {
+		t.Errorf("output holds a tamper line:\n%s", out)
+	}
 }
 
 func TestEachDemonstrationCaseGivesItsExitCodeOutputFilesAndHTTPSRequestCount(t *testing.T) { // FR-demo-45
