@@ -71,15 +71,15 @@ func New(opts Options) *Registry {
 // Errors wrap one of these sentinels:
 //   - ErrInvalidHandler, ErrInvalidID, ErrInvalidVersions or ErrInvalidKey
 //     when the arguments are invalid.
-//   - ErrKeyConflict when key already has a registration.
+//   - ErrKeyConflict when key already has a registration. The error text
+//     names the protocol ID that holds key.
 //   - ErrIDConflict when info.ID already has a registration at another key.
 func (r *Registry) Register(key protocol.ProtocolKey, info protocol.Info, h protocol.Handler) error {
 	if h == nil {
 		return fmt.Errorf("register %s %q: %w", key, info.ID, ErrInvalidHandler)
 	}
-	// The length check runs first, so the pattern never scans a long input.
-	if len(info.ID) > maxIDLen || !idPattern.MatchString(info.ID) {
-		return fmt.Errorf("register %s %q: %w", key, info.ID, ErrInvalidID)
+	if err := validID(info.ID); err != nil {
+		return fmt.Errorf("register %s %q: %w", key, info.ID, err)
 	}
 	if len(info.Versions) == 0 {
 		return fmt.Errorf("register %s %q: no versions: %w", key, info.ID, ErrInvalidVersions)
@@ -103,8 +103,8 @@ func (r *Registry) Register(key protocol.ProtocolKey, info protocol.Info, h prot
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, ok := r.byKey[key]; ok {
-		return fmt.Errorf("register %s %q: %w", key, info.ID, ErrKeyConflict)
+	if held, ok := r.byKey[key]; ok {
+		return fmt.Errorf("register %s %q: held by %q: %w", key, info.ID, held.Info.ID, ErrKeyConflict)
 	}
 	if held, ok := r.byID[info.ID]; ok {
 		return fmt.Errorf("register %s %q: held by %s: %w", key, info.ID, held, ErrIDConflict)
