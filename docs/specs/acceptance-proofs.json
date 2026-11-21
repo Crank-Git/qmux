@@ -1362,7 +1362,7 @@
       "proofs": [
         {
           "test": "pkg/client",
-          "name": "TestAppErrorNamesTheStatus"
+          "name": "TestAppErrorTextNamesAFrameworkStatusAndPrintsOthersInDecimal"
         }
       ]
     },

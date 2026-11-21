@@ -201,7 +201,7 @@ Criteria from [`docs/specs/features/03-client-sdk.md`](specs/features/03-client-
 | 21 | A `REFUSED` response returns a `DNSError` with kind `rcode` and `RCode` 5. (FR-client-21) | `TestQueryReturnsAnRCodeErrorThatHoldsTheRCode` in [`pkg/client`](../pkg/client) |
 | 22 | A truncated, unparseable TCP response returns a malformed `DNSError`. (FR-client-22) | `TestQueryReturnsAMalformedErrorForATruncatedTCPResponse` in [`pkg/client`](../pkg/client) |
 | 23 | A query to a closed TCP port returns a network `DNSError`. (FR-client-23) | `TestQueryReturnsANetworkErrorForAClosedTCPPort` in [`pkg/client`](../pkg/client) |
-| 24 | `AppError{Status: 1, ProtocolID: "org.qmux.firmware", Version: 1}` compiles and its `Error()` names the status. (FR-client-24) | `TestAppErrorNamesTheStatus` in [`pkg/client`](../pkg/client) |
+| 24 | `AppError{Status: 1, ProtocolID: "org.qmux.firmware", Version: 1}` compiles and its `Error()` names the status. (FR-client-24) | `TestAppErrorTextNamesAFrameworkStatusAndPrintsOthersInDecimal` in [`pkg/client`](../pkg/client) |
 | 25 | `VerifyError{Reason: "expired"}` compiles and its `Error()` names the reason. From Epic 6, FR-security-36 replaces the string: `Reason` holds the sentinel error. (FR-client-25) | `TestVerifyErrorNamesTheSentinelOfTheReason` in [`pkg/client`](../pkg/client) (Reason holds the sentinel error after Epic 6) |
 | 26 | `Result.Payload` equals the payload of the envelope, which is the handler's payload. (FR-client-26) | `TestResultPayloadEqualsTheHandlerPayload` in [`pkg/client`](../pkg/client) |
 | 27 | `Result` holds the QNAME, protocol key, `NOERROR` and the RR TTL. (FR-client-27) | `TestResultHoldsTheNameKeyNoErrorAndTheTTL` in [`pkg/client`](../pkg/client) |
