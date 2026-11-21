@@ -20,12 +20,13 @@ import (
 
 const testZone = "fleet.example."
 
-// discoveryServer is a server with one discovery registration. It records the QNAME of
-// each query that reaches the handler.
+// discoveryServer is a server with one discovery registration. It records the QNAME and
+// the transport of each query that reaches the handler.
 type discoveryServer struct {
-	addr   string
-	mu     sync.Mutex
-	qnames []string
+	addr       string
+	mu         sync.Mutex
+	qnames     []string
+	transports []string
 }
 
 // received returns the QNAMEs that the handler received, in arrival order.
@@ -33,6 +34,14 @@ func (d *discoveryServer) received() []string {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return append([]string(nil), d.qnames...)
+}
+
+// receivedTransports returns the transports of the queries that the handler received,
+// in arrival order.
+func (d *discoveryServer) receivedTransports() []string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append([]string(nil), d.transports...)
 }
 
 // testManifest returns a manifest for testZone with three entries. The discovery entry
@@ -73,6 +82,7 @@ func startSignedDiscoveryServer(t *testing.T, signer *security.Signer, key proto
 	h := protocol.HandlerFunc(func(_ context.Context, req *protocol.Request) (*protocol.Response, error) {
 		d.mu.Lock()
 		d.qnames = append(d.qnames, req.QName)
+		d.transports = append(d.transports, req.Transport)
 		d.mu.Unlock()
 		return resp, nil
 	})
@@ -92,12 +102,12 @@ func discoverCmd(args ...string) (int, string, string) {
 	return code, stdout.String(), stderr.String()
 }
 
-func TestDiscoverHelpListsTheEightFlags(t *testing.T) { // FR-discovery-33, FR-security-50
+func TestDiscoverHelpListsTheNineFlags(t *testing.T) { // FR-discovery-33, FR-security-50
 	code, stdout, _ := discoverCmd("--help")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
-	for _, f := range []string{"--server", "--name", "--class", "--type", "--in", "--insecure", "--json", "--trust-anchors"} {
+	for _, f := range []string{"--server", "--name", "--class", "--type", "--in", "--insecure", "--json", "--tcp", "--trust-anchors"} {
 		if !strings.Contains(stdout, f+" ") {
 			t.Errorf("help text has no %s:\n%s", f, stdout)
 		}
@@ -112,6 +122,28 @@ func TestDiscoverQueriesTheDiscoveryNameOfTheZoneAtTheDefaultKey(t *testing.T) {
 	}
 	if got := d.received(); len(got) != 1 || got[0] != "_qmux."+testZone {
 		t.Errorf("server received %q, want one query for %q", got, "_qmux."+testZone)
+	}
+}
+
+func TestDiscoverTCPSendsTheQueryOverTCP(t *testing.T) { // FR-discovery-33
+	d := startDiscoveryServer(t, discovery.DefaultKey, nil)
+	code, _, stderr := discoverCmd("--server", d.addr, "--name", testZone, "--insecure", "--tcp")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr = %q", code, stderr)
+	}
+	if got := d.receivedTransports(); len(got) != 1 || got[0] != "tcp" {
+		t.Errorf("server received queries over %q, want one query over tcp", got)
+	}
+}
+
+func TestDiscoverWithoutTCPSendsTheQueryOverUDP(t *testing.T) {
+	d := startDiscoveryServer(t, discovery.DefaultKey, nil)
+	code, _, stderr := discoverCmd("--server", d.addr, "--name", testZone, "--insecure")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr = %q", code, stderr)
+	}
+	if got := d.receivedTransports(); len(got) != 1 || got[0] != "udp" {
+		t.Errorf("server received queries over %q, want one query over udp", got)
 	}
 }
 
