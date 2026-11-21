@@ -820,3 +820,8 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   `transport.Listen` (#158).
 - 2026-11-20 — qmuxd daemon is `built` (#163). A config error gives the same text on every
   Go version (#164).
+- 2026-11-20 — Interop decisions (#10): the user ruled that each probe pair registers the
+  protocol ID `org.qmux.probe.<class>-<type>` (#168). ADR 0006 records the one-key-per-ID
+  rule. The QTYPE 16 TXT path joins the character-strings in the client (ADR 0005, Exchange
+  rule 6). The observed matrix: every direct probe is ok, and through BIND 9.20 and
+  Unbound 1.26.2 only class IN reaches the authoritative server.

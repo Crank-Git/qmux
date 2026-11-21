@@ -1047,7 +1047,12 @@ golangci-lint run</code></pre>
 <li>2026-11-20 — qmuxd daemon is <code>built</code> (#163). A config error gives the same text on every
 </li>
 </ul>
-<p>Go version (#164).</p><nav class="pager">
+<p>Go version (#164).</p>
+<ul>
+<li>2026-11-20 — Interop decisions (#10): the user ruled that each probe pair registers the
+</li>
+</ul>
+<p>protocol ID <code>org.qmux.probe.&lt;class&gt;-&lt;type&gt;</code> (#168). ADR 0006 records the one-key-per-ID rule. The QTYPE 16 TXT path joins the character-strings in the client (ADR 0005, Exchange rule 6). The observed matrix: every direct probe is ok, and through BIND 9.20 and Unbound 1.26.2 only class IN reaches the authoritative server.</p><nav class="pager">
 <span></span>
 <a href="html/feature-foundation.html">Feature: Foundation &rarr;</a>
 </nav>
