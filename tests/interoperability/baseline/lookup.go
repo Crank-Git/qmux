@@ -14,10 +14,11 @@ import (
 	"github.com/Crank-Git/qmux/pkg/codec"
 	"github.com/Crank-Git/qmux/pkg/protocol"
 	"github.com/Crank-Git/qmux/pkg/security"
+	"github.com/Crank-Git/qmux/tests/interoperability/baseline/fixture"
 )
 
 // maxEnvelope is the largest envelope that a lookup reads, the default of codec.Limits.
-const maxEnvelope = 16384
+const maxEnvelope = fixture.MaxEnvelope
 
 // Client does lookups against one set of baseline servers. Each lookup verifies the
 // envelope signature before it returns the envelope bytes (FR-bench-11).
