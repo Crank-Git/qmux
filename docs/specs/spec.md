@@ -849,3 +849,9 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   `docs/acceptance.md` maps 414 criteria: 405 name a proof, and 9 are listed as having no
   automated proof.
 - 2026-11-20 — Documentation is `built` (#192). Every feature of the spec is now `built`.
+- 2026-11-20 — Review decisions (#193): the user ruled that the default `HandlerTimeout` of
+  the server is 800 ms. The user also ruled that a discovery client drops its cached
+  manifest after `version-unsupported`, `REFUSED` or a `mismatch`, and that
+  `discovery.Client.Forget(zone)` drops it on request. The PM decided that only a query
+  that the rate limit refuses logs at the `debug` level. The `qmuxd ready` record adds
+  `bound`, and a usage error of a command-line tool exits with code 64.
