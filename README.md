@@ -238,8 +238,8 @@ probe records, the resolver configurations and the reproduction steps.
 
 - In the tested configurations, BIND 9.20 and Unbound 1.26.2 carry class IN only. A
   private class can carry QMux only on the direct path.
-- On the direct path, one benchmark run measured no difference between a private class
-  and IN-class DNS that is larger than the noise of one run.
+- One benchmark run compared a private class with IN-class DNS on the direct path. It
+  measured no difference that is larger than the noise of one run.
 
 These results hold for one host and one run size. They do not show how other resolvers,
 other configurations or a real radio link behave. See
