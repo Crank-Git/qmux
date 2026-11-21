@@ -23,6 +23,8 @@ command-line flag.
 | `klutchell/unbound` | `1.26.2` | https://hub.docker.com/r/klutchell/unbound |
 | `golang` (the `Dockerfile` build stage) | `1.25` | https://hub.docker.com/_/golang |
 | `gcr.io/distroless/static-debian12` (the `Dockerfile` final stage) | `nonroot` | https://github.com/GoogleContainerTools/distroless |
+| `golang` (the `tests/interoperability/Dockerfile.bench` build stage) | `1.26` | https://hub.docker.com/_/golang |
+| `alpine` (the `tests/interoperability/Dockerfile.bench` final stage, with `iproute2` for `tc`) | `3.20` | https://hub.docker.com/_/alpine |
 
 ## Go modules
 
