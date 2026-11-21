@@ -123,7 +123,7 @@ func printDiscoverError(stderr io.Writer, err error) {
 	var verifyErr *client.VerifyError
 	switch {
 	case errors.As(err, &appErr):
-		_, _ = fmt.Fprintf(stderr, "error: %s\n", statusName(appErr.Status))
+		_, _ = fmt.Fprintf(stderr, "error: %s\n", appErr.Status)
 	case errors.As(err, &verifyErr):
 		_, _ = fmt.Fprintf(stderr, "error: %v\n", verifyErr)
 	default:
