@@ -142,6 +142,17 @@ func TestStatusConstantsMatchTheApplicationStatusTable(t *testing.T) {
 	}
 }
 
+func TestStatusStringNamesEachFrameworkStatusAndPrintsOthersInDecimal(t *testing.T) { // FR-codec-42
+	for status, want := range map[protocol.Status]string{
+		0: "ok", 1: "not-found", 2: "bad-request", 3: "version-unsupported", 4: "unavailable",
+		5: "5", 255: "255", 256: "256", 65535: "65535",
+	} {
+		if got := status.String(); got != want {
+			t.Errorf("Status(%d).String() = %q, want %q", uint16(status), got, want)
+		}
+	}
+}
+
 func TestMessageTypeConstantsAreRecordOneAndManifestTwo(t *testing.T) {
 	if protocol.MessageRecord != 1 {
 		t.Errorf("MessageRecord = %d, want 1", protocol.MessageRecord)

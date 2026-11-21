@@ -177,7 +177,7 @@ func TestQueryPrintsTheResultAndTheAppErrorAndExitsTwoForANotFoundStatus(t *test
 	if !strings.Contains(stdout, "name: "+testName+"\n") || !strings.Contains(stdout, "status: not-found\n") {
 		t.Errorf("stdout = %q, want the full result with the line %q", stdout, "status: not-found")
 	}
-	want := "error: client: application status 1 from test.device version 2\n"
+	want := "error: client: application status not-found from test.device version 2\n"
 	if stderr != want {
 		t.Errorf("stderr = %q, want %q", stderr, want)
 	}
@@ -188,17 +188,6 @@ func TestQueryPrintsAProtocolSpecificMessageTypeAndStatusAsDecimalNumbers(t *tes
 	code, stdout, stderr := queryCmd(keyArgs(addr)...)
 	if code != 2 || !strings.Contains(stdout, "message_type: 256\n") || !strings.Contains(stdout, "status: 300\n") {
 		t.Errorf("exit code = %d, stdout = %q, stderr = %q; want 2, message_type 256 and status 300", code, stdout, stderr)
-	}
-}
-
-func TestStatusNameNamesEachFrameworkStatusAndPrintsOthersInDecimal(t *testing.T) { // FR-codec-42
-	for status, want := range map[protocol.Status]string{
-		0: "ok", 1: "not-found", 2: "bad-request", 3: "version-unsupported", 4: "unavailable",
-		5: "5", 255: "255", 256: "256",
-	} {
-		if got := statusName(status); got != want {
-			t.Errorf("statusName(%d) = %q, want %q", status, got, want)
-		}
 	}
 }
 

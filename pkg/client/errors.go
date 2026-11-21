@@ -96,9 +96,10 @@ type AppError struct {
 	Version    uint16
 }
 
-// Error returns the application status, the protocol ID and the protocol version.
+// Error returns the application status, the protocol ID and the protocol version. It
+// names the status with protocol.Status.String.
 func (e *AppError) Error() string {
-	return "client: application status " + strconv.FormatUint(uint64(e.Status), 10) +
+	return "client: application status " + e.Status.String() +
 		" from " + e.ProtocolID + " version " + strconv.FormatUint(uint64(e.Version), 10)
 }
 
