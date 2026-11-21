@@ -40,8 +40,12 @@ server.
 - **FR-qmuxd-3** — `qmuxd serve` listens on UDP and on TCP at the listen address.
 - **FR-qmuxd-4** — `qmuxd serve` logs one record at level `info` when both listeners are
   ready. The record holds the listen address, the zones, the key ID and the protocol count.
+  From the review #193, `listen` is the configured address and `bound` is the address of
+  the UDP socket. A `0.0.0.0` socket is dual-stack and reports `[::]`.
 - **FR-qmuxd-5** — On SIGINT or SIGTERM, `qmuxd serve` shuts down with the grace period and
-  exits with code 0.
+  exits with code 0. From the review #193, it logs one `info` record when the shutdown
+  starts and one when it completes. Both records hold the grace period. The second
+  record also holds the time that the shutdown took.
 - **FR-qmuxd-6** — `qmuxd version` prints the module version and the Go version.
 - **FR-qmuxd-7** — `qmuxd` exits with code 1 when a listener cannot bind.
 
@@ -195,7 +199,9 @@ sequenceDiagram
 No graphical screens. Console output of `qmuxd serve` with the `text` log format:
 
 ```
-time=2026-11-20T10:00:00Z level=INFO msg="qmuxd ready" listen=127.0.0.1:5300 zones=[fleet.example.] key_id=3f9a1c0b7d2e4a65 protocols=4
+time=2026-11-20T10:00:00Z level=INFO msg="qmuxd ready" listen=127.0.0.1:5300 bound=127.0.0.1:5300 zones=[fleet.example.] key_id=3f9a1c0b7d2e4a65 protocols=4
+time=2026-11-20T10:05:00Z level=INFO msg="qmuxd shutdown started" grace=5s
+time=2026-11-20T10:05:00Z level=INFO msg="qmuxd shutdown complete" grace=5s duration=1.2ms
 ```
 
 Configuration error:

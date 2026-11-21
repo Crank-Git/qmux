@@ -201,12 +201,12 @@ body.rv-open .layout { padding-right:21rem; }
 <li><strong>FR-qmuxd-4</strong> — <code>qmuxd serve</code> logs one record at level <code>info</code> when both listeners are
 </li>
 </ul>
-<p>ready. The record holds the listen address, the zones, the key ID and the protocol count.</p>
+<p>ready. The record holds the listen address, the zones, the key ID and the protocol count. From the review #193, <code>listen</code> is the configured address and <code>bound</code> is the address of the UDP socket. A <code>0.0.0.0</code> socket is dual-stack and reports <code>[::]</code>.</p>
 <ul>
 <li><strong>FR-qmuxd-5</strong> — On SIGINT or SIGTERM, <code>qmuxd serve</code> shuts down with the grace period and
 </li>
 </ul>
-<p>exits with code 0.</p>
+<p>exits with code 0. From the review #193, it logs one <code>info</code> record when the shutdown starts and one when it completes. Both records hold the grace period. The second record also holds the time that the shutdown took.</p>
 <ul>
 <li><strong>FR-qmuxd-6</strong> — <code>qmuxd version</code> prints the module version and the Go version.
 </li>
@@ -459,7 +459,9 @@ body.rv-open .layout { padding-right:21rem; }
 </ol>
 <h3 id="qmuxd-daemon-screens-states">Screens &amp; states</h3>
 <p>No graphical screens. Console output of <code>qmuxd serve</code> with the <code>text</code> log format:</p>
-<pre class="code"><code>time=2026-11-20T10:00:00Z level=INFO msg="qmuxd ready" listen=127.0.0.1:5300 zones=[fleet.example.] key_id=3f9a1c0b7d2e4a65 protocols=4</code></pre>
+<pre class="code"><code>time=2026-11-20T10:00:00Z level=INFO msg="qmuxd ready" listen=127.0.0.1:5300 bound=127.0.0.1:5300 zones=[fleet.example.] key_id=3f9a1c0b7d2e4a65 protocols=4
+time=2026-11-20T10:05:00Z level=INFO msg="qmuxd shutdown started" grace=5s
+time=2026-11-20T10:05:00Z level=INFO msg="qmuxd shutdown complete" grace=5s duration=1.2ms</code></pre>
 <p>Configuration error:</p>
 <pre class="code"><code>qmuxd: config: protocols[1].class: 300 is not an allowed class</code></pre>
 <p>One observation log line:</p>

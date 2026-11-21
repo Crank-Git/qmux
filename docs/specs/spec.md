@@ -504,8 +504,10 @@ The client returns three separate Go error types:
 
 The server and `qmuxd` log with `log/slog`. One record per query carries `qname`,
 `qclass`, `qtype`, `transport`, `source`, `rcode`, `status`, `bytes_in`, `bytes_out` and
-`duration_ms`. The default level is `info`. The library never logs payload bytes or
-private keys.
+`duration_ms`. The default level is `info`. From the review #193, the record of a query
+that the rate limit refuses is at level `debug`, so a flood does not fill the log. Other
+`REFUSED` records stay at `info`. The observation log still gets its line for each
+query. The library never logs payload bytes or private keys.
 
 ### Performance targets
 
