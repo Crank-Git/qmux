@@ -72,8 +72,8 @@ func TestNewServerAppliesDefaultsToZeroFields(t *testing.T) {
 	if cfg.UDPSize != 1232 {
 		t.Errorf("UDPSize = %d, want 1232", cfg.UDPSize)
 	}
-	if cfg.HandlerTimeout != 2*time.Second {
-		t.Errorf("HandlerTimeout = %v, want 2s", cfg.HandlerTimeout)
+	if cfg.HandlerTimeout != 800*time.Millisecond {
+		t.Errorf("HandlerTimeout = %v, want 800ms", cfg.HandlerTimeout)
 	}
 	if cfg.ReadTimeout != 2*time.Second {
 		t.Errorf("ReadTimeout = %v, want 2s", cfg.ReadTimeout)
