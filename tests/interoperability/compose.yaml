@@ -1,0 +1,129 @@
+# The interop environment of FR-interop-28 to FR-interop-40. Every service has a fixed
+# address, because the resolver configurations name qmuxd by its address.
+# Reference: https://docs.docker.com/reference/compose-file/
+#
+# Run it with a project name of its own, and remove the shared volume after the run:
+#   docker compose -p qmux-interop -f tests/interoperability/compose.yaml up --build
+#   docker compose -p qmux-interop -f tests/interoperability/compose.yaml down -v
+# keygen refuses to replace a key, so a second run needs the volume removed first.
+
+name: qmux-interop
+
+networks:
+  interop:
+    ipam:
+      config:
+        - subnet: 172.28.62.0/24
+
+volumes:
+  # shared holds the signing key, the trust anchor file and the observation log.
+  shared:
+
+x-tools: &tools
+  build:
+    context: ../..
+    dockerfile: tests/interoperability/Dockerfile
+
+# dig gets an answer only when the server runs. version.bind and version.server are
+# CHAOS names that BIND and Unbound answer themselves.
+x-health: &health
+  interval: 2s
+  timeout: 3s
+  retries: 60
+
+services:
+  # keygen writes the signing key and the trust anchor file before qmuxd starts
+  # (FR-interop-31).
+  keygen:
+    <<: *tools
+    entrypoint: ["/usr/local/bin/qmuxctl", "keygen", "--out", "/shared/qmuxd"]
+    volumes:
+      - shared:/shared
+    networks:
+      interop:
+        ipv4_address: 172.28.62.50
+
+  qmuxd:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    depends_on:
+      keygen:
+        condition: service_completed_successfully
+    volumes:
+      - ./qmuxd.json:/etc/qmuxd/qmuxd.json:ro
+      - shared:/shared
+    networks:
+      interop:
+        ipv4_address: 172.28.62.10
+
+  bind:
+    image: internetsystemsconsortium/bind9:9.20
+    # The image exists for amd64 only. On an arm64 host, Docker runs it under emulation.
+    platform: linux/amd64
+    volumes:
+      - ./bind/named.conf:/etc/bind/named.conf:ro
+    healthcheck:
+      <<: *health
+      test: ["CMD", "dig", "@127.0.0.1", "+time=1", "+tries=1", "version.bind", "CH", "TXT"]
+    networks:
+      interop:
+        ipv4_address: 172.28.62.20
+
+  # bind-view records whether named-checkconf accepts a view of class 65281
+  # (FR-interop-36). It exits 0 when named-checkconf rejects the file, so the run continues.
+  bind-view:
+    image: internetsystemsconsortium/bind9:9.20
+    platform: linux/amd64
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if named-checkconf /etc/bind/named-view-65281.conf > /tmp/checkconf.txt 2>&1; then result=accepted; else result=rejected; fi
+        { echo "named-checkconf: $$result"; cat /tmp/checkconf.txt; } > /results/bind-view-65281.txt
+    volumes:
+      - ./bind/named-view-65281.conf:/etc/bind/named-view-65281.conf:ro
+      - ./results:/results
+    networks:
+      interop:
+        ipv4_address: 172.28.62.60
+
+  unbound:
+    image: klutchell/unbound:1.26.2
+    volumes:
+      - ./unbound/unbound.conf:/etc/unbound/custom.conf.d/qmux.conf:ro
+    healthcheck:
+      <<: *health
+      # The dig of this image is the ldns dig, which has no +time option.
+      test: ["CMD", "dig", "@127.0.0.1", "version.server", "CH", "TXT"]
+    networks:
+      interop:
+        ipv4_address: 172.28.62.30
+
+  # probe sends the probes over the direct path, bind and unbound (FR-interop-40).
+  probe:
+    <<: *tools
+    depends_on:
+      qmuxd:
+        condition: service_started
+      bind:
+        condition: service_healthy
+      unbound:
+        condition: service_healthy
+      bind-view:
+        condition: service_completed_successfully
+    command:
+      - --trust-anchors=/shared/qmuxd.anchor.json
+      - --server=172.28.62.10:53
+      - --resolver=bind=172.28.62.20:53
+      - --resolver=unbound=172.28.62.30:53
+      - --observation-log=/shared/observations.jsonl
+      - --output=/results/results.json
+      # The platform of the bind service (FR-interop-39c).
+      - --image-arch=bind=amd64
+      - --markdown
+    volumes:
+      - shared:/shared:ro
+      - ./results:/results
+    networks:
+      interop:
+        ipv4_address: 172.28.62.40

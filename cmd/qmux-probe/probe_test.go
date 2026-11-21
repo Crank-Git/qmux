@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -448,7 +449,7 @@ func TestOutputIsAJSONArrayWithEveryFieldOfDataTouched(t *testing.T) { // FR-int
 	fields := []string{
 		"path", "transport", "qclass", "qtype", "qname", "rcode", "answer_class", "answer_type",
 		"payload_ok", "verified", "rtt_ms", "query_bytes", "response_bytes", "outcome", "error",
-		"reached_authoritative", "observed_qclass", "observed_qtype",
+		"reached_authoritative", "observed_qclass", "observed_qtype", "host_arch", "emulated",
 	}
 	for i, r := range recs {
 		for _, f := range fields {
@@ -459,6 +460,33 @@ func TestOutputIsAJSONArrayWithEveryFieldOfDataTouched(t *testing.T) { // FR-int
 		if len(r) != len(fields) {
 			t.Errorf("record %d has %d fields, want %d: %v", i, len(r), len(fields), r)
 		}
+	}
+}
+
+func TestRecordIsEmulatedWhenTheImageArchOfItsPathDiffersFromTheHostArch(t *testing.T) { // FR-interop-39c
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, digestPayload)
+	addr, _ := silentUDP(t)
+	for host, wantBind := range map[string]bool{"arm64": true, "amd64": false} {
+		t.Run(host, func(t *testing.T) {
+			recs := readRecords(t, append(oneKey(), "--server", srv.addr, "--resolver", "bind="+addr,
+				"--trust-anchors", writeAnchors(t, anchorSeed), "--timeout", "20ms",
+				"--host-arch", host, "--image-arch", "bind=amd64")...)
+			want := map[string]bool{directPath: false, "bind": wantBind}
+			for _, r := range recs {
+				if r["host_arch"] != host || r["emulated"] != want[r["path"].(string)] {
+					t.Errorf("%s record: host_arch = %v, emulated = %v; want %s and %v",
+						r["path"], r["host_arch"], r["emulated"], host, want[r["path"].(string)])
+				}
+			}
+		})
+	}
+}
+
+func TestHostArchDefaultsToTheArchitectureOfTheProbeBinary(t *testing.T) { // FR-interop-39c
+	srv := startProbeServer(t, probeID(probeKey), anchorSeed, digestPayload)
+	recs := readRecords(t, append(oneKey(), "--server", srv.addr, "--trust-anchors", writeAnchors(t, anchorSeed))...)
+	if r := recs[0]; r["host_arch"] != runtime.GOARCH || r["emulated"] != false {
+		t.Errorf("host_arch = %v, emulated = %v; want %s and false", r["host_arch"], r["emulated"], runtime.GOARCH)
 	}
 }
 
@@ -524,21 +552,25 @@ func TestMissingTrustAnchorsIsAUsageErrorWithTheSpecText(t *testing.T) {
 func TestInvalidFlagsAreUsageErrors(t *testing.T) {
 	anchors := writeAnchors(t, anchorSeed)
 	cases := map[string][]string{
-		"no path":           {},
-		"host name":         {"--server", "localhost:53"},
-		"resolver no name":  {"--resolver", "=127.0.0.1:53"},
-		"resolver direct":   {"--resolver", "direct=127.0.0.1:53"},
-		"resolver twice":    {"--resolver", "a=127.0.0.1:53", "--resolver", "a=127.0.0.1:54"},
-		"resolver no addr":  {"--resolver", "bind"},
-		"bad class":         {"--server", "127.0.0.1:53", "--classes", "1,70000"},
-		"empty types":       {"--server", "127.0.0.1:53", "--types", ""},
-		"bad transport":     {"--server", "127.0.0.1:53", "--transports", "udp,quic"},
-		"negative timeout":  {"--server", "127.0.0.1:53", "--timeout", "-1s"},
-		"bad zone":          {"--server", "127.0.0.1:53", "--zone", strings.Repeat("a", 64) + ".example."},
-		"extra argument":    {"--server", "127.0.0.1:53", "extra"},
-		"unknown flag":      {"--server", "127.0.0.1:53", "--nope"},
-		"bad anchor file":   {"--server", "127.0.0.1:53", "--trust-anchors", filepath.Join(t.TempDir(), "absent.json")},
-		"anchors and blank": {"--server", "127.0.0.1:53", "--trust-anchors", ""},
+		"no path":            {},
+		"host name":          {"--server", "localhost:53"},
+		"resolver no name":   {"--resolver", "=127.0.0.1:53"},
+		"resolver direct":    {"--resolver", "direct=127.0.0.1:53"},
+		"resolver twice":     {"--resolver", "a=127.0.0.1:53", "--resolver", "a=127.0.0.1:54"},
+		"resolver no addr":   {"--resolver", "bind"},
+		"bad class":          {"--server", "127.0.0.1:53", "--classes", "1,70000"},
+		"empty types":        {"--server", "127.0.0.1:53", "--types", ""},
+		"bad transport":      {"--server", "127.0.0.1:53", "--transports", "udp,quic"},
+		"negative timeout":   {"--server", "127.0.0.1:53", "--timeout", "-1s"},
+		"bad zone":           {"--server", "127.0.0.1:53", "--zone", strings.Repeat("a", 64) + ".example."},
+		"extra argument":     {"--server", "127.0.0.1:53", "extra"},
+		"unknown flag":       {"--server", "127.0.0.1:53", "--nope"},
+		"bad anchor file":    {"--server", "127.0.0.1:53", "--trust-anchors", filepath.Join(t.TempDir(), "absent.json")},
+		"anchors and blank":  {"--server", "127.0.0.1:53", "--trust-anchors", ""},
+		"image arch no arch": {"--server", "127.0.0.1:53", "--image-arch", "direct"},
+		"image arch no path": {"--server", "127.0.0.1:53", "--image-arch", "bind=amd64"},
+		"image arch twice":   {"--server", "127.0.0.1:53", "--image-arch", "direct=amd64", "--image-arch", "direct=arm64"},
+		"empty host arch":    {"--server", "127.0.0.1:53", "--host-arch", ""},
 	}
 	for name, args := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -559,7 +591,8 @@ func TestHelpListsEveryProbeFlag(t *testing.T) {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
 	for _, f := range []string{"--server", "--resolver", "--classes", "--types", "--transports", "--zone",
-		"--trust-anchors", "--timeout", "--observation-log", "--output", "--markdown", "--require-direct"} {
+		"--trust-anchors", "--timeout", "--observation-log", "--output", "--markdown", "--require-direct",
+		"--host-arch", "--image-arch"} {
 		if !strings.Contains(stdout, f) {
 			t.Errorf("help text has no %s:\n%s", f, stdout)
 		}

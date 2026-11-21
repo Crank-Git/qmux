@@ -67,6 +67,8 @@ type record struct {
 	ReachedAuthoritative *bool   `json:"reached_authoritative"`
 	ObservedQClass       *uint16 `json:"observed_qclass"`
 	ObservedQType        *uint16 `json:"observed_qtype"`
+	HostArch             string  `json:"host_arch"`
+	Emulated             bool    `json:"emulated"`
 }
 
 // runProbe runs every probe of the flags in args and returns the exit code.
@@ -135,7 +137,9 @@ func probeAll(ctx context.Context, f probeFlags, v *security.Verifier) []record 
 			for _, class := range f.classes {
 				for _, typ := range f.types {
 					key := protocol.ProtocolKey{Class: class, Type: typ}
-					recs = append(recs, probe(ctx, c, p, network, key, nonce()+"."+f.zone))
+					r := probe(ctx, c, p, network, key, nonce()+"."+f.zone)
+					r.HostArch, r.Emulated = f.hostArch, p.emulated
+					recs = append(recs, r)
 				}
 			}
 		}
