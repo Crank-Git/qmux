@@ -59,8 +59,9 @@ numbers.
   `bench-client` in two containers with the capability `NET_ADMIN`.
 - FR-bench-13 — Before each benchmark run, the harness runs
   `tc qdisc replace dev eth0 root netem delay 10ms loss <X>%` in both containers.
-- FR-bench-14 — If a container refuses `NET_ADMIN`, `make bench` exits with code 1 and
-  prints `netem needs NET_ADMIN: <tc error>`.
+- FR-bench-14 — If a container refuses `NET_ADMIN`, `qmux-bench` exits with code 1 and
+  prints `netem needs NET_ADMIN: <tc error>`. `make bench` then fails with the exit code that
+  GNU Make gives a failed recipe (2).
 
 ### qmux-bench runner
 
@@ -264,7 +265,7 @@ External interfaces:
 - FR-bench-12 and FR-bench-13: `tc qdisc show dev eth0` in each container prints
   `netem delay 10ms loss <X>%` during a benchmark run. At loss 0, `tc` prints
   `netem delay 10ms` with no loss field.
-- FR-bench-14: with `NET_ADMIN` removed, `make bench` exits with code 1 and prints
+- FR-bench-14: with `NET_ADMIN` removed, `qmux-bench` exits with code 1, `make bench` fails, and the output holds
   `netem needs NET_ADMIN`.
 - FR-bench-15 and FR-bench-16: `make bench LOSS=0 N=10` writes runs with `loss: 0` and
   `n: 10`.

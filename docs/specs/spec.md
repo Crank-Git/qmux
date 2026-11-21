@@ -827,3 +827,9 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   Unbound 1.26.2 only class IN reaches the authoritative server.
 - 2026-11-20 — Interop harness is `built` (#173). The CI interop run on amd64 (no emulation)
   gives the same matrix as the arm64 run.
+- 2026-11-20 — Benchmark decisions (#11): the user ruled that CoAP keeps the RFC 7252 backoff,
+  so it makes 3 transmissions in the 5 s deadline (FR-bench-20). `make bench` fails with the
+  GNU Make exit code 2 when `qmux-bench` exits 1 (#180). ADR 0007 records the footprint
+  client leaf package. The measured result on the direct path: `qmux-private` and `dns-in`
+  have the same latency, bytes and size within the run noise. Private classes do not reach
+  the authoritative server through BIND or Unbound.

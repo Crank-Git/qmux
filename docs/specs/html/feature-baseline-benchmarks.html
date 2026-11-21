@@ -242,10 +242,10 @@ body.rv-open .layout { padding-right:21rem; }
 </ul>
 <p><code>tc qdisc replace dev eth0 root netem delay 10ms loss &lt;X&gt;%</code> in both containers.</p>
 <ul>
-<li>FR-bench-14 — If a container refuses <code>NET_ADMIN</code>, <code>make bench</code> exits with code 1 and
+<li>FR-bench-14 — If a container refuses <code>NET_ADMIN</code>, <code>qmux-bench</code> exits with code 1 and
 </li>
 </ul>
-<p>prints <code>netem needs NET_ADMIN: &lt;tc error&gt;</code>.</p>
+<p>prints <code>netem needs NET_ADMIN: &lt;tc error&gt;</code>. <code>make bench</code> then fails with the exit code that GNU Make gives a failed recipe (2).</p>
 <h4 id="baseline-benchmarks-qmux-bench-runner">qmux-bench runner</h4>
 <ul>
 <li>FR-bench-15 — <code>qmux-bench</code> runs the loss levels from <code>--loss</code>. The default is
@@ -544,7 +544,7 @@ qmux-bench: wrote results/bench-20261120T150405Z.json</code></pre>
 </ul>
 <p><code>netem delay 10ms loss &lt;X&gt;%</code> during a benchmark run. At loss 0, <code>tc</code> prints <code>netem delay 10ms</code> with no loss field.</p>
 <ul>
-<li>FR-bench-14: with <code>NET_ADMIN</code> removed, <code>make bench</code> exits with code 1 and prints
+<li>FR-bench-14: with <code>NET_ADMIN</code> removed, <code>qmux-bench</code> exits with code 1, <code>make bench</code> fails, and the output holds
 </li>
 </ul>
 <p><code>netem needs NET_ADMIN</code>.</p>

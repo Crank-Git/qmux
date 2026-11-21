@@ -1057,7 +1057,12 @@ golangci-lint run</code></pre>
 <li>2026-11-20 — Interop harness is <code>built</code> (#173). The CI interop run on amd64 (no emulation)
 </li>
 </ul>
-<p>gives the same matrix as the arm64 run.</p><nav class="pager">
+<p>gives the same matrix as the arm64 run.</p>
+<ul>
+<li>2026-11-20 — Benchmark decisions (#11): the user ruled that CoAP keeps the RFC 7252 backoff,
+</li>
+</ul>
+<p>so it makes 3 transmissions in the 5 s deadline (FR-bench-20). <code>make bench</code> fails with the GNU Make exit code 2 when <code>qmux-bench</code> exits 1 (#180). ADR 0007 records the footprint client leaf package. The measured result on the direct path: <code>qmux-private</code> and <code>dns-in</code> have the same latency, bytes and size within the run noise. Private classes do not reach the authoritative server through BIND or Unbound.</p><nav class="pager">
 <span></span>
 <a href="html/feature-foundation.html">Feature: Foundation &rarr;</a>
 </nav>
