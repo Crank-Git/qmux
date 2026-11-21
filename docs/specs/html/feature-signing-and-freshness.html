@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: Signing and freshness</h1>
-<p class="meta">Epic 6: Signing and freshness &nbsp; <span class="badge">issued</span></p>
+<p class="meta">Epic 6: Signing and freshness &nbsp; <span class="badge">built</span></p>
 <h3 id="signing-and-freshness-purpose">Purpose</h3>
 <p>DNS gives no integrity and no authentication. This feature makes every envelope verifiable. The authoritative server signs each envelope at answer time with an Ed25519 key. The signature binds the QNAME, the class, the type, the protocol ID and the validity window. A client with trust anchors verifies every envelope before it returns any field. It rejects each envelope that is tampered, signed by an unknown key, outside its validity window, older than one it already accepted, or copied to another name or protocol key.</p>
 <p>This epic delivers Phase 3 of the brief: clients reject tampered, expired or incorrectly signed metadata. It also adds the manifest cache, key files, trust anchor files and <code>qmuxctl keygen</code>.</p>
@@ -405,6 +405,23 @@ body.rv-open .layout { padding-right:21rem; }
 </li>
 </ul>
 <p>trust anchors exist.</p>
+<p><strong>Note.</strong> From the review #193, a stale manifest also ends a cache entry, before its <code>expires_at</code>. This amends FR-security-42 and FR-security-46:</p>
+<ul>
+<li><code>discovery.Client.QueryProtocol</code> drops the cached manifest of the zone when the query
+</li>
+</ul>
+<p>gets the status <code>version-unsupported</code>, the RCODE <code>REFUSED</code> or a <code>*client.DNSError</code> of kind <code>mismatch</code>.</p>
+<ul>
+<li><code>discovery.Client.Forget(zone)</code> drops the cached manifest of the zone.
+</li>
+<li>A dropped manifest leaves memory, and its cache file in <code>CacheDir</code> is removed. The next
+</li>
+</ul>
+<p><code>Discover</code> for the zone sends a query.</p>
+<ul>
+<li>Any other answer, for example <code>ok</code>, keeps the cached manifest.
+</li>
+</ul>
 <h4 id="signing-and-freshness-qmuxctl-fuzz-and-phase-3-test">qmuxctl, fuzz and Phase 3 test</h4>
 <ul>
 <li><strong>FR-security-48</strong> — <code>qmuxctl keygen --out &lt;prefix&gt;</code> writes <code>&lt;prefix&gt;.key</code> and
@@ -595,7 +612,7 @@ body.rv-open .layout { padding-right:21rem; }
 wrote keys/qmuxd.key (mode 0600)
 wrote keys/qmuxd.anchor.json
 key_id 3f9a1c0b7d2e4a65</code></pre>
-<p><code>qmuxctl query</code> with <code>--trust-anchors</code> adds the line <code>verified   yes</code>. A failure prints:</p>
+<p><code>qmuxctl query</code> with <code>--trust-anchors</code> prints the line <code>verified: true</code>. A failure prints:</p>
 <pre class="code"><code>error: verify: ErrExpired: org.qmux.firmware device42.fleet.example.</code></pre>
 <p>and exits with code 3.</p>
 <h3 id="signing-and-freshness-behaviour-rules">Behaviour rules</h3>
@@ -630,7 +647,7 @@ key_id 3f9a1c0b7d2e4a65</code></pre>
 <li><code>server.ServerConfig.Signer</code>, <code>client.ClientConfig.TrustAnchors</code>, <code>client.Result.Verified</code>,
 </li>
 </ul>
-<p><code>client.VerifyError</code>, <code>discovery.Client.CacheDir</code>.</p>
+<p><code>client.VerifyError</code>, <code>discovery.Client.CacheDir</code>, <code>client.Result.Raw</code> (the verified envelope bytes, which the manifest cache stores and verifies again on load).</p>
 <ul>
 <li>Files: signing key (PKCS#8 PEM), trust anchor file (JSON), freshness store file (JSON),
 </li>

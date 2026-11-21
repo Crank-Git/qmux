@@ -1,0 +1,30 @@
+name: Interop
+
+on:
+  pull_request:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+# The runner is linux/amd64, so the bind service runs without emulation here.
+jobs:
+  interop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: tests/interoperability/go.mod
+      # The harness tests check that interop.sh stops the environment when the probe fails.
+      - name: Test tests/interoperability
+        working-directory: tests/interoperability
+        run: go test ./...
+      # FR-interop-44: a direct probe that fails makes the job fail.
+      - run: make interop REQUIRE_DIRECT=true
+      # FR-interop-45. The step also runs after a failed probe, so the records of the failure stay available.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: interop-results
+          path: tests/interoperability/results/

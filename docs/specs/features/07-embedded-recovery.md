@@ -2,7 +2,7 @@
 id: embedded-recovery
 feature: Embedded recovery demonstration
 epic: "Epic 7: Embedded recovery demonstration"
-status: issued
+status: built
 issues: [8, 49, 50, 51, 52, 53]
 mockups: []
 ---
@@ -213,7 +213,7 @@ Stale device (populated):
 [server]  zone fleet.example. on 127.0.0.1:53412 (udp, tcp), key id 3f9a0c1d2e4b5a67
 [https]   mock service on https://127.0.0.1:53413
 [device]  state: config_generation=3 firmware_version=2.3.0
-[device]  discovery: verified manifest, 4 protocols, expires 2026-11-20T15:04:05Z
+[device]  discovery: verified manifest, 4 protocols
 [device]  negotiate: org.qmux.bootstrap v1, org.qmux.configuration v1, org.qmux.firmware v1
 [device]  bootstrap: management https://127.0.0.1:53413/mgmt (transport https)
 [device]  configuration: remote generation 7 > local 3, downloading
@@ -234,6 +234,14 @@ Error states:
 - Digest mismatch: `[device]  configuration: digest mismatch, resource discarded` and
   `result: failed, state unchanged`.
 - Rollback: `[device]  configuration: remote generation 2 < local 3, rollback refused`.
+
+From the review #193, a run with `--tamper-https` that ends with no error downloaded no
+configuration bundle. The tamper thus had no effect, and the device prints this line
+before the result line:
+
+```
+[device]  tamper: --tamper-https has no effect, the device downloads no configuration bundle; use a new --state path or a higher --remote-generation
+```
 
 ## Behaviour rules
 

@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: qmuxd daemon</h1>
-<p class="meta">Epic 8: qmuxd daemon &nbsp; <span class="badge">issued</span></p>
+<p class="meta">Epic 8: qmuxd daemon &nbsp; <span class="badge">built</span></p>
 <h3 id="qmuxd-daemon-purpose">Purpose</h3>
 <p><code>qmuxd</code> is the standalone authoritative server. An operator runs it with a configuration file and a signing key, and it serves static records for any number of protocols. No Go code is necessary. <code>qmuxd</code> always signs. It adds two server capabilities that the library exposes too: a per-source rate limit and an observation log. Epic 9 runs <code>qmuxd</code> in Docker Compose and reads the observation log to find whether a probe reached the authoritative server.</p>
 <h3 id="qmuxd-daemon-user-stories">User stories</h3>
@@ -201,12 +201,12 @@ body.rv-open .layout { padding-right:21rem; }
 <li><strong>FR-qmuxd-4</strong> — <code>qmuxd serve</code> logs one record at level <code>info</code> when both listeners are
 </li>
 </ul>
-<p>ready. The record holds the listen address, the zones, the key ID and the protocol count.</p>
+<p>ready. The record holds the listen address, the zones, the key ID and the protocol count. From the review #193, <code>listen</code> is the configured address and <code>bound</code> is the address of the UDP socket. A <code>0.0.0.0</code> socket is dual-stack and reports <code>[::]</code>.</p>
 <ul>
 <li><strong>FR-qmuxd-5</strong> — On SIGINT or SIGTERM, <code>qmuxd serve</code> shuts down with the grace period and
 </li>
 </ul>
-<p>exits with code 0.</p>
+<p>exits with code 0. From the review #193, it logs one <code>info</code> record when the shutdown starts and one when it completes. Both records hold the grace period. The second record also holds the time that the shutdown took.</p>
 <ul>
 <li><strong>FR-qmuxd-6</strong> — <code>qmuxd version</code> prints the module version and the Go version.
 </li>
@@ -241,10 +241,10 @@ body.rv-open .layout { padding-right:21rem; }
 <ul>
 <li><strong>FR-qmuxd-14</strong> — Each QNAME in <code>records</code> must be at or below one of the configured zones.
 </li>
-<li><strong>FR-qmuxd-15</strong> — When <code>discovery.enabled</code> is true, <code>qmuxd</code> calls <code>discovery.Register</code> for
+<li><strong>FR-qmuxd-15</strong> — When <code>discovery.enabled</code> is true, <code>qmuxd</code> calls
 </li>
 </ul>
-<p>each zone. <code>discovery.in_class</code> sets <code>InClass</code>.</p>
+<p><code>discovery.RegisterZones</code> one time with every zone. <code>discovery.in_class</code> sets <code>InClass</code>.</p>
 <h4 id="qmuxd-daemon-static-records-and-json-to-cbor-rule">Static records and JSON-to-CBOR rule</h4>
 <ul>
 <li><strong>FR-qmuxd-16</strong> — A static-record handler answers a QNAME listed in <code>records</code>, with a
@@ -459,7 +459,9 @@ body.rv-open .layout { padding-right:21rem; }
 </ol>
 <h3 id="qmuxd-daemon-screens-states">Screens &amp; states</h3>
 <p>No graphical screens. Console output of <code>qmuxd serve</code> with the <code>text</code> log format:</p>
-<pre class="code"><code>time=2026-11-20T10:00:00Z level=INFO msg="qmuxd ready" listen=127.0.0.1:5353 zones=[fleet.example.] key_id=3f9a1c0b7d2e4a65 protocols=4</code></pre>
+<pre class="code"><code>time=2026-11-20T10:00:00Z level=INFO msg="qmuxd ready" listen=127.0.0.1:5300 bound=127.0.0.1:5300 zones=[fleet.example.] key_id=3f9a1c0b7d2e4a65 protocols=4
+time=2026-11-20T10:05:00Z level=INFO msg="qmuxd shutdown started" grace=5s
+time=2026-11-20T10:05:00Z level=INFO msg="qmuxd shutdown complete" grace=5s duration=1.2ms</code></pre>
 <p>Configuration error:</p>
 <pre class="code"><code>qmuxd: config: protocols[1].class: 300 is not an allowed class</code></pre>
 <p>One observation log line:</p>
@@ -468,13 +470,13 @@ body.rv-open .layout { padding-right:21rem; }
 <h4 id="qmuxd-daemon-configuration-file-schema">Configuration file schema</h4>
 <div class="table-wrap"><table>
 <tr><th>Field</th><th>Type</th><th>Default</th><th>Rule</th></tr>
-<tr><td><code>listen</code></td><td>string</td><td><code>127.0.0.1:5353</code></td><td><code>host:port</code>.</td></tr>
+<tr><td><code>listen</code></td><td>string</td><td><code>127.0.0.1:5300</code></td><td><code>host:port</code>.</td></tr>
 <tr><td><code>zones</code></td><td>array of string</td><td>—</td><td>Required. At least one fully qualified name.</td></tr>
 <tr><td><code>signing_key</code></td><td>string</td><td>—</td><td>Required. Path to a PKCS#8 PEM Ed25519 key. Relative to the configuration file directory.</td></tr>
 <tr><td><code>signature_validity</code></td><td>string</td><td><code>1h</code></td><td>Go duration, 1 min to 24 h.</td></tr>
-<tr><td><code>ttl</code></td><td>integer</td><td>60</td><td>0–86400 seconds.</td></tr>
+<tr><td><code>ttl</code></td><td>integer</td><td>60</td><td>1–86400 seconds.</td></tr>
 <tr><td><code>udp_size</code></td><td>integer</td><td>1232</td><td>512–4096.</td></tr>
-<tr><td><code>handler_timeout</code></td><td>string</td><td><code>2s</code></td><td>Go duration, 10 ms to 30 s.</td></tr>
+<tr><td><code>handler_timeout</code></td><td>string</td><td><code>800ms</code></td><td>Go duration, 10 ms to 30 s. From the review #193, the default is 800 ms and not 2 s.</td></tr>
 <tr><td><code>rate_limit</code></td><td>object <code>{qps, burst}</code></td><td><code>{50, 100}</code></td><td><code>qps</code> 0 disables. <code>burst</code> ≥ <code>qps</code> when <code>qps</code> &gt; 0.</td></tr>
 <tr><td><code>allow_reserved_classes</code></td><td>boolean</td><td>false</td><td>Passed to the registry.</td></tr>
 <tr><td><code>allow_non_private_types</code></td><td>boolean</td><td>false</td><td>Passed to the registry.</td></tr>

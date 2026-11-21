@@ -1,0 +1,57 @@
+{
+  "listen": "127.0.0.1:5300",
+  "zones": ["fleet.example."],
+  "signing_key": "keys/qmuxd.key",
+  "signature_validity": "1h",
+  "ttl": 60,
+  "udp_size": 1232,
+  "handler_timeout": "800ms",
+  "rate_limit": {"qps": 50, "burst": 100},
+  "discovery": {"enabled": true, "in_class": false},
+  "log_level": "info",
+  "log_format": "text",
+  "protocols": [
+    {
+      "id": "org.qmux.bootstrap",
+      "versions": [1],
+      "class": 65280,
+      "type": 65280,
+      "records": {
+        "device42.fleet.example.": {
+          "payload": {"1": "https://mgmt.fleet.example/device42", "2": "https"}
+        }
+      }
+    },
+    {
+      "id": "org.qmux.configuration",
+      "versions": [1],
+      "class": 65281,
+      "type": 65280,
+      "records": {
+        "device42.fleet.example.": {
+          "payload": {
+            "1": 7,
+            "2": "hex:5d1e0f6a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6",
+            "3": "https://mgmt.fleet.example/config/device42/7"
+          }
+        }
+      }
+    },
+    {
+      "id": "org.qmux.firmware",
+      "versions": [1],
+      "class": 65282,
+      "type": 65280,
+      "records": {
+        "device42.fleet.example.": {
+          "payload": {
+            "1": "2.4.1",
+            "2": "hex:9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d5e4f30211203f4e5d6c7b8a9",
+            "3": "https://mgmt.fleet.example/firmware/2.4.1.bin",
+            "4": "hex:3f9a1c0b7d2e4a65"
+          }
+        }
+      }
+    }
+  ]
+}

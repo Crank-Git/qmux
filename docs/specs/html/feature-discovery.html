@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: Discovery and version negotiation</h1>
-<p class="meta">Epic 5: Discovery and version negotiation &nbsp; <span class="badge">issued</span></p>
+<p class="meta">Epic 5: Discovery and version negotiation &nbsp; <span class="badge">built</span></p>
 <h3 id="discovery-purpose">Purpose</h3>
 <p>A client must not know every private class in advance. Discovery gives the client one fixed entry point: the discovery key and the discovery name. The server answers there with a manifest that lists every registration: the protocol ID, the supported versions, the class and the type.</p>
 <p>The client then negotiates a protocol version for each protocol it needs and sends the query with a version label. The server checks the version label before it calls the handler.</p>
@@ -241,10 +241,10 @@ body.rv-open .layout { padding-right:21rem; }
 <ul>
 <li><strong>FR-discovery-11</strong> — The default <code>opts.Key</code> is <code>(65280, 65534)</code>.
 </li>
-<li><strong>FR-discovery-12</strong> — When <code>opts.InClass</code> is true, <code>discovery.Register</code> also registers
+<li><strong>FR-discovery-12</strong> — When <code>opts.InClass</code> is true, <code>discovery.Register</code> registers
 </li>
 </ul>
-<p><code>org.qmux.discovery</code> at <code>(1, 65534)</code>.</p>
+<p><code>org.qmux.discovery</code> only at <code>(1, 65534)</code>, in place of <code>opts.Key</code>.</p>
 <ul>
 <li><strong>FR-discovery-13</strong> — The discovery handler answers the QNAME <code>_qmux.&lt;zone&gt;</code> with message
 </li>
@@ -352,7 +352,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li><strong>FR-discovery-33</strong> — <code>qmuxctl discover</code> takes the flags <code>--server</code>, <code>--name</code>, <code>--class</code>,
 </li>
 </ul>
-<p><code>--type</code>, <code>--in</code>, <code>--insecure</code> and <code>--json</code>.</p>
+<p><code>--type</code>, <code>--in</code>, <code>--insecure</code> and <code>--json</code>. From the review #193, it also takes <code>--tcp</code>, with the same meaning as in <code>qmuxctl query</code>.</p>
 <ul>
 <li><strong>FR-discovery-34</strong> — <code>--name</code> is the zone. <code>qmuxctl discover</code> queries <code>_qmux.&lt;name&gt;</code>.
 </li>
@@ -477,7 +477,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ol>
 <h3 id="discovery-screens-states">Screens &amp; states</h3>
 <p>No graphical screens. <code>qmuxctl discover</code> output:</p>
-<pre class="code"><code>$ qmuxctl discover --server 127.0.0.1:5353 --name fleet.example. --insecure
+<pre class="code"><code>$ qmuxctl discover --server 127.0.0.1:5300 --name fleet.example. --insecure
 zone fleet.example.  framework 1  verified no
 PROTOCOL                 VERSIONS  CLASS  TYPE
 org.qmux.bootstrap       1         65280  65280
@@ -559,6 +559,7 @@ type Options struct {
 }
 
 func Register(srv *server.Server, zone string, opts Options) error
+func RegisterZones(srv *server.Server, zones []string, opts Options) error
 func Static(zone string, entries []Entry) (*Manifest, error)
 func Negotiate(m *Manifest, id string, supported []uint16) (protocol.ProtocolKey, uint16, error)
 func (m *Manifest) Lookup(id string) (Entry, bool)
@@ -604,7 +605,7 @@ var ErrInsecure, ErrProtocolNotFound, ErrVersionUnsupported, ErrInvalidManifest 
 </li>
 <li>[ ] FR-discovery-10, FR-discovery-11: after <code>Register</code> with zero options, the registry lists <code>org.qmux.discovery</code> at <code>(65280, 65534)</code>.
 </li>
-<li>[ ] FR-discovery-12: with <code>InClass</code> true, the registry also lists it at <code>(1, 65534)</code>.
+<li>[ ] FR-discovery-12: with <code>InClass</code> true, the registry lists it at <code>(1, 65534)</code> and not at <code>(65280, 65534)</code>.
 </li>
 <li>[ ] FR-discovery-13: a query for <code>_qmux.fleet.example.</code> returns an envelope with message type 2.
 </li>

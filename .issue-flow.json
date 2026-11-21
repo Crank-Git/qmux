@@ -1,0 +1,25 @@
+{
+  "name": "QMux",
+  "slug": "qmux",
+  "repo": "Crank-Git/qmux",
+  "branchModel": "dev-and-live",
+  "visibility": "public",
+  "concurrency": 3,
+  "batchSize": 4,
+  "runLength": "until-backlog-empty",
+  "prGranularity": "batch",
+  "prAuthority": "autonomous",
+  "planReview": false,
+  "reviewWipLimit": 2,
+  "review": {},
+  "practices": {
+    "tdd": true,
+    "ddd": false,
+    "e2e": false,
+    "coverage": 0,
+    "commitStyle": "imperative mood, author Crank-Git <info@nocturnaltendenciesllc.com>, no GPG signing",
+    "docs": true
+  },
+  "pluginVersion": "0.19.0",
+  "docsMcp": "none (WebFetch fallback)"
+}

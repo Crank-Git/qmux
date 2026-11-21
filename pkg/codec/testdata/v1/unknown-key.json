@@ -1,0 +1,4 @@
+{
+  "description": "The map has key 7, which format 1 does not define.",
+  "error": "cbor.UnknownFieldError"
+}

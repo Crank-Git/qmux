@@ -1,0 +1,23 @@
+{
+  "zones": ["fleet.example."],
+  "signing_key": "/shared/qmuxd.key",
+  "observation_log": "/shared/observations.jsonl",
+  "allow_reserved_classes": true,
+  "allow_non_private_types": true,
+  "protocols": [
+    {
+      "id": "org.qmux.bootstrap",
+      "versions": [1],
+      "class": 65282,
+      "type": 65280,
+      "records": {
+        "bootstrap.fleet.example.": {"payload": {"1": "https://mgmt.fleet.example/"}}
+      }
+    }
+  ],
+  "probe": {
+    "zone": "probe.fleet.example.",
+    "classes": [1, 3, 4, 65280, 65281],
+    "types": [16, 65280]
+  }
+}

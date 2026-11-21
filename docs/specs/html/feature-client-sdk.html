@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: Client SDK</h1>
-<p class="meta">Epic 3: Client SDK &nbsp; <span class="badge">issued</span></p>
+<p class="meta">Epic 3: Client SDK &nbsp; <span class="badge">built</span></p>
 <h3 id="client-sdk-purpose">Purpose</h3>
 <p>The client SDK sends a query for one QNAME, QCLASS and QTYPE directly to a configured server, and returns a result. It builds every DNS packet itself and never uses the operating system's stub resolver. It retries on a UDP timeout, repeats a truncated query over TCP, and checks that the answer matches the question exactly. It reports DNS failures and application outcomes as separate error types.</p>
 <p><code>qmuxctl query</code> exposes the SDK on the command line. This epic also adds the root <code>qmux</code> facade, so the brief's API examples compile as written. The Phase 1 deliverable closes this epic: two protocols answer through two private classes.</p>
@@ -286,8 +286,11 @@ body.rv-open .layout { padding-right:21rem; }
 </ul>
 <h4 id="client-sdk-result">Result</h4>
 <ul>
-<li>FR-client-26 — <code>Result.Payload</code> holds the opaque RDATA bytes of the answer RR.
+<li>FR-client-26 — <code>Result.Payload</code> holds the payload of the envelope in the answer RR
 </li>
+</ul>
+<p>(FR-codec-38).</p>
+<ul>
 <li>FR-client-27 — <code>Result</code> holds the QNAME, protocol key, RCODE and TTL of the answer.
 </li>
 <li>FR-client-28 — <code>Result.Transport</code> is <code>udp</code> or <code>tcp</code>, the transport of the final
@@ -434,15 +437,18 @@ body.rv-open .layout { padding-right:21rem; }
 </li>
 <li>If the client returns a <code>DNSError</code>, <code>qmuxctl</code> prints it and exits 1.
 </li>
-<li>If the client returns an <code>AppError</code>, <code>qmuxctl</code> prints it and exits 2.
+<li>If the client returns an <code>AppError</code>, <code>qmuxctl</code> prints the result to stdout, prints the
 </li>
+</ol>
+<p>error to stderr and exits 2.</p>
+<ol>
 <li>If the client returns a <code>VerifyError</code>, <code>qmuxctl</code> prints it and exits 3.
 </li>
 </ol>
 <h3 id="client-sdk-screens-states">Screens &amp; states</h3>
 <p>No graphical screens. <code>qmuxctl query</code> output states:</p>
 <p>Result:</p>
-<pre class="code"><code>$ qmuxctl query --server 127.0.0.1:5353 --class 65280 --type 65280 --name device42.fleet.example.
+<pre class="code"><code>$ qmuxctl query --server 127.0.0.1:5300 --class 65280 --type 65280 --name device42.fleet.example.
 name: device42.fleet.example.
 class: 65280
 type: 65280
@@ -458,7 +464,7 @@ payload: a1016b68656c6c6f</code></pre>
 <p>DNS error (exit 1):</p>
 <pre class="code"><code>error: dns: rcode REFUSED for device42.fleet.example. 65283/65280</code></pre>
 <p>Timeout (exit 1):</p>
-<pre class="code"><code>error: dns: timeout after 3 attempts to 127.0.0.1:5353</code></pre>
+<pre class="code"><code>error: dns: timeout after 3 attempts to 127.0.0.1:5300</code></pre>
 <p>Usage error (exit 64): the usage text for <code>qmuxctl query</code>.</p>
 <h3 id="client-sdk-behaviour-rules">Behaviour rules</h3>
 <ul>
@@ -486,10 +492,10 @@ payload: a1016b68656c6c6f</code></pre>
 </li>
 <li><code>Result.TTL</code> is informational. Nothing in the client uses it as an expiry.
 </li>
-<li><code>DNSError.Error()</code> names the kind, the QNAME, the protocol key and, for the kind
+<li><code>DNSError.Error()</code> names the kind, the QNAME and the protocol key. For the kind
 </li>
 </ul>
-<p><code>rcode</code>, the RCODE text.</p>
+<p><code>rcode</code>, it also names the RCODE text. For the kind <code>timeout</code>, it names the attempt count and the resolver address in place of the QNAME and the protocol key.</p>
 <ul>
 <li>Every error wraps a cause, so callers test it with <code>errors.As</code> and <code>errors.Is</code>.
 </li>
@@ -559,7 +565,7 @@ type AppError struct {
 }
 
 type VerifyError struct {
-    Reason string
+    Reason error // the security sentinel, or the codec error; a string before Epic 6
     Err    error
 }
 
@@ -576,17 +582,14 @@ func NewServer(cfg ServerConfig) *server.Server
 func NewClient(cfg ClientConfig) *client.Client</code></pre>
 <p>miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and <code>go doc</code> on 2026-11-20:</p>
 <ul>
-<li><code>dns.Client</code> has the fields <code>Net</code>, <code>UDPSize</code> and <code>Timeout</code>. <code>Timeout</code> is an overall
+<li><code>pkg/transport</code> does not use <code>dns.Client</code>. It sends each query on a <code>net.Conn</code> with
 </li>
 </ul>
-<p>timeout that overrides the dial, read and write timeouts.</p>
+<p><code>Msg.Pack</code> and reads the response with <code>Msg.Unpack</code>. ADR 0005 defines the API.</p>
 <ul>
-<li><code>dns.Client.ExchangeContext(ctx, m, addr)</code> returns <code>(*Msg, rtt, error)</code>.
-</li>
-<li><code>pkg/transport</code> may use <code>dns.Client</code> or a <code>net.Dialer</code> with <code>Msg.Pack</code> and
+<li><code>pkg/transport</code> reports the wire sizes of the query and the response.
 </li>
 </ul>
-<p><code>Msg.Unpack</code>. It must report the wire sizes of the query and the response either way.</p>
 <h3 id="client-sdk-edge-cases-failures">Edge cases &amp; failures</h3>
 <ul>
 <li>The server answers with a different ID over UDP. The client ignores the packet and
@@ -710,13 +713,16 @@ func NewClient(cfg ClientConfig) *client.Client</code></pre>
 </ul>
 <p><code>Error()</code> names the status. (FR-client-24)</p>
 <ul>
-<li><code>VerifyError{Reason: "expired"}</code> compiles and its <code>Error()</code> names the reason.
+<li><code>VerifyError{Reason: "expired"}</code> compiles and its <code>Error()</code> names the reason. From
 </li>
 </ul>
-<p>(FR-client-25)</p>
+<p>Epic 6, FR-security-36 replaces the string: <code>Reason</code> holds the sentinel error. (FR-client-25)</p>
 <ul>
-<li><code>Result.Payload</code> equals the handler's payload bytes. (FR-client-26)
+<li><code>Result.Payload</code> equals the payload of the envelope, which is the handler's payload.
 </li>
+</ul>
+<p>(FR-client-26)</p>
+<ul>
 <li><code>Result</code> holds the QNAME, protocol key, <code>NOERROR</code> and the RR TTL. (FR-client-27)
 </li>
 <li><code>Result.Transport</code> is <code>tcp</code> after a fallback and <code>udp</code> otherwise. (FR-client-28)
@@ -732,7 +738,7 @@ func NewClient(cfg ClientConfig) *client.Client</code></pre>
 <ul>
 <li><code>Result.Verified</code> is false. (FR-client-32)
 </li>
-<li><code>qmuxctl query --help</code> lists the eight flags. (FR-client-33)
+<li><code>qmuxctl query --help</code> lists the eight flags of FR-client-33, and from Epic 6 also <code>--trust-anchors</code> (FR-security-50). (FR-client-33)
 </li>
 <li><code>qmuxctl query</code> prints <code>payload:</code> followed by lowercase hex. (FR-client-34)
 </li>

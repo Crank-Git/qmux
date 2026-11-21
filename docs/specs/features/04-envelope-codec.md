@@ -2,7 +2,7 @@
 id: envelope-codec
 feature: Envelope codec
 epic: "Epic 4: Envelope codec"
-status: issued
+status: built
 issues: [5, 32, 33, 34, 35, 36]
 mockups: []
 ---
@@ -122,7 +122,9 @@ the encoding must give the same bytes for the same values on every platform.
   of the registration.
 - **FR-codec-33** — The server uses message type `record` when `Response.MessageType` is 0.
 - **FR-codec-34** — When the registration `Info` has a `Schema`, the server calls
-  `Schema.Validate(version, payload)` before it encodes the envelope.
+  `Schema.Validate(version, payload)` before it encodes the envelope. From Epic 7, #147
+  limits this call to a response with the status `ok`. An answer with any other status has
+  no schema check.
 - **FR-codec-35** — The server returns `SERVFAIL` and logs the error at level `error` when
   `Schema.Validate` returns an error.
 - **FR-codec-36** — The server returns `SERVFAIL` when `codec.Encode` returns an error,
@@ -139,6 +141,9 @@ the encoding must give the same bytes for the same values on every platform.
   kind `mismatch`.
 - **FR-codec-41** — When the query QNAME has a version label, the client returns a
   `*client.DNSError` of kind `mismatch` if the envelope version differs from the label.
+  From Epic 5, an envelope with the status `version-unsupported` is the exception: the
+  client skips the version check and returns the result and a `*client.AppError`.
+  FR-discovery-20 gives this envelope the highest version of the registration (#130).
 - **FR-codec-42** — `qmuxctl query` prints the protocol ID, the protocol version, the
   message type, the application status and the payload length of the result.
 
@@ -217,18 +222,23 @@ flowchart TD
 
 ## Screens & states
 
-No screens: library only. `qmuxctl query` output gains these lines:
+No screens: library only. `qmuxctl query` output gains these `key: value` lines after
+the `verified:` line and before the `payload:` line:
 
 ```
-protocol   org.qmux.firmware
-version    1
-type       record
-status     ok
-payload    74 bytes
+protocol_id: org.qmux.firmware
+version: 1
+message_type: record
+status: ok
+payload_bytes: 74
 ```
 
-When the status is not `ok`, the `status` line shows the status name, and `qmuxctl`
-exits with code 2.
+- `message_type` shows `record` or `manifest`, or the decimal number for 256 and above.
+- `status` shows the status name (`ok`, `not-found`, `bad-request`,
+  `version-unsupported`, `unavailable`), or the decimal number for 5 and above.
+- `qmuxctl query --json` has the same names as keys.
+- When the status is not `ok`, `qmuxctl` prints the full result to stdout. Then it
+  prints `error: …` to stderr and exits with code 2.
 
 ## Behaviour rules
 
@@ -280,7 +290,7 @@ func Marshal(v any) ([]byte, error)
 func Unmarshal(b []byte, v any) error
 
 var ErrTooLarge, ErrNotDeterministic, ErrFormat, ErrInvalidProtocolID,
-    ErrInvalidVersion, ErrInvalidMessageType error
+    ErrInvalidVersion, ErrInvalidMessageType, ErrInvalidStatus error
 ```
 
 `SignatureBlock` is declared in this epic with the keys of the signature block table, so

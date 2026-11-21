@@ -2,7 +2,7 @@
 id: foundation
 feature: Foundation
 epic: "Epic 0: Foundation"
-status: issued
+status: built
 issues: [1, 13, 14, 15, 16]
 mockups: []
 ---
@@ -34,7 +34,7 @@ QMux has no deploy target. CI is the only automated environment.
 ### Module and layout
 
 - FR-foundation-1 — The repository root holds a Go module with the path
-  `github.com/Crank-Git/qmux` and the directive `go 1.25`.
+  `github.com/Crank-Git/qmux` and the directive `go 1.25.0`.
 - FR-foundation-2 — The root `go.mod` pins `github.com/miekg/dns` at v1.1.73.
 - FR-foundation-3 — The root `go.mod` pins `github.com/fxamacker/cbor/v2` at v2.10.0 when
   the first package imports it.
@@ -203,7 +203,7 @@ Make targets:
 
 ## Acceptance criteria
 
-- `go.mod` declares `module github.com/Crank-Git/qmux` and `go 1.25`. (FR-foundation-1)
+- `go.mod` declares `module github.com/Crank-Git/qmux` and `go 1.25.0`. (FR-foundation-1)
 - `go.mod` lists `github.com/miekg/dns v1.1.73`. (FR-foundation-2)
 - When a package imports CBOR, `go.mod` lists `github.com/fxamacker/cbor/v2 v2.10.0`.
   (FR-foundation-3)

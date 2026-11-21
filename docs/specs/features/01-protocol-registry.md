@@ -2,7 +2,7 @@
 id: protocol-registry
 feature: Protocol registry
 epic: "Epic 1: Protocol registry"
-status: issued
+status: built
 issues: [2, 17, 18, 19, 20]
 mockups: []
 ---
@@ -70,7 +70,8 @@ uses.
 - FR-registry-20 — The registry accepts the types 65280–65534.
 - FR-registry-21 — The registry accepts a type outside 65280–65534 only when
   `Options.AllowNonPrivateTypes` is true.
-- FR-registry-22 — The registry always rejects the types 0, 41, 250, 251, 252 and 255.
+- FR-registry-22 — The registry always rejects the types 0, 41, 250, 251, 252, 255 and
+  65535.
 - FR-registry-23 — The registry rejects a nil handler.
 
 ### Registration operations
@@ -308,7 +309,8 @@ func (r *Registry) Remap(id string, newKey protocol.ProtocolKey) error
 - Types 65280 and 65534 register. (FR-registry-20)
 - Type 16 returns `ErrInvalidKey` by default and registers with
   `AllowNonPrivateTypes: true`. (FR-registry-21)
-- Types 0, 41, 250, 251, 252 and 255 return `ErrInvalidKey` with both options true.
+- Types 0, 41, 250, 251, 252, 255 and 65535 return `ErrInvalidKey` with both options
+  true.
   (FR-registry-22)
 - A nil handler returns `ErrInvalidHandler`. (FR-registry-23)
 - After a valid `Register`, `Lookup` returns the registration. (FR-registry-24)

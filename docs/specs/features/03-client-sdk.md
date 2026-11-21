@@ -2,7 +2,7 @@
 id: client-sdk
 feature: Client SDK
 epic: "Epic 3: Client SDK"
-status: issued
+status: built
 issues: [4, 26, 27, 28, 29, 30, 31]
 mockups: []
 ---
@@ -83,7 +83,8 @@ this epic: two protocols answer through two private classes.
 
 ### Result
 
-- FR-client-26 — `Result.Payload` holds the opaque RDATA bytes of the answer RR.
+- FR-client-26 — `Result.Payload` holds the payload of the envelope in the answer RR
+  (FR-codec-38).
 - FR-client-27 — `Result` holds the QNAME, protocol key, RCODE and TTL of the answer.
 - FR-client-28 — `Result.Transport` is `udp` or `tcp`, the transport of the final
   attempt.
@@ -182,7 +183,8 @@ flowchart TD
 3. The client sends the query.
 4. If the client returns a result, `qmuxctl` prints it and exits 0.
 5. If the client returns a `DNSError`, `qmuxctl` prints it and exits 1.
-6. If the client returns an `AppError`, `qmuxctl` prints it and exits 2.
+6. If the client returns an `AppError`, `qmuxctl` prints the result to stdout, prints the
+   error to stderr and exits 2.
 7. If the client returns a `VerifyError`, `qmuxctl` prints it and exits 3.
 
 ## Screens & states
@@ -192,7 +194,7 @@ No graphical screens. `qmuxctl query` output states:
 Result:
 
 ```
-$ qmuxctl query --server 127.0.0.1:5353 --class 65280 --type 65280 --name device42.fleet.example.
+$ qmuxctl query --server 127.0.0.1:5300 --class 65280 --type 65280 --name device42.fleet.example.
 name: device42.fleet.example.
 class: 65280
 type: 65280
@@ -216,7 +218,7 @@ error: dns: rcode REFUSED for device42.fleet.example. 65283/65280
 Timeout (exit 1):
 
 ```
-error: dns: timeout after 3 attempts to 127.0.0.1:5353
+error: dns: timeout after 3 attempts to 127.0.0.1:5300
 ```
 
 Usage error (exit 64): the usage text for `qmuxctl query`.
@@ -233,8 +235,9 @@ Usage error (exit 64): the usage text for `qmuxctl query`.
   context time and `AttemptTimeout`, whichever ends first.
 - The TCP fallback counts as one extra attempt beyond `Attempts`.
 - `Result.TTL` is informational. Nothing in the client uses it as an expiry.
-- `DNSError.Error()` names the kind, the QNAME, the protocol key and, for the kind
-  `rcode`, the RCODE text.
+- `DNSError.Error()` names the kind, the QNAME and the protocol key. For the kind
+  `rcode`, it also names the RCODE text. For the kind `timeout`, it names the attempt
+  count and the resolver address in place of the QNAME and the protocol key.
 - Every error wraps a cause, so callers test it with `errors.As` and `errors.Is`.
 - In Epic 3 the client never returns `AppError` or `VerifyError`. Epics 4 and 6 return
   them.
@@ -305,7 +308,7 @@ type AppError struct {
 }
 
 type VerifyError struct {
-    Reason string
+    Reason error // the security sentinel, or the codec error; a string before Epic 6
     Err    error
 }
 
@@ -328,11 +331,9 @@ func NewClient(cfg ClientConfig) *client.Client
 miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and
 `go doc` on 2026-11-20:
 
-- `dns.Client` has the fields `Net`, `UDPSize` and `Timeout`. `Timeout` is an overall
-  timeout that overrides the dial, read and write timeouts.
-- `dns.Client.ExchangeContext(ctx, m, addr)` returns `(*Msg, rtt, error)`.
-- `pkg/transport` may use `dns.Client` or a `net.Dialer` with `Msg.Pack` and
-  `Msg.Unpack`. It must report the wire sizes of the query and the response either way.
+- `pkg/transport` does not use `dns.Client`. It sends each query on a `net.Conn` with
+  `Msg.Pack` and reads the response with `Msg.Unpack`. ADR 0005 defines the API.
+- `pkg/transport` reports the wire sizes of the query and the response.
 
 ## Edge cases & failures
 
@@ -389,9 +390,11 @@ miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73)
 - A query to a closed TCP port returns a network `DNSError`. (FR-client-23)
 - `AppError{Status: 1, ProtocolID: "org.qmux.firmware", Version: 1}` compiles and its
   `Error()` names the status. (FR-client-24)
-- `VerifyError{Reason: "expired"}` compiles and its `Error()` names the reason.
+- `VerifyError{Reason: "expired"}` compiles and its `Error()` names the reason. From
+  Epic 6, FR-security-36 replaces the string: `Reason` holds the sentinel error.
   (FR-client-25)
-- `Result.Payload` equals the handler's payload bytes. (FR-client-26)
+- `Result.Payload` equals the payload of the envelope, which is the handler's payload.
+  (FR-client-26)
 - `Result` holds the QNAME, protocol key, `NOERROR` and the RR TTL. (FR-client-27)
 - `Result.Transport` is `tcp` after a fallback and `udp` otherwise. (FR-client-28)
 - `Result.FellBack` is false for a small answer. (FR-client-29)
@@ -399,7 +402,7 @@ miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73)
 - `Result.QueryBytes` and `Result.ResponseBytes` equal the packed sizes the test server
   records. (FR-client-31)
 - `Result.Verified` is false. (FR-client-32)
-- `qmuxctl query --help` lists the eight flags. (FR-client-33)
+- `qmuxctl query --help` lists the eight flags of FR-client-33, and from Epic 6 also `--trust-anchors` (FR-security-50). (FR-client-33)
 - `qmuxctl query` prints `payload:` followed by lowercase hex. (FR-client-34)
 - `qmuxctl query --json` output parses as one JSON object. (FR-client-35)
 - `qmuxctl query` against a registered protocol key exits 0. (FR-client-36)

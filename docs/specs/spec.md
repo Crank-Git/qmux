@@ -129,7 +129,7 @@ planning interview.
 | static record | noun | A payload for one QNAME that the configuration file declares. | fixture, entry |
 | observation log | noun | The JSONL file in which `qmuxd` writes one line per received query. | query log, access log |
 | probe | noun | One query that `qmux-probe` sends for one combination of path, transport, class and type. | test case, check |
-| probe protocol | noun | The echo protocol `org.qmux.probe` that `qmuxd` serves for interop runs. | test protocol |
+| probe protocol | noun | The echo protocol `org.qmux.probe.<class>-<type>` that `qmuxd` serves for interop runs, one protocol ID for each class and type pair. | test protocol |
 | path | noun | The route of a probe: direct, through BIND, or through Unbound. | route, hop |
 | interop matrix | noun | The table of probe outcomes over every path, transport, class and type. | compatibility table |
 | baseline | noun | One of the comparison implementations: IN-class DNS, IN + TXT, CoAP or HTTPS. | alternative, competitor |
@@ -215,6 +215,9 @@ command-line output in place of screens.
 
 ## Architecture & stack
 
+The diagram shows the main imports. `docs/architecture.md` holds the full graph, which comes
+from `go list` on the code.
+
 ```mermaid
 flowchart LR
     subgraph lib["Library module github.com/Crank-Git/qmux"]
@@ -240,7 +243,6 @@ flowchart LR
     demo["examples/embedded-bootstrap"]
 
     registry --> protocol
-    codec --> protocol
     transport --> protocol
     security --> codec
     server --> registry
@@ -248,7 +250,7 @@ flowchart LR
     server --> security
     client --> transport
     client --> security
-    discovery --> registry
+    discovery --> server
     discovery --> client
     facade --> server
     facade --> client
@@ -257,7 +259,8 @@ flowchart LR
     qmuxctl --> client
     qmuxctl --> discovery
     probe --> client
-    demo --> facade
+    demo --> server
+    demo --> client
     demo --> discovery
     bench --> client
     compose --> qmuxd
@@ -444,8 +447,8 @@ another protocol key fails verification.
 - The registry accepts private types 65280–65534.
 - The registry accepts a non-private type only when `AllowNonPrivateTypes` is true. That
   option exists for the TXT reference row of the benchmark and probe.
-- The registry always rejects the meta-types OPT (41), TSIG (250), IXFR (251), AXFR (252)
-  and ANY (255).
+- The registry always rejects the types 0, OPT (41), TSIG (250), IXFR (251), AXFR (252),
+  ANY (255) and the reserved type 65535.
 - Class and type numbers are local to one server. A protocol ID is the stable name. The
   manifest maps protocol IDs to protocol keys.
 
@@ -457,7 +460,7 @@ The demonstration uses these defaults:
 | `org.qmux.bootstrap` | 65280 | 65280 |
 | `org.qmux.configuration` | 65281 | 65280 |
 | `org.qmux.firmware` | 65282 | 65280 |
-| `org.qmux.probe` | as the interop configuration lists | as the interop configuration lists |
+| `org.qmux.probe.<class>-<type>` | as the interop configuration lists | as the interop configuration lists |
 
 ### Error semantics
 
@@ -501,8 +504,10 @@ The client returns three separate Go error types:
 
 The server and `qmuxd` log with `log/slog`. One record per query carries `qname`,
 `qclass`, `qtype`, `transport`, `source`, `rcode`, `status`, `bytes_in`, `bytes_out` and
-`duration_ms`. The default level is `info`. The library never logs payload bytes or
-private keys.
+`duration_ms`. The default level is `info`. From the review #193, the record of a query
+that the rate limit refuses is at level `debug`, so a flood does not fill the log. Other
+`REFUSED` records stay at `info`. The observation log still gets its line for each
+query. The library never logs payload bytes or private keys.
 
 ### Performance targets
 
@@ -517,7 +522,7 @@ private keys.
 |---|---|
 | Server UDP size limit with EDNS(0) | 1232 bytes |
 | Server UDP size limit without EDNS(0) | 512 bytes |
-| Handler timeout | 2 s |
+| Handler timeout | 800 ms |
 | Server read and write timeout | 2 s |
 | Graceful shutdown grace period | 5 s |
 | Default response TTL | 60 s |
@@ -527,6 +532,9 @@ private keys.
 | Client advertised UDP size | 1232 bytes |
 | Allowed clock skew | 60 s |
 | Longest validity window a client accepts | 24 h |
+
+From the review #193, the handler timeout is 800 ms and not 2 s. It is shorter than the
+client attempt timeout, so a slow handler gives SERVFAIL on the first attempt.
 
 ## Environments & config
 
@@ -590,7 +598,7 @@ Every epic is one batch, one PR into `dev`, and one CI run.
 | Epic 8: qmuxd daemon | `qmuxd serve` runs from a configuration file, with rate limits and an observation log. | 08-qmuxd-daemon | Epic 7 | `qmuxd` serves `examples/qmuxd.json`, and `qmuxctl` verifies every protocol. |
 | Epic 9: Interop harness | `qmux-probe` and the Docker Compose matrix record outcomes over every path. | 09-interop-harness | Epic 8 | `make interop` writes `results.json`. The CI interop workflow passes. |
 | Epic 10: Baseline benchmarks | The private-class path is measured against the four baselines. | 10-baseline-benchmarks | Epic 9 | Phase 5 deliverable: `make bench` writes results, and `docs/interoperability.md` holds a measured table. |
-| Epic 11: Documentation | README and every doc in `docs/` are complete, and every example runs. | 11-documentation | Epic 10 | The docs example test passes. Each acceptance criterion in § 15 of the brief maps to a test or a doc section. |
+| Epic 11: Documentation | README and every doc in `docs/` are complete, and every example runs. | 11-documentation | Epic 10 | The docs example test passes. Each acceptance criterion in `docs/specs/features/*.md` maps to its proof in `docs/acceptance.md`. |
 
 Epic 8 depends on Epic 7, because `examples/qmuxd.json` uses the payload schemas that Epic 7 defines.
 
@@ -604,7 +612,7 @@ Epic 8 depends on Epic 7, because `examples/qmuxd.json` uses the payload schemas
 | M3 — Phase 3 | Epic 6 | Signed envelopes, verified by default when trust anchors exist. |
 | M4 — Phase 4 | Epics 7 and 8 | The demonstration and the daemon work end to end. |
 | M5 — Phase 5 | Epics 9 and 10 | Reproducible interop matrix and benchmark results. |
-| M6 | Epic 11 | Every acceptance criterion of the brief holds. `dev` is promoted to `main`. |
+| M6 | Epic 11 | Every acceptance criterion of the spec holds. `dev` is promoted to `main`. |
 
 ## Assumptions
 
@@ -773,3 +781,77 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
     the non-goals.
 - 2026-11-20 — The user approved the spec and the project scaffold.
 - 2026-11-20 — spec-to-issues created 12 epics (#1–#12) and 63 sub-issues (#13–#75). Every feature is now `issued`.
+- 2026-11-20 — An earlier session built #13–#23 outside the issue-flow process. The user
+  reset `dev` to the Epic 0 merge and chose to rebuild. The earlier work is on
+  `archive/qwen-dev` for reference only.
+- 2026-11-20 — The root module declares `go 1.25.0`, because miekg/dns v1.1.73 declares
+  `go 1.25.0` and the Go tool does not accept `go 1.25` next to it.
+- 2026-11-20 — The user accepted ADR 0005: `pkg/transport` runs its own UDP and TCP read
+  loops and exports only QMux types. #88 and #89 build it. Foundation is `built` (#91).
+- 2026-11-20 — The user ruled that the registry always rejects type 65535, also with
+  `AllowNonPrivateTypes`. FR-registry-22 lists it (#20).
+- 2026-11-20 — Protocol registry is `built` (#97). The batch also carried #88, the server
+  side of the transport API, because #88 needs `protocol.ProtocolKey`.
+- 2026-11-20 — Authoritative server is `built` (#111). Decisions: the 512-byte limit
+  without EDNS(0) applies over UDP and TCP. A zone matches by label (#104). A handler
+  that ignores its context gets SERVFAIL at `HandlerTimeout`, and its goroutine stays
+  until it returns.
+- 2026-11-20 — Client SDK first batch shipped (#110). An error response with zero
+  questions returns its RCODE (ADR 0005, Exchange rule 4).
+- 2026-11-20 — Client SDK is `built` (#110, #118). `DNSError` text matches the qmuxctl
+  screens (#115). An invalid `--name` exits 64.
+- 2026-11-20 — The user ruled that `qmuxctl query` shows the envelope fields as `key: value`
+  lines and prints the result before an `AppError` (#36). The envelope rejects a message
+  type or status above 65535 (`ErrInvalidStatus`, #33).
+- 2026-11-20 — Envelope codec is `built` (#122).
+- 2026-11-20 — Discovery decisions (#6): the user ruled that `InClass` registers discovery
+  only at `(1, 65534)` (FR-discovery-12). A `version-unsupported` envelope reaches the
+  caller as an `AppError` (#130). The Epic 2 version label rules are marked as replaced
+  (#125).
+- 2026-11-20 — Discovery is `built` (#132).
+- 2026-11-20 — Signing decisions (#7): `VerifyError.Reason` holds the sentinel error
+  (#137). A client with trust anchors returns a `VerifyError` and no result for any failed
+  check, including bytes that do not decode. Only `expires_at` ends a manifest cache
+  entry. `client.Result.Raw` holds the verified envelope bytes.
+- 2026-11-20 — Signing and freshness is `built` (#140). The security review found that
+  `strings.ToLower` folds Unicode. `pkg/security` now folds QNAMEs with ASCII rules (RFC 4343,
+  #141). #142 applies the same fold in every package.
+- 2026-11-20 — Embedded recovery decisions (#8): the server runs the schema only on an
+  answer with the status `ok` (#147). The discovery log line prints no expiry. A run with no
+  download, the rollback case included, prints `result: up to date (0 downloads)`.
+  `protocol.FoldName` is the one ASCII fold for DNS names (#142).
+- 2026-11-20 — Embedded recovery demonstration is `built` (#151).
+- 2026-11-20 — qmuxd decisions (#9): one discovery registration serves every zone
+  (`discovery.RegisterZones`). The `ttl` range is 1–86400, and 0 exits 2 (#155). A parsed
+  query whose response write fails still writes an observation line. `qmuxd` checks each
+  payload against the codec decode limits at load time (#159). `qmuxd` binds with
+  `transport.Listen` (#158).
+- 2026-11-20 — qmuxd daemon is `built` (#163). A config error gives the same text on every
+  Go version (#164).
+- 2026-11-20 — Interop decisions (#10): the user ruled that each probe pair registers the
+  protocol ID `org.qmux.probe.<class>-<type>` (#168). ADR 0006 records the one-key-per-ID
+  rule. The QTYPE 16 TXT path joins the character-strings in the client (ADR 0005, Exchange
+  rule 6). The observed matrix: every direct probe is ok, and through BIND 9.20 and
+  Unbound 1.26.2 only class IN reaches the authoritative server.
+- 2026-11-20 — Interop harness is `built` (#173). The CI interop run on amd64 (no emulation)
+  gives the same matrix as the arm64 run.
+- 2026-11-20 — Benchmark decisions (#11): the user ruled that CoAP keeps the RFC 7252 backoff,
+  so it makes 3 transmissions in the 5 s deadline (FR-bench-20). `make bench` fails with the
+  GNU Make exit code 2 when `qmux-bench` exits 1 (#180). ADR 0007 records the footprint
+  client leaf package. The measured result on the direct path: `qmux-private` and `dns-in`
+  have the same latency, bytes and size within the run noise. Private classes do not reach
+  the authoritative server through BIND or Unbound.
+- 2026-11-20 — Baseline benchmarks is `built` (#182).
+- 2026-11-20 — Documentation decisions (#12): the user ruled that `docs/acceptance.md` maps
+  the acceptance criteria of the spec, because the source brief is not in the repository.
+  Dated results snapshots live in `docs/results/` (FR-docs-15). The `qmuxd` example and
+  default address is `127.0.0.1:5300`, because mDNS holds port 5353 on macOS (#186, #189).
+  `docs/acceptance.md` maps 414 criteria: 405 name a proof, and 9 are listed as having no
+  automated proof.
+- 2026-11-20 — Documentation is `built` (#192). Every feature of the spec is now `built`.
+- 2026-11-20 — Review decisions (#193): the user ruled that the default `HandlerTimeout` of
+  the server is 800 ms. The user also ruled that a discovery client drops its cached
+  manifest after `version-unsupported`, `REFUSED` or a `mismatch`, and that
+  `discovery.Client.Forget(zone)` drops it on request. The PM decided that only a query
+  that the rate limit refuses logs at the `debug` level. The `qmuxd ready` record adds
+  `bound`, and a usage error of a command-line tool exits with code 64.

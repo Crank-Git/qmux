@@ -2,7 +2,7 @@
 id: signing-and-freshness
 feature: Signing and freshness
 epic: "Epic 6: Signing and freshness"
-status: issued
+status: built
 issues: [7, 43, 44, 45, 46, 47, 48]
 mockups: []
 ---
@@ -137,6 +137,17 @@ signed metadata. It also adds the manifest cache, key files, trust anchor files 
   entry.
 - **FR-security-47** — The cache is never used when `InsecureSkipVerify` is true and no
   trust anchors exist.
+
+**Note.** From the review #193, a stale manifest also ends a cache entry, before its
+`expires_at`. This amends FR-security-42 and FR-security-46:
+
+- `discovery.Client.QueryProtocol` drops the cached manifest of the zone when the query
+  gets the status `version-unsupported`, the RCODE `REFUSED` or a `*client.DNSError` of
+  kind `mismatch`.
+- `discovery.Client.Forget(zone)` drops the cached manifest of the zone.
+- A dropped manifest leaves memory, and its cache file in `CacheDir` is removed. The next
+  `Discover` for the zone sends a query.
+- Any other answer, for example `ok`, keeps the cached manifest.
 
 ### qmuxctl, fuzz and Phase 3 test
 
@@ -277,7 +288,7 @@ wrote keys/qmuxd.anchor.json
 key_id 3f9a1c0b7d2e4a65
 ```
 
-`qmuxctl query` with `--trust-anchors` adds the line `verified   yes`. A failure prints:
+`qmuxctl query` with `--trust-anchors` prints the line `verified: true`. A failure prints:
 
 ```
 error: verify: ErrExpired: org.qmux.firmware device42.fleet.example.
@@ -302,7 +313,8 @@ and exits with code 3.
 - New package `pkg/security`.
 - `codec.SignatureBlock` fields are filled.
 - `server.ServerConfig.Signer`, `client.ClientConfig.TrustAnchors`, `client.Result.Verified`,
-  `client.VerifyError`, `discovery.Client.CacheDir`.
+  `client.VerifyError`, `discovery.Client.CacheDir`, `client.Result.Raw` (the verified
+  envelope bytes, which the manifest cache stores and verifies again on load).
 - Files: signing key (PKCS#8 PEM), trust anchor file (JSON), freshness store file (JSON),
   manifest cache file.
 - `docs/security.md`.

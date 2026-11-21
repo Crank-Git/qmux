@@ -2,7 +2,7 @@
 id: authoritative-server
 feature: Authoritative server
 epic: "Epic 2: Authoritative server"
-status: issued
+status: built
 issues: [3, 21, 22, 23, 24, 25]
 mockups: []
 ---
@@ -36,7 +36,8 @@ the envelope. The server never recurses and never delegates.
 - FR-server-1 — `NewServer(cfg ServerConfig)` returns a server that holds a new registry
   built with `cfg.Registry`.
 - FR-server-2 — `NewServer` applies the defaults from the spec's timeouts table to every
-  zero field of `ServerConfig`.
+  zero field of `ServerConfig`. From the review #193, the default `HandlerTimeout` is
+  800 ms and not 2 s, because it must be shorter than the client attempt timeout of 1 s.
 - FR-server-3 — `Register(key, h)` registers `h` with the `Info` that `h.Info()` returns.
 - FR-server-4 — `Register` returns `ErrMissingInfo` when `h` does not implement
   `protocol.Describer`.
@@ -77,7 +78,8 @@ the envelope. The server never recurses and never delegates.
 - FR-server-23 — The server builds a `Request` with the QNAME in lowercase fully
   qualified form.
 - FR-server-24 — The server sets `Request.Version` from a leftmost `_v<N>` label, or to 0
-  when the QNAME has no version label.
+  when the QNAME has no version label. From Epic 5, FR-discovery-21 replaces the 0: with no
+  version label, `Request.Version` is the highest version of the registration.
 - FR-server-25 — The server sets `Request.Labels` to the QNAME labels below the zone, with
   the version label removed.
 - FR-server-26 — The server sets `Request.Source`, `Request.Transport`,
@@ -85,13 +87,16 @@ the envelope. The server never recurses and never delegates.
 - FR-server-27 — The server calls the handler of the registration with a context that
   expires after `HandlerTimeout`.
 - FR-server-28 — The server calls `Info.Schema.Validate` on the response payload when the
-  registration has a schema.
+  registration has a schema. From Epic 7, the server calls the schema only when
+  `Response.Status` is `ok`. A handler response with another status goes out without a
+  schema check, so a protocol with a schema can return `not-found` (#147).
 - FR-server-29 — On a handler response, the server answers `NOERROR` with the AA bit set
   and exactly one answer RR.
 - FR-server-30 — The answer RR has the QNAME as received, and the class and type of the
   question.
 - FR-server-31 — The answer RR carries `Response.Payload` as opaque RDATA in a
-  `*dns.RFC3597` RR.
+  `*dns.RFC3597` RR. From Epic 4, FR-codec-29 replaces the raw payload: the RDATA is the
+  envelope that holds `Response.Payload`.
 - FR-server-32 — The answer RR TTL is `Response.TTL`, or `cfg.TTL` when `Response.TTL` is
   0.
 - FR-server-33 — The server answers `SERVFAIL` when the handler returns an error.
@@ -206,18 +211,20 @@ level=INFO msg=query qname=device42.fleet.example. qclass=65280 qtype=65280 tran
 
 - The server compares QNAMEs and zones in lowercase. The answer RR keeps the QNAME case
   as received.
-- A zone matches a QNAME that equals the zone or ends with `.` plus the zone.
+- A zone matches a QNAME when the last labels of the QNAME equal the labels of the zone.
+  An escaped dot (`\.`) is part of its label and is not a label boundary.
 - When several zones match, the longest zone is the `Request.Zone`.
 - With empty `Zones`, `Request.Zone` is `.` and `Request.Labels` holds every QNAME label.
 - A version label is a leftmost label `_v` followed by a decimal number from 1 to 65535
   with no leading zero. Any other leftmost label that starts with `_v` is an ordinary
-  label.
+  label. From Epic 5, FR-discovery-22 replaces this rule: such a label gives the
+  application status `bad-request`.
 - In Epic 2 the server passes the version label through to the handler. Epic 5 adds the
   check against the registration versions.
 - `Response.Version` 0 means the highest version of the registration.
   `Response.MessageType` 0 means `MessageRecord`. Epic 4 writes both into the envelope.
-- The server replaces the miekg/dns default `MsgAcceptFunc`. The default accepts NOTIFY
-  and allows up to two additional RRs, which QMux does not want.
+- `pkg/transport` runs its own UDP and TCP read loops, so no miekg/dns accept function
+  filters the queries. `pkg/server` answers NOTIFY and IQUERY with `NOTIMP`. See ADR 0005.
 - A response to a non-EDNS query carries no OPT RR.
 - The server sets the RA bit to 0 on every response.
 
@@ -236,7 +243,7 @@ type ServerConfig struct {
     Zones          []string      // empty: every QNAME
     TTL            uint32        // default 60
     UDPSize        uint16        // default 1232
-    HandlerTimeout time.Duration // default 2s
+    HandlerTimeout time.Duration // default 800ms
     ReadTimeout    time.Duration // default 2s
     WriteTimeout   time.Duration // default 2s
     ShutdownGrace  time.Duration // default 5s
@@ -262,7 +269,8 @@ package protocol
 type Request struct {
     QName      string // lowercase FQDN
     Key        ProtocolKey
-    Version    uint16 // 0 when no version label
+    Version    uint16 // 0 when no version label; the highest version from Epic 5
+    Name       string // QNAME without the version label; added in Epic 5
     Labels     []string
     Zone       string
     Source     netip.AddrPort
@@ -281,18 +289,16 @@ type Response struct {
 }
 ```
 
-`pkg/transport` holds every miekg/dns call: the accept function, the conversion between
-bytes and the hex `RFC3597.Rdata`, the EDNS(0) handling, and the size checks. miekg/dns
-v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and `go doc` on
-2026-11-20:
+`pkg/transport` holds every miekg/dns call: the UDP and TCP read loops, the conversion
+between bytes and the hex `RFC3597.Rdata`, the EDNS(0) handling, and the size checks.
+ADR 0005 defines its API. miekg/dns v1.1.73 facts, verified against
+https://github.com/miekg/dns (v1.1.73) and `go doc` on 2026-11-20:
 
-- `dns.Server` has the fields `Addr`, `Net` (`udp` or `tcp`), `Handler`, `UDPSize`,
-  `ReadTimeout`, `WriteTimeout`, `NotifyStartedFunc`, `MsgAcceptFunc`, and the methods
-  `Shutdown()` and `ShutdownContext(ctx)`.
-- `dns.Server` also has `PacketConn` and `Listener` fields. `Serve` uses them.
-- The default `MsgAcceptFunc` ignores responses, answers `NOTIMP` for opcodes other than
-  QUERY and NOTIFY, and rejects a question count other than 1. It does not check class or
-  type.
+- `pkg/transport` uses miekg/dns only for `Msg.Pack`, `Msg.Unpack`, `Msg.Truncate`,
+  `SetEdns0` and `RFC3597`. It does not use `dns.Server`.
+- `dns.Server` reads a UDP query into a buffer of `UDPSize` bytes and does not give the
+  received size to the handler. `Msg.Unpack` ignores trailing bytes. So `pkg/transport`
+  measures each query from the bytes that it receives.
 - `Msg.IsEdns0()` returns the OPT RR. `OPT.UDPSize()` and `OPT.Version()` read its fields.
 
 ## Edge cases & failures
@@ -312,7 +318,7 @@ v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and `go d
 
 - `NewServer(ServerConfig{})` returns a server whose registry accepts a valid
   registration. (FR-server-1)
-- `NewServer(ServerConfig{})` applies TTL 60, UDP size 1232, handler timeout 2s, read and
+- `NewServer(ServerConfig{})` applies TTL 60, UDP size 1232, handler timeout 800ms, read and
   write timeouts 2s, and shutdown grace 5s. (FR-server-2)
 - `Register` with a `Describer` handler adds a registration with the handler's `Info`.
   (FR-server-3)
@@ -344,18 +350,20 @@ v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and `go d
 - The QNAME `Device42.Fleet.Example.` reaches the handler as `device42.fleet.example.`.
   (FR-server-23)
 - The QNAME `_v2.device42.fleet.example.` gives `Request.Version` 2. A QNAME with no
-  version label gives 0. (FR-server-24)
+  version label gives 0, and from Epic 5 the highest version. (FR-server-24,
+  FR-discovery-21)
 - With zone `fleet.example.`, `_v2.device42.fleet.example.` gives `Request.Labels`
   `["device42"]`. (FR-server-25)
 - A handler sees the client source address, `udp` or `tcp`, the query ID, and a
   non-zero `ReceivedAt`. (FR-server-26)
-- A handler sees a context deadline about 2 seconds after the call with default
+- A handler sees a context deadline about 800 milliseconds after the call with default
   settings. (FR-server-27)
 - A schema that counts its calls records one call per answered query. (FR-server-28)
 - A handler response gives `NOERROR`, AA set, and an answer count of 1. (FR-server-29)
 - The answer RR for `Device42.fleet.example.` class 65281 type 65280 has that exact name,
   class 65281 and type 65280. (FR-server-30)
-- The answer RDATA bytes equal the handler's payload bytes. (FR-server-31)
+- The answer RDATA bytes equal the handler's payload bytes, and from Epic 4 the payload of
+  the decoded envelope. (FR-server-31, FR-codec-29)
 - A response with TTL 0 gives an RR TTL of 60. A response with TTL 5 gives 5.
   (FR-server-32)
 - A handler error gives `SERVFAIL`. (FR-server-33)

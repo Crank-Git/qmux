@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: Authoritative server</h1>
-<p class="meta">Epic 2: Authoritative server &nbsp; <span class="badge">issued</span></p>
+<p class="meta">Epic 2: Authoritative server &nbsp; <span class="badge">built</span></p>
 <h3 id="authoritative-server-purpose">Purpose</h3>
 <p>The authoritative server receives DNS queries over UDP and TCP, validates them, and dispatches each one to the handler of its protocol key. It returns the handler's payload as opaque RDATA in one answer RR. The class and the type of the answer RR are the class and the type of the question. It enforces size limits, EDNS(0), timeouts and graceful shutdown, and it logs one record per query.</p>
 <p>In Epic 2 the RDATA is the raw <code>Response.Payload</code>. Epic 4 replaces the raw payload with the envelope. The server never recurses and never delegates.</p>
@@ -190,7 +190,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li>FR-server-2 — <code>NewServer</code> applies the defaults from the spec's timeouts table to every
 </li>
 </ul>
-<p>zero field of <code>ServerConfig</code>.</p>
+<p>zero field of <code>ServerConfig</code>. From the review #193, the default <code>HandlerTimeout</code> is 800 ms and not 2 s, because it must be shorter than the client attempt timeout of 1 s.</p>
 <ul>
 <li>FR-server-3 — <code>Register(key, h)</code> registers <code>h</code> with the <code>Info</code> that <code>h.Info()</code> returns.
 </li>
@@ -277,7 +277,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li>FR-server-24 — The server sets <code>Request.Version</code> from a leftmost <code>_v&lt;N&gt;</code> label, or to 0
 </li>
 </ul>
-<p>when the QNAME has no version label.</p>
+<p>when the QNAME has no version label. From Epic 5, FR-discovery-21 replaces the 0: with no version label, <code>Request.Version</code> is the highest version of the registration.</p>
 <ul>
 <li>FR-server-25 — The server sets <code>Request.Labels</code> to the QNAME labels below the zone, with
 </li>
@@ -297,7 +297,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li>FR-server-28 — The server calls <code>Info.Schema.Validate</code> on the response payload when the
 </li>
 </ul>
-<p>registration has a schema.</p>
+<p>registration has a schema. From Epic 7, the server calls the schema only when <code>Response.Status</code> is <code>ok</code>. A handler response with another status goes out without a schema check, so a protocol with a schema can return <code>not-found</code> (#147).</p>
 <ul>
 <li>FR-server-29 — On a handler response, the server answers <code>NOERROR</code> with the AA bit set
 </li>
@@ -312,7 +312,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li>FR-server-31 — The answer RR carries <code>Response.Payload</code> as opaque RDATA in a
 </li>
 </ul>
-<p><code>*dns.RFC3597</code> RR.</p>
+<p><code>*dns.RFC3597</code> RR. From Epic 4, FR-codec-29 replaces the raw payload: the RDATA is the envelope that holds <code>Response.Payload</code>.</p>
 <ul>
 <li>FR-server-32 — The answer RR TTL is <code>Response.TTL</code>, or <code>cfg.TTL</code> when <code>Response.TTL</code> is
 </li>
@@ -468,8 +468,11 @@ body.rv-open .layout { padding-right:21rem; }
 </ul>
 <p>as received.</p>
 <ul>
-<li>A zone matches a QNAME that equals the zone or ends with <code>.</code> plus the zone.
+<li>A zone matches a QNAME when the last labels of the QNAME equal the labels of the zone.
 </li>
+</ul>
+<p>An escaped dot (<code>\.</code>) is part of its label and is not a label boundary.</p>
+<ul>
 <li>When several zones match, the longest zone is the <code>Request.Zone</code>.
 </li>
 <li>With empty <code>Zones</code>, <code>Request.Zone</code> is <code>.</code> and <code>Request.Labels</code> holds every QNAME label.
@@ -477,7 +480,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li>A version label is a leftmost label <code>_v</code> followed by a decimal number from 1 to 65535
 </li>
 </ul>
-<p>with no leading zero. Any other leftmost label that starts with <code>_v</code> is an ordinary label.</p>
+<p>with no leading zero. Any other leftmost label that starts with <code>_v</code> is an ordinary label. From Epic 5, FR-discovery-22 replaces this rule: such a label gives the application status <code>bad-request</code>.</p>
 <ul>
 <li>In Epic 2 the server passes the version label through to the handler. Epic 5 adds the
 </li>
@@ -489,10 +492,10 @@ body.rv-open .layout { padding-right:21rem; }
 </ul>
 <p><code>Response.MessageType</code> 0 means <code>MessageRecord</code>. Epic 4 writes both into the envelope.</p>
 <ul>
-<li>The server replaces the miekg/dns default <code>MsgAcceptFunc</code>. The default accepts NOTIFY
+<li><code>pkg/transport</code> runs its own UDP and TCP read loops, so no miekg/dns accept function
 </li>
 </ul>
-<p>and allows up to two additional RRs, which QMux does not want.</p>
+<p>filters the queries. <code>pkg/server</code> answers NOTIFY and IQUERY with <code>NOTIMP</code>. See ADR 0005.</p>
 <ul>
 <li>A response to a non-EDNS query carries no OPT RR.
 </li>
@@ -509,7 +512,7 @@ type ServerConfig struct {
     Zones          []string      // empty: every QNAME
     TTL            uint32        // default 60
     UDPSize        uint16        // default 1232
-    HandlerTimeout time.Duration // default 2s
+    HandlerTimeout time.Duration // default 800ms
     ReadTimeout    time.Duration // default 2s
     WriteTimeout   time.Duration // default 2s
     ShutdownGrace  time.Duration // default 5s
@@ -532,7 +535,8 @@ func (s *Server) Addr() net.Addr</code></pre>
 type Request struct {
     QName      string // lowercase FQDN
     Key        ProtocolKey
-    Version    uint16 // 0 when no version label
+    Version    uint16 // 0 when no version label; the highest version from Epic 5
+    Name       string // QNAME without the version label; added in Epic 5
     Labels     []string
     Zone       string
     Source     netip.AddrPort
@@ -549,19 +553,17 @@ type Response struct {
     Version     uint16      // 0: highest registered version
     MessageType MessageType // 0: MessageRecord
 }</code></pre>
-<p><code>pkg/transport</code> holds every miekg/dns call: the accept function, the conversion between bytes and the hex <code>RFC3597.Rdata</code>, the EDNS(0) handling, and the size checks. miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and <code>go doc</code> on 2026-11-20:</p>
+<p><code>pkg/transport</code> holds every miekg/dns call: the UDP and TCP read loops, the conversion between bytes and the hex <code>RFC3597.Rdata</code>, the EDNS(0) handling, and the size checks. ADR 0005 defines its API. miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73) and <code>go doc</code> on 2026-11-20:</p>
 <ul>
-<li><code>dns.Server</code> has the fields <code>Addr</code>, <code>Net</code> (<code>udp</code> or <code>tcp</code>), <code>Handler</code>, <code>UDPSize</code>,
+<li><code>pkg/transport</code> uses miekg/dns only for <code>Msg.Pack</code>, <code>Msg.Unpack</code>, <code>Msg.Truncate</code>,
 </li>
 </ul>
-<p><code>ReadTimeout</code>, <code>WriteTimeout</code>, <code>NotifyStartedFunc</code>, <code>MsgAcceptFunc</code>, and the methods <code>Shutdown()</code> and <code>ShutdownContext(ctx)</code>.</p>
+<p><code>SetEdns0</code> and <code>RFC3597</code>. It does not use <code>dns.Server</code>.</p>
 <ul>
-<li><code>dns.Server</code> also has <code>PacketConn</code> and <code>Listener</code> fields. <code>Serve</code> uses them.
-</li>
-<li>The default <code>MsgAcceptFunc</code> ignores responses, answers <code>NOTIMP</code> for opcodes other than
+<li><code>dns.Server</code> reads a UDP query into a buffer of <code>UDPSize</code> bytes and does not give the
 </li>
 </ul>
-<p>QUERY and NOTIFY, and rejects a question count other than 1. It does not check class or type.</p>
+<p>received size to the handler. <code>Msg.Unpack</code> ignores trailing bytes. So <code>pkg/transport</code> measures each query from the bytes that it receives.</p>
 <ul>
 <li><code>Msg.IsEdns0()</code> returns the OPT RR. <code>OPT.UDPSize()</code> and <code>OPT.Version()</code> read its fields.
 </li>
@@ -600,7 +602,7 @@ type Response struct {
 </ul>
 <p>registration. (FR-server-1)</p>
 <ul>
-<li><code>NewServer(ServerConfig{})</code> applies TTL 60, UDP size 1232, handler timeout 2s, read and
+<li><code>NewServer(ServerConfig{})</code> applies TTL 60, UDP size 1232, handler timeout 800ms, read and
 </li>
 </ul>
 <p>write timeouts 2s, and shutdown grace 5s. (FR-server-2)</p>
@@ -674,7 +676,7 @@ type Response struct {
 <li>The QNAME <code>_v2.device42.fleet.example.</code> gives <code>Request.Version</code> 2. A QNAME with no
 </li>
 </ul>
-<p>version label gives 0. (FR-server-24)</p>
+<p>version label gives 0, and from Epic 5 the highest version. (FR-server-24, FR-discovery-21)</p>
 <ul>
 <li>With zone <code>fleet.example.</code>, <code>_v2.device42.fleet.example.</code> gives <code>Request.Labels</code>
 </li>
@@ -686,7 +688,7 @@ type Response struct {
 </ul>
 <p>non-zero <code>ReceivedAt</code>. (FR-server-26)</p>
 <ul>
-<li>A handler sees a context deadline about 2 seconds after the call with default
+<li>A handler sees a context deadline about 800 milliseconds after the call with default
 </li>
 </ul>
 <p>settings. (FR-server-27)</p>
@@ -700,8 +702,11 @@ type Response struct {
 </ul>
 <p>class 65281 and type 65280. (FR-server-30)</p>
 <ul>
-<li>The answer RDATA bytes equal the handler's payload bytes. (FR-server-31)
+<li>The answer RDATA bytes equal the handler's payload bytes, and from Epic 4 the payload of
 </li>
+</ul>
+<p>the decoded envelope. (FR-server-31, FR-codec-29)</p>
+<ul>
 <li>A response with TTL 0 gives an RR TTL of 60. A response with TTL 5 gives 5.
 </li>
 </ul>

@@ -2,7 +2,7 @@
 id: qmuxd-daemon
 feature: qmuxd daemon
 epic: "Epic 8: qmuxd daemon"
-status: issued
+status: built
 issues: [9, 54, 55, 56, 57, 58, 59]
 mockups: []
 ---
@@ -40,8 +40,12 @@ server.
 - **FR-qmuxd-3** — `qmuxd serve` listens on UDP and on TCP at the listen address.
 - **FR-qmuxd-4** — `qmuxd serve` logs one record at level `info` when both listeners are
   ready. The record holds the listen address, the zones, the key ID and the protocol count.
+  From the review #193, `listen` is the configured address and `bound` is the address of
+  the UDP socket. A `0.0.0.0` socket is dual-stack and reports `[::]`.
 - **FR-qmuxd-5** — On SIGINT or SIGTERM, `qmuxd serve` shuts down with the grace period and
-  exits with code 0.
+  exits with code 0. From the review #193, it logs one `info` record when the shutdown
+  starts and one when it completes. Both records hold the grace period. The second
+  record also holds the time that the shutdown took.
 - **FR-qmuxd-6** — `qmuxd version` prints the module version and the Go version.
 - **FR-qmuxd-7** — `qmuxd` exits with code 1 when a listener cannot bind.
 
@@ -59,8 +63,8 @@ server.
 - **FR-qmuxd-13** — `qmuxd` registers each protocol through the registry, so the registry
   rules apply. A registry error exits with code 2.
 - **FR-qmuxd-14** — Each QNAME in `records` must be at or below one of the configured zones.
-- **FR-qmuxd-15** — When `discovery.enabled` is true, `qmuxd` calls `discovery.Register` for
-  each zone. `discovery.in_class` sets `InClass`.
+- **FR-qmuxd-15** — When `discovery.enabled` is true, `qmuxd` calls
+  `discovery.RegisterZones` one time with every zone. `discovery.in_class` sets `InClass`.
 
 ### Static records and JSON-to-CBOR rule
 
@@ -195,7 +199,9 @@ sequenceDiagram
 No graphical screens. Console output of `qmuxd serve` with the `text` log format:
 
 ```
-time=2026-11-20T10:00:00Z level=INFO msg="qmuxd ready" listen=127.0.0.1:5353 zones=[fleet.example.] key_id=3f9a1c0b7d2e4a65 protocols=4
+time=2026-11-20T10:00:00Z level=INFO msg="qmuxd ready" listen=127.0.0.1:5300 bound=127.0.0.1:5300 zones=[fleet.example.] key_id=3f9a1c0b7d2e4a65 protocols=4
+time=2026-11-20T10:05:00Z level=INFO msg="qmuxd shutdown started" grace=5s
+time=2026-11-20T10:05:00Z level=INFO msg="qmuxd shutdown complete" grace=5s duration=1.2ms
 ```
 
 Configuration error:
@@ -216,13 +222,13 @@ One observation log line:
 
 | Field | Type | Default | Rule |
 |---|---|---|---|
-| `listen` | string | `127.0.0.1:5353` | `host:port`. |
+| `listen` | string | `127.0.0.1:5300` | `host:port`. |
 | `zones` | array of string | — | Required. At least one fully qualified name. |
 | `signing_key` | string | — | Required. Path to a PKCS#8 PEM Ed25519 key. Relative to the configuration file directory. |
 | `signature_validity` | string | `1h` | Go duration, 1 min to 24 h. |
-| `ttl` | integer | 60 | 0–86400 seconds. |
+| `ttl` | integer | 60 | 1–86400 seconds. |
 | `udp_size` | integer | 1232 | 512–4096. |
-| `handler_timeout` | string | `2s` | Go duration, 10 ms to 30 s. |
+| `handler_timeout` | string | `800ms` | Go duration, 10 ms to 30 s. From the review #193, the default is 800 ms and not 2 s. |
 | `rate_limit` | object `{qps, burst}` | `{50, 100}` | `qps` 0 disables. `burst` ≥ `qps` when `qps` > 0. |
 | `allow_reserved_classes` | boolean | false | Passed to the registry. |
 | `allow_non_private_types` | boolean | false | Passed to the registry. |

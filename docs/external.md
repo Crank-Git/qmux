@@ -11,7 +11,7 @@ command-line flag.
 ## Keys
 
 - `qmuxctl keygen --out <prefix>` writes `<prefix>.key` (PKCS#8 PEM, mode 0600) and
-  `<prefix>.anchor.json`. TODO(Epic 6): Confirm the flags when the command exists.
+  `<prefix>.anchor.json`. The directory of `<prefix>` must exist.
 - `.gitignore` excludes `*.key`. Never commit a private key.
 - Tests derive keys from fixed seeds in test code.
 
@@ -21,6 +21,10 @@ command-line flag.
 |---|---|---|
 | `internetsystemsconsortium/bind9` | `9.20` | https://hub.docker.com/r/internetsystemsconsortium/bind9 |
 | `klutchell/unbound` | `1.26.2` | https://hub.docker.com/r/klutchell/unbound |
+| `golang` (the `Dockerfile` build stage) | `1.25` | https://hub.docker.com/_/golang |
+| `gcr.io/distroless/static-debian12` (the `Dockerfile` final stage) | `nonroot` | https://github.com/GoogleContainerTools/distroless |
+| `golang` (the `tests/interoperability/Dockerfile.bench` build stage) | `1.26` | https://hub.docker.com/_/golang |
+| `alpine` (the `tests/interoperability/Dockerfile.bench` final stage, with `iproute2` for `tc`) | `3.20` | https://hub.docker.com/_/alpine |
 
 ## Go modules
 

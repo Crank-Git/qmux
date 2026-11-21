@@ -2,7 +2,7 @@
 id: interop-harness
 feature: Interop harness
 epic: "Epic 9: Interop harness"
-status: issued
+status: built
 issues: [10, 60, 61, 62, 63, 64]
 mockups: []
 ---
@@ -36,7 +36,8 @@ measured rows.
 - FR-interop-1 — `qmuxd` reads an optional `probe` section of the configuration file with
   the fields `zone` (text), `classes` (list of uint16) and `types` (list of uint16).
 - FR-interop-2 — For each class and type pair in the `probe` section, `qmuxd` registers
-  the probe protocol `org.qmux.probe`, version 1.
+  the probe protocol, version 1, with the protocol ID `org.qmux.probe.<class>-<type>`.
+  For example, the pair `(65281, 65280)` has the ID `org.qmux.probe.65281-65280`.
 - FR-interop-3 — `qmuxd` rejects a `probe` section with a reserved class unless
   `allow_reserved_classes` is true.
 - FR-interop-4 — `qmuxd` rejects a `probe` section with QTYPE 16 unless
@@ -263,6 +264,8 @@ Probe record (one JSON object per probe):
 | `error` | text, empty when `ok` |
 | `reached_authoritative` | bool, or null when no observation log exists |
 | `observed_qclass`, `observed_qtype` | uint, or null |
+| `host_arch` | text: the architecture of the probe host (FR-interop-39c) |
+| `emulated` | bool: true when the image of the path runs on another architecture (FR-interop-39c) |
 
 Files: `tests/interoperability/qmuxd.json`, `compose.yaml`, `bind/named.conf`,
 `bind/named-view-65281.conf`, `unbound/unbound.conf`, `results/results.json`.
@@ -271,7 +274,7 @@ Files: `tests/interoperability/qmuxd.json`, `compose.yaml`, `bind/named.conf`,
 
 ```bash
 qmux-probe \
-  --server 127.0.0.1:5353 \
+  --server 127.0.0.1:5300 \
   --classes 1,3,4,65280,65281 \
   --types 16,65280 \
   --output results.json
@@ -309,7 +312,9 @@ External interfaces:
 ## Acceptance criteria
 
 - FR-interop-1 and FR-interop-2: with `probe.classes = [65281]` and `probe.types =
-  [65280]`, `qmuxctl discover` lists `org.qmux.probe` at `(65281, 65280)`.
+  [65280]`, `qmuxctl discover` lists `org.qmux.probe.65281-65280` at `(65281, 65280)`.
+- FR-interop-2: with the default classes and types of `qmux-probe`, `qmuxctl discover`
+  lists 10 probe protocol IDs, each at its own protocol key.
 - FR-interop-3: a `probe` section with class 3 and no `allow_reserved_classes` makes
   `qmuxd` exit with an error that names the class.
 - FR-interop-4: a `probe` section with type 16 and no `allow_non_private_types` makes
@@ -328,7 +333,7 @@ External interfaces:
   `probe.fleet.example.`
 - FR-interop-18: a run with a wrong trust anchor file gives outcome `verify` on the
   direct path.
-- FR-interop-19: a probe to a port with no listener has outcome `timeout` after 3 s.
+- FR-interop-19: a probe to an address that never answers has outcome `timeout` after 3 s. A refused port has outcome `network`.
 - FR-interop-12a: a unit test of `qmux-probe` shows RD=1 in a resolver-path query and RD=0 in a direct-path query.
 - FR-interop-20 to FR-interop-22: a direct probe has `reached_authoritative: true` and
   observed class and type equal to the probe.

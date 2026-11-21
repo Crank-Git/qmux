@@ -154,7 +154,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul></aside>
 <main>
 <h1>Feature: Envelope codec</h1>
-<p class="meta">Epic 4: Envelope codec &nbsp; <span class="badge">issued</span></p>
+<p class="meta">Epic 4: Envelope codec &nbsp; <span class="badge">built</span></p>
 <h3 id="envelope-codec-purpose">Purpose</h3>
 <p>Every answer RR carries one envelope as its RDATA. The envelope is a CBOR map with a fixed set of integer keys. It names the protocol ID, the protocol version, the message type and the application status, and it carries the payload.</p>
 <p>This feature adds <code>pkg/codec</code>. It encodes the envelope with deterministic CBOR and decodes it strictly. The authoritative server then wraps every response in an envelope, and the client SDK decodes every answer from an envelope. Epic 6 signs the envelope, so the encoding must give the same bytes for the same values on every platform.</p>
@@ -363,7 +363,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li><strong>FR-codec-34</strong> — When the registration <code>Info</code> has a <code>Schema</code>, the server calls
 </li>
 </ul>
-<p><code>Schema.Validate(version, payload)</code> before it encodes the envelope.</p>
+<p><code>Schema.Validate(version, payload)</code> before it encodes the envelope. From Epic 7, #147 limits this call to a response with the status <code>ok</code>. An answer with any other status has no schema check.</p>
 <ul>
 <li><strong>FR-codec-35</strong> — The server returns <code>SERVFAIL</code> and logs the error at level <code>error</code> when
 </li>
@@ -398,7 +398,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li><strong>FR-codec-41</strong> — When the query QNAME has a version label, the client returns a
 </li>
 </ul>
-<p><code>*client.DNSError</code> of kind <code>mismatch</code> if the envelope version differs from the label.</p>
+<p><code><em>client.DNSError</code> of kind <code>mismatch</code> if the envelope version differs from the label. From Epic 5, an envelope with the status <code>version-unsupported</code> is the exception: the client skips the version check and returns the result and a <code></em>client.AppError</code>. FR-discovery-20 gives this envelope the highest version of the registration (#130).</p>
 <ul>
 <li><strong>FR-codec-42</strong> — <code>qmuxctl query</code> prints the protocol ID, the protocol version, the
 </li>
@@ -506,13 +506,26 @@ body.rv-open .layout { padding-right:21rem; }
 </li>
 </ol>
 <h3 id="envelope-codec-screens-states">Screens &amp; states</h3>
-<p>No screens: library only. <code>qmuxctl query</code> output gains these lines:</p>
-<pre class="code"><code>protocol   org.qmux.firmware
-version    1
-type       record
-status     ok
-payload    74 bytes</code></pre>
-<p>When the status is not <code>ok</code>, the <code>status</code> line shows the status name, and <code>qmuxctl</code> exits with code 2.</p>
+<p>No screens: library only. <code>qmuxctl query</code> output gains these <code>key: value</code> lines after the <code>verified:</code> line and before the <code>payload:</code> line:</p>
+<pre class="code"><code>protocol_id: org.qmux.firmware
+version: 1
+message_type: record
+status: ok
+payload_bytes: 74</code></pre>
+<ul>
+<li><code>message_type</code> shows <code>record</code> or <code>manifest</code>, or the decimal number for 256 and above.
+</li>
+<li><code>status</code> shows the status name (<code>ok</code>, <code>not-found</code>, <code>bad-request</code>,
+</li>
+</ul>
+<p><code>version-unsupported</code>, <code>unavailable</code>), or the decimal number for 5 and above.</p>
+<ul>
+<li><code>qmuxctl query --json</code> has the same names as keys.
+</li>
+<li>When the status is not <code>ok</code>, <code>qmuxctl</code> prints the full result to stdout. Then it
+</li>
+</ul>
+<p>prints <code>error: …</code> to stderr and exits with code 2.</p>
 <h3 id="envelope-codec-behaviour-rules">Behaviour rules</h3>
 <ul>
 <li>The envelope keys are unsigned integers 0–6. No other key is valid in format 1.
@@ -583,7 +596,7 @@ func Marshal(v any) ([]byte, error)
 func Unmarshal(b []byte, v any) error
 
 var ErrTooLarge, ErrNotDeterministic, ErrFormat, ErrInvalidProtocolID,
-    ErrInvalidVersion, ErrInvalidMessageType error</code></pre>
+    ErrInvalidVersion, ErrInvalidMessageType, ErrInvalidStatus error</code></pre>
 <p><code>SignatureBlock</code> is declared in this epic with the keys of the signature block table, so the envelope shape is final. Epic 6 fills it and verifies it.</p>
 <p>External library:</p>
 <ul>
