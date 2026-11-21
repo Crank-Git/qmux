@@ -3,8 +3,9 @@
 // resource.
 //
 // This package holds type aliases and constructors only, so that NewServer,
-// ProtocolKey, NewClient and Query compile as the brief shows them. The behavior
-// lives in the packages under pkg/.
+// ProtocolKey, NewClient and Query exist at the module root, as FR-client-41 in
+// docs/specs/features/03-client-sdk.md requires. The behavior lives in the packages
+// under pkg/.
 package qmux
 
 import (

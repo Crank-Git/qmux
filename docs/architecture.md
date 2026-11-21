@@ -235,9 +235,10 @@ the ADR or the spec section that decides it.
 - **Choice:** the root package `qmux` holds type aliases and constructors only.
 - **Alternative:** no root package, so callers import `pkg/server` and `pkg/client`
   directly.
-- **Reason:** the brief shows `qmux.NewServer`, `qmux.ProtocolKey`, `qmux.NewClient` and
-  `qmux.Query`. The facade makes those examples compile. It holds no logic, so it adds no
-  layer to test.
+- **Reason:** FR-client-41 requires `qmux.NewServer`, `qmux.ProtocolKey`,
+  `qmux.NewClient` and `qmux.Query` at the module root. See
+  `docs/specs/features/03-client-sdk.md` and the `qmux` row of `docs/specs/spec.md`
+  § Architecture & stack. The facade holds no logic, so it adds no layer to test.
 - **Decided by:** ADR 0004.
 
 ### Protocol keys for one protocol ID

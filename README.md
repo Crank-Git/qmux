@@ -68,6 +68,7 @@ You need Go 1.25 or later. Run each command from the repository root.
    protocols on `127.0.0.1:5300`. It names the signing key `keys/qmuxd.key`, relative to
    the directory of the file. The file does not use port 5353, because `mDNSResponder`
    holds UDP port 5353 on macOS. To use a different address, add `--listen <addr>`.
+   [`docs/configuration.md`](docs/configuration.md) lists every field of the file.
 
 5. In a second terminal, query the bootstrap record and verify it:
 
@@ -114,8 +115,22 @@ You need Go 1.25 or later. Run each command from the repository root.
    is `[device]  result: reconciled (2 downloads)`. See
    [`examples/embedded-bootstrap/README.md`](examples/embedded-bootstrap/README.md).
 
-`qmuxctl query` exits with 0 for a result, 1 for a DNS error, 2 for an application error
-and 3 for a verification error.
+`qmuxctl query` exits with these codes:
+
+- 0 for a result.
+- 1 for a DNS error.
+- 2 for an application error.
+- 3 for a verification error.
+- 64 for a usage error.
+
+`qmuxctl discover` uses the same codes. It exits with 3 when you give neither
+`--trust-anchors` nor `--insecure`. It also exits with 1 for an invalid manifest. To send
+the discovery query over TCP, add `--tcp`.
+
+`qmuxd` and `qmuxctl` exit with 64 when the subcommand is missing or unknown.
+`qmux-probe` exits with 64 for an unknown subcommand or a missing `--trust-anchors`. The
+`--help` output of each command, for example `bin/qmuxctl query --help`, lists its exit
+codes.
 
 ## Go examples
 

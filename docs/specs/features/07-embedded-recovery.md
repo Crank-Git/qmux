@@ -235,6 +235,14 @@ Error states:
   `result: failed, state unchanged`.
 - Rollback: `[device]  configuration: remote generation 2 < local 3, rollback refused`.
 
+From the review #193, a run with `--tamper-https` that ends with no error downloaded no
+configuration bundle. The tamper thus had no effect, and the device prints this line
+before the result line:
+
+```
+[device]  tamper: --tamper-https has no effect, the device downloads no configuration bundle; use a new --state path or a higher --remote-generation
+```
+
 ## Behaviour rules
 
 - Version comparison for firmware uses the three integer fields of `MAJOR.MINOR.PATCH` in
