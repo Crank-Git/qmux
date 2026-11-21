@@ -521,7 +521,9 @@ the same deadline.
   virtual network of that machine. The 10 ms delay and the loss are emulated values, not
   a radio link.
 - **Run size.** The run has 500 lookups per benchmark run and the loss levels 0, 1, 5
-  and 10. With 500 successful lookups, 25 lookups are slower than the p95. The data is one
+  and 10. With 500 successful lookups, 25 lookups are slower than the p95. Four rows have fewer
+  successful lookups: `https-cold` at loss 5 (499), and `qmux-private` (499), `coap` (498)
+  and `https-cold` (495) at loss 10. The data is one
   run, and the spec puts significance tests out of scope.
 - **Host Go toolchain.** `qmux-bench` runs on the host. The host Go toolchain `go1.27.3`
   builds `qmux-bench`, the six footprint clients and the dispatch microbenchmarks. The

@@ -6,7 +6,8 @@ flag `--config <file>` sets another path. The flag `--listen <addr>` replaces th
 example.
 
 `qmuxd` rejects an unknown field. If the file is not valid, `qmuxd` exits with code 2
-before it listens. The message names the JSON path of the first error:
+before it listens. The message names the first error. For an error inside a nested
+object, the message also names the JSON path:
 
 ```
 qmuxd: config: ttl: 0 is outside 1 to 86400
@@ -97,10 +98,11 @@ every other QNAME with the status `not-found`.
 
 `qmuxd` converts a `payload` value into CBOR with these rules:
 
-- An object whose keys are all decimal integers becomes a map with unsigned integer keys.
+- An object whose keys are all decimal integers in canonical form (no leading zero)
+  becomes a map with unsigned integer keys.
 - Any other object becomes a map with text keys.
 - An integral number becomes an unsigned integer, or a negative integer below 0.
-- A number with a fraction becomes a float.
+- A number with a fraction or an exponent becomes a float.
 - A string that starts with `hex:` becomes a byte string.
 - Any other string becomes a text string.
 - An array becomes an array. A boolean becomes a boolean.
