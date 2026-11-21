@@ -529,7 +529,8 @@ Each number comes from the `Baseline results` section.
   the private class.
 - **Latency under loss.** At loss 10, the p50 latency is 25.4 ms for `qmux-private` and
   25.8 ms for `dns-in`. The p95 latency is 1031.9 ms and 1031.6 ms. Both p95 values are
-  near the 1 s attempt timeout, so on both paths a lost packet costs one retry.
+  near the 1 s attempt timeout. This agrees with one retry after a lost packet on both
+  paths, but the run does not isolate the cause.
 - **Requests and success under loss.** At loss 10, `qmux-private` sends 1.28 requests
   per lookup and `dns-in` sends 1.26. Both have a success rate of 100.0%. The run shows
   no difference in the recovery from loss.
@@ -538,19 +539,25 @@ Each number comes from the `Baseline results` section.
   456 bytes. The difference changes sign between loss levels, so the run shows no size
   benefit for the private class.
 - **Client footprint.** The `qmux-private` and `dns-in` clients are both 4449922 bytes.
-  The maximum RSS is 15568 KiB and 15152 KiB. The CPU time is 14.4 ms and 14.2 ms. The
-  run shows no footprint benefit for the private class.
+  The two clients differ only in constants (the class, the QNAME and the protocol ID), so
+  an equal size is expected and does not compare the protocols. The maximum RSS is 15568
+  KiB and 15152 KiB. The CPU time is 14.4 ms and 14.2 ms. The run shows no footprint
+  benefit for the private class.
 - **Server dispatch.** Dispatch by class, the method of `qmux-private`, takes 1263.0
   ns/op. Dispatch by the first QNAME label, the method of `dns-in`, takes 1294.0 ns/op.
-  Both make 19 allocs/op. Dispatch by class is 31 ns per query faster, which is 2.4% of
-  the dispatch cost. This value comes from one run with no signer.
-- **Reach through resolvers.** The interop matrix shows that BIND 9.20 and Unbound 1.26.2
-  carry class IN only. `dns-in` thus works on the direct path and through these
-  resolvers. `qmux-private` works on the direct path only. On the direct path, the p50
-  latency is 24.8 ms for `qmux-private` and 24.3 ms for `dns-in`.
+  Both make 19 allocs/op. The difference is 31 ns per query, which is 2.4% of the
+  dispatch cost. This value comes from one run with no signer and no variance estimate,
+  so it does not show a difference between the two methods.
+- **Reach through resolvers.** The interop matrix (Epic 9) tested the classes 1, 3, 4,
+  65280 and 65281. Through BIND 9.20 and Unbound 1.26.2, only class 1 (IN) reached the
+  authoritative server. The benchmark uses class 65282, which the matrix did not test. The
+  matrix result for the other private classes suggests that class 65282 also does not pass
+  these resolvers, but this run does not measure it. On the direct path, the p50 latency
+  is 24.8 ms for `qmux-private` and 24.3 ms for `dns-in`.
 
-In summary, this run measured no benefit of a private class over IN-class DNS on the
-direct path, apart from 31 ns per query in server dispatch. The resolvers of the interop
-matrix carry class IN only, so a private class has less reach. These results hold for
+In summary, this run measured no difference between a private class and IN-class DNS on
+the direct path that is larger than the noise of one run. In the interop matrix, only class
+IN passed BIND 9.20 and Unbound 1.26.2, so the private classes that the matrix tested have
+less reach. These results hold for
 this host, this emulation and this run size. They do not show how a real radio link, a
 device build or a larger run behaves.
