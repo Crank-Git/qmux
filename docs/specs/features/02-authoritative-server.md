@@ -36,7 +36,8 @@ the envelope. The server never recurses and never delegates.
 - FR-server-1 — `NewServer(cfg ServerConfig)` returns a server that holds a new registry
   built with `cfg.Registry`.
 - FR-server-2 — `NewServer` applies the defaults from the spec's timeouts table to every
-  zero field of `ServerConfig`.
+  zero field of `ServerConfig`. From the review #193, the default `HandlerTimeout` is
+  800 ms and not 2 s, because it must be shorter than the client attempt timeout of 1 s.
 - FR-server-3 — `Register(key, h)` registers `h` with the `Info` that `h.Info()` returns.
 - FR-server-4 — `Register` returns `ErrMissingInfo` when `h` does not implement
   `protocol.Describer`.
@@ -242,7 +243,7 @@ type ServerConfig struct {
     Zones          []string      // empty: every QNAME
     TTL            uint32        // default 60
     UDPSize        uint16        // default 1232
-    HandlerTimeout time.Duration // default 2s
+    HandlerTimeout time.Duration // default 800ms
     ReadTimeout    time.Duration // default 2s
     WriteTimeout   time.Duration // default 2s
     ShutdownGrace  time.Duration // default 5s
@@ -317,7 +318,7 @@ https://github.com/miekg/dns (v1.1.73) and `go doc` on 2026-11-20:
 
 - `NewServer(ServerConfig{})` returns a server whose registry accepts a valid
   registration. (FR-server-1)
-- `NewServer(ServerConfig{})` applies TTL 60, UDP size 1232, handler timeout 2s, read and
+- `NewServer(ServerConfig{})` applies TTL 60, UDP size 1232, handler timeout 800ms, read and
   write timeouts 2s, and shutdown grace 5s. (FR-server-2)
 - `Register` with a `Describer` handler adds a registration with the handler's `Info`.
   (FR-server-3)
@@ -355,7 +356,7 @@ https://github.com/miekg/dns (v1.1.73) and `go doc` on 2026-11-20:
   `["device42"]`. (FR-server-25)
 - A handler sees the client source address, `udp` or `tcp`, the query ID, and a
   non-zero `ReceivedAt`. (FR-server-26)
-- A handler sees a context deadline about 2 seconds after the call with default
+- A handler sees a context deadline about 800 milliseconds after the call with default
   settings. (FR-server-27)
 - A schema that counts its calls records one call per answered query. (FR-server-28)
 - A handler response gives `NOERROR`, AA set, and an answer count of 1. (FR-server-29)

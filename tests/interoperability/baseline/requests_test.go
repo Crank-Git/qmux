@@ -3,6 +3,7 @@ package baseline_test
 import (
 	"context"
 	"net"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -15,6 +16,9 @@ import (
 type blackhole struct {
 	conn *net.UDPConn
 	got  atomic.Int64
+	mu   sync.Mutex
+	// at holds the arrival time of each datagram, in the order of arrival.
+	at []time.Time
 }
 
 // newBlackhole starts a blackhole and closes it at the end of the test.
@@ -33,6 +37,9 @@ func newBlackhole(t *testing.T) *blackhole {
 			if _, _, err := conn.ReadFromUDP(buf); err != nil {
 				return
 			}
+			b.mu.Lock()
+			b.at = append(b.at, time.Now())
+			b.mu.Unlock()
 			b.got.Add(1)
 		}
 	}()
@@ -45,6 +52,17 @@ func newBlackhole(t *testing.T) *blackhole {
 
 func (b *blackhole) addr() string {
 	return b.conn.LocalAddr().String()
+}
+
+// arrivals returns the arrival time of each datagram as an offset from start.
+func (b *blackhole) arrivals(start time.Time) []time.Duration {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	out := make([]time.Duration, len(b.at))
+	for i, at := range b.at {
+		out[i] = at.Sub(start)
+	}
+	return out
 }
 
 func TestEachBaselineRecordsOneRequestPerLookupAtLossZero(t *testing.T) {
@@ -115,7 +133,7 @@ func TestTheCoAPBaselineRetransmitsAfterOneSecond(t *testing.T) {
 	}
 }
 
-func TestTheCoAPRequestCountEqualsTheTransmissionsInTheDeadline(t *testing.T) {
+func TestTheCoAPBaselineSendsThreeTransmissionsAtZeroOneAndThreeSecondsInTheDeadline(t *testing.T) {
 	t.Parallel()
 	hole := newBlackhole(t)
 	c, err := baseline.NewClient(baseline.Target{DNS: hole.addr(), CoAP: hole.addr(), HTTPS: "127.0.0.1:1"})
@@ -123,17 +141,31 @@ func TestTheCoAPRequestCountEqualsTheTransmissionsInTheDeadline(t *testing.T) {
 		t.Fatalf("NewClient: %v", err)
 	}
 	t.Cleanup(c.Close)
+	// go-coap has no clock to replace, so the test waits the full 5 s deadline. RFC
+	// 7252 doubles the 1 s ACK timeout after each transmission, so the fourth
+	// transmission is due at 7 s, after the deadline (FR-bench-20).
 	ctx, cancel := context.WithTimeout(t.Context(), baseline.Deadline)
 	defer cancel()
+	start := time.Now()
 	_, requests, err := c.LookupRequests(ctx, baseline.CoAP)
 	if err == nil {
 		t.Fatal("lookup succeeded against a server that never answers")
 	}
-	got := hole.got.Load()
-	if requests != int(got) {
-		t.Errorf("requests = %d, the server received %d", requests, got)
+	at := hole.arrivals(start)
+	if len(at) != 3 {
+		t.Fatalf("the server received %d transmissions at %v, want 3", len(at), at)
 	}
-	t.Logf("coap: %d transmissions of the request in %v", got, baseline.Deadline)
+	if requests != len(at) {
+		t.Errorf("requests = %d, the server received %d", requests, len(at))
+	}
+	t.Logf("coap: transmissions at %v", at)
+	// The window of each transmission allows for the 10 ms retransmission check and
+	// for the scheduler of a loaded test host.
+	for i, want := range []time.Duration{0, time.Second, 3 * time.Second} {
+		if at[i] < want-50*time.Millisecond || at[i] > want+300*time.Millisecond {
+			t.Errorf("transmission %d arrived at %v, want about %v (all: %v)", i+1, at[i], want, at)
+		}
+	}
 }
 
 func TestEveryBaselineHasARetryPolicy(t *testing.T) {

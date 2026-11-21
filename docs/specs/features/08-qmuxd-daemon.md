@@ -228,7 +228,7 @@ One observation log line:
 | `signature_validity` | string | `1h` | Go duration, 1 min to 24 h. |
 | `ttl` | integer | 60 | 1–86400 seconds. |
 | `udp_size` | integer | 1232 | 512–4096. |
-| `handler_timeout` | string | `2s` | Go duration, 10 ms to 30 s. |
+| `handler_timeout` | string | `800ms` | Go duration, 10 ms to 30 s. From the review #193, the default is 800 ms and not 2 s. |
 | `rate_limit` | object `{qps, burst}` | `{50, 100}` | `qps` 0 disables. `burst` ≥ `qps` when `qps` > 0. |
 | `allow_reserved_classes` | boolean | false | Passed to the registry. |
 | `allow_non_private_types` | boolean | false | Passed to the registry. |

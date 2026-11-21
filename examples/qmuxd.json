@@ -5,7 +5,7 @@
   "signature_validity": "1h",
   "ttl": 60,
   "udp_size": 1232,
-  "handler_timeout": "2s",
+  "handler_timeout": "800ms",
   "rate_limit": {"qps": 50, "burst": 100},
   "discovery": {"enabled": true, "in_class": false},
   "log_level": "info",

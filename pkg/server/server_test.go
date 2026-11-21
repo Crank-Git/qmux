@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -72,8 +73,8 @@ func TestNewServerAppliesDefaultsToZeroFields(t *testing.T) {
 	if cfg.UDPSize != 1232 {
 		t.Errorf("UDPSize = %d, want 1232", cfg.UDPSize)
 	}
-	if cfg.HandlerTimeout != 2*time.Second {
-		t.Errorf("HandlerTimeout = %v, want 2s", cfg.HandlerTimeout)
+	if cfg.HandlerTimeout != 800*time.Millisecond {
+		t.Errorf("HandlerTimeout = %v, want 800ms", cfg.HandlerTimeout)
 	}
 	if cfg.ReadTimeout != 2*time.Second {
 		t.Errorf("ReadTimeout = %v, want 2s", cfg.ReadTimeout)
@@ -141,6 +142,25 @@ func TestRegisterReturnsTheRegistryError(t *testing.T) {
 	}
 	if err := s.Register(testKey, h); !errors.Is(err, registry.ErrKeyConflict) {
 		t.Fatalf("second Register: got %v, want ErrKeyConflict", err)
+	}
+}
+
+func TestRegistrationErrorTextNamesTheKeyOnce(t *testing.T) {
+	s := NewServer(ServerConfig{})
+	reserved := protocol.ProtocolKey{Class: 3, Type: 65280}
+	err := s.RegisterProtocol(reserved, testInfo, payloadHandler(nil))
+	if !errors.Is(err, registry.ErrInvalidKey) {
+		t.Fatalf("RegisterProtocol = %v, want ErrInvalidKey", err)
+	}
+	if got := strings.Count(err.Error(), reserved.String()); got != 1 {
+		t.Fatalf("error %q holds the key %s %d times, want 1", err, reserved, got)
+	}
+	err = s.Unregister(testKey)
+	if !errors.Is(err, registry.ErrNotFound) {
+		t.Fatalf("Unregister = %v, want ErrNotFound", err)
+	}
+	if got := strings.Count(err.Error(), testKey.String()); got != 1 {
+		t.Fatalf("error %q holds the key %s %d times, want 1", err, testKey, got)
 	}
 }
 
@@ -412,7 +432,8 @@ func TestShutdownWaitsForAHandlerThatFinishesWithinTheGrace(t *testing.T) {
 			return nil, ctx.Err()
 		}
 	})
-	s := newTestServer(t, ServerConfig{ShutdownGrace: 5 * time.Second}, h)
+	// The handler timeout must be longer than the 1s handler, so only the grace limits it.
+	s := newTestServer(t, ServerConfig{HandlerTimeout: 2 * time.Second, ShutdownGrace: 5 * time.Second}, h)
 	cancelServe, addr, errc := startServer(t, s)
 
 	type result struct {

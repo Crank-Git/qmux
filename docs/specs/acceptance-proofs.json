@@ -742,7 +742,7 @@
       ]
     },
     {
-      "criterion": "`NewServer(ServerConfig{})` applies TTL 60, UDP size 1232, handler timeout 2s, read and write timeouts 2s, and shutdown grace 5s. (FR-server-2)",
+      "criterion": "`NewServer(ServerConfig{})` applies TTL 60, UDP size 1232, handler timeout 800ms, read and write timeouts 2s, and shutdown grace 5s. (FR-server-2)",
       "proofs": [
         {
           "test": "pkg/server",
@@ -975,7 +975,7 @@
       ]
     },
     {
-      "criterion": "A handler sees a context deadline about 2 seconds after the call with default settings. (FR-server-27)",
+      "criterion": "A handler sees a context deadline about 800 milliseconds after the call with default settings. (FR-server-27)",
       "proofs": [
         {
           "test": "pkg/server",
@@ -3854,8 +3854,13 @@
     },
     {
       "criterion": "FR-bench-17: the server log shows no two lookups of one benchmark run in parallel.",
-      "proofs": [],
-      "gap": "No test or results file shows that one benchmark run has no two lookups in parallel."
+      "proofs": [
+        {
+          "test": "tests/interoperability/cmd/qmux-bench",
+          "name": "TestOneBenchmarkRunSendsNoTwoLookupsInParallel",
+          "note": "a server in front of the baselines records the start and the end of each lookup; at most 1 lookup is in progress at one time"
+        }
+      ]
     },
     {
       "criterion": "FR-bench-18: at loss 100, every lookup fails after about 5 s.",
@@ -3888,8 +3893,13 @@
     },
     {
       "criterion": "FR-bench-20: at loss 100, a `coap` lookup records 3 transmissions of the request.",
-      "proofs": [],
-      "gap": "No test asserts 3 CoAP transmissions in 5 s; a test only logs the count and another shows 2 transmissions in 1.8 s.",
+      "proofs": [
+        {
+          "test": "tests/interoperability/baseline",
+          "name": "TestTheCoAPBaselineSendsThreeTransmissionsAtZeroOneAndThreeSecondsInTheDeadline",
+          "note": "a server that never answers receives 3 transmissions in the 5 s deadline, at about 0, 1 and 3 s"
+        }
+      ],
       "ruling": "the user ruled that CoAP keeps the RFC 7252 backoff, so it makes 3 transmissions in the 5 s deadline (FR-bench-20)."
     },
     {

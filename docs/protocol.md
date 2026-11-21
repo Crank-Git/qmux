@@ -267,7 +267,9 @@ The comparison of the QNAME with the zones ignores letter case. The handler rece
 
 The registry holds one protocol key for each protocol ID. The operator can remap a
 protocol ID to a different protocol key while the server runs. After the remap, a query at
-the old protocol key gets `REFUSED`, and the handler answers at the new protocol key.
+the old protocol key gets `REFUSED`, and the handler answers at the new protocol key. A
+`discovery.Client` that gets `REFUSED` drops its cached manifest, so its next discovery
+gets the new protocol key. See [How the client negotiates](#how-the-client-negotiates).
 
 ## Discovery
 
@@ -395,7 +397,18 @@ If a field differs, the client returns a `*client.DNSError` of kind `mismatch`. 
 exception applies to the protocol version. A `version-unsupported` envelope carries the
 highest version of the registration, not `N`. The client skips the version check for this
 status. It returns the result and a `*client.AppError` with the status
-`version-unsupported`. The caller can then discover again.
+`version-unsupported`.
 
 If the operator remaps or unregisters the protocol after the discovery, the query gets
-`REFUSED`. The client then discovers again and uses the new manifest.
+`REFUSED`. `QueryProtocol` then returns a `*client.DNSError` of kind `rcode`.
+
+`QueryProtocol` drops the cached manifest of the zone when it gets one of these answers:
+
+- The status `version-unsupported`.
+- The RCODE `REFUSED`.
+- A `*client.DNSError` of kind `mismatch`, for example for another protocol ID.
+
+The client drops the manifest from memory and removes its cache file in `CacheDir`. The
+next `Discover` for the zone sends a query and returns the new manifest. Other answers,
+for example `ok` or `not-found`, keep the cached manifest. A caller can drop the cached
+manifest of a zone at any time with `discovery.Client.Forget(zone)`.

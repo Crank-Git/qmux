@@ -654,7 +654,7 @@ body.rv-open .layout { padding-right:21rem; }
 <tr><th>Setting</th><th>Default</th></tr>
 <tr><td>Server UDP size limit with EDNS(0)</td><td>1232 bytes</td></tr>
 <tr><td>Server UDP size limit without EDNS(0)</td><td>512 bytes</td></tr>
-<tr><td>Handler timeout</td><td>2 s</td></tr>
+<tr><td>Handler timeout</td><td>800 ms</td></tr>
 <tr><td>Server read and write timeout</td><td>2 s</td></tr>
 <tr><td>Graceful shutdown grace period</td><td>5 s</td></tr>
 <tr><td>Default response TTL</td><td>60 s</td></tr>
@@ -665,6 +665,7 @@ body.rv-open .layout { padding-right:21rem; }
 <tr><td>Allowed clock skew</td><td>60 s</td></tr>
 <tr><td>Longest validity window a client accepts</td><td>24 h</td></tr>
 </table></div>
+<p>From the review #193, the handler timeout is 800 ms and not 2 s. It is shorter than the client attempt timeout, so a slow handler gives SERVFAIL on the first attempt.</p>
 <h2 id="environments-config">Environments &amp; config</h2>
 <div class="table-wrap"><table>
 <tr><th>Environment</th><th>Purpose</th></tr>
