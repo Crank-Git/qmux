@@ -259,7 +259,7 @@ func TestQueryPrintsTheTimeoutScreenAndExitsOneWhenNoResponseArrives(t *testing.
 }
 
 func TestQueryWithoutNameExitsSixtyFourAndPrintsTheUsage(t *testing.T) {
-	code, stdout, stderr := queryCmd("--server", "127.0.0.1:5353", "--class", "65280", "--type", "65280")
+	code, stdout, stderr := queryCmd("--server", "127.0.0.1:5300", "--class", "65280", "--type", "65280")
 	if code != 64 {
 		t.Fatalf("exit code = %d, want 64", code)
 	}
@@ -269,11 +269,11 @@ func TestQueryWithoutNameExitsSixtyFourAndPrintsTheUsage(t *testing.T) {
 }
 
 func TestQueryWithAnInvalidFlagExitsSixtyFourAndPrintsTheUsage(t *testing.T) {
-	base := keyArgs("127.0.0.1:5353")
+	base := keyArgs("127.0.0.1:5300")
 	cases := map[string][]string{
 		"no server":           {"--class", "65280", "--type", "65280", "--name", testName},
-		"no class":            {"--server", "127.0.0.1:5353", "--type", "65280", "--name", testName},
-		"no type":             {"--server", "127.0.0.1:5353", "--class", "65280", "--name", testName},
+		"no class":            {"--server", "127.0.0.1:5300", "--type", "65280", "--name", testName},
+		"no type":             {"--server", "127.0.0.1:5300", "--class", "65280", "--name", testName},
 		"class above 65535":   append(base, "--class", "65536"),
 		"type not a number":   append(base, "--type", "txt"),
 		"version above 65535": append(base, "--version", "70000"),
@@ -281,7 +281,7 @@ func TestQueryWithAnInvalidFlagExitsSixtyFourAndPrintsTheUsage(t *testing.T) {
 		"unknown flag":        append(base, "--bogus"),
 		"extra argument":      append(base, "extra"),
 		// A label of 64 bytes is longer than DNS allows, so the client cannot build the query.
-		"name label too long": {"--server", "127.0.0.1:5353", "--class", "65280", "--type", "65280",
+		"name label too long": {"--server", "127.0.0.1:5300", "--class", "65280", "--type", "65280",
 			"--name", strings.Repeat("a", 64) + ".example."},
 	}
 	for name, args := range cases {

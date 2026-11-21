@@ -210,17 +210,17 @@ func TestDiscoverWithoutInsecureExitsThreeAndSendsNoQuery(t *testing.T) { // FR-
 }
 
 func TestDiscoverWithAnInvalidFlagExitsSixtyFourAndPrintsTheUsage(t *testing.T) { // FR-discovery-35
-	base := []string{"--server", "127.0.0.1:5353", "--name", testZone, "--insecure"}
+	base := []string{"--server", "127.0.0.1:5300", "--name", testZone, "--insecure"}
 	cases := map[string][]string{
 		"in with class":     append(base, "--in", "--class", "65280"),
 		"no server":         {"--name", testZone, "--insecure"},
-		"no name":           {"--server", "127.0.0.1:5353", "--insecure"},
+		"no name":           {"--server", "127.0.0.1:5300", "--insecure"},
 		"class above 65535": append(base, "--class", "65536"),
 		"type not a number": append(base, "--type", "txt"),
 		"unknown flag":      append(base, "--bogus"),
 		"extra argument":    append(base, "extra"),
 		// A label of 64 bytes is longer than DNS allows, so the client cannot build the query.
-		"zone label too long": {"--server", "127.0.0.1:5353", "--insecure", "--name", strings.Repeat("a", 64) + ".example."},
+		"zone label too long": {"--server", "127.0.0.1:5300", "--insecure", "--name", strings.Repeat("a", 64) + ".example."},
 	}
 	for name, args := range cases {
 		t.Run(name, func(t *testing.T) {

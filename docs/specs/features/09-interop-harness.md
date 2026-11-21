@@ -274,7 +274,7 @@ Files: `tests/interoperability/qmuxd.json`, `compose.yaml`, `bind/named.conf`,
 
 ```bash
 qmux-probe \
-  --server 127.0.0.1:5353 \
+  --server 127.0.0.1:5300 \
   --classes 1,3,4,65280,65281 \
   --types 16,65280 \
   --output results.json

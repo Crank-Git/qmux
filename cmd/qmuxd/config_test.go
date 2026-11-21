@@ -283,6 +283,19 @@ func TestLoadConfigDecodesEveryFieldOfTheSchemaTable(t *testing.T) { // FR-qmuxd
 	}
 }
 
+func TestLoadConfigWithoutAListenFieldListensOn127001Port5300(t *testing.T) { // FR-qmuxd-9
+	c := baseConfig("")
+	delete(c, "listen")
+	cfg, err := loadConfig(writeConfigFile(t, c), "")
+	if err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	// mDNS holds UDP port 5353 on macOS and on Linux hosts that run Avahi (#189).
+	if cfg.Listen != "127.0.0.1:5300" {
+		t.Errorf("listen = %q, want 127.0.0.1:5300", cfg.Listen)
+	}
+}
+
 func TestLoadConfigListenArgumentReplacesTheListenField(t *testing.T) { // FR-qmuxd-2
 	cfg, err := loadConfig(writeConfigFile(t, baseConfig("127.0.0.1:1")), "127.0.0.1:2")
 	if err != nil {

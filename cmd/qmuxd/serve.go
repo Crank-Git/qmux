@@ -28,7 +28,7 @@ const (
 )
 
 // defaultListen is the listen address when the configuration file has no listen field.
-const defaultListen = "127.0.0.1:5353"
+const defaultListen = "127.0.0.1:5300"
 
 // runServe runs qmuxd serve with the flags in args and returns the exit code. It serves
 // until ctx ends or the process receives SIGINT or SIGTERM.

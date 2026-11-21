@@ -448,7 +448,7 @@ body.rv-open .layout { padding-right:21rem; }
 <h3 id="client-sdk-screens-states">Screens &amp; states</h3>
 <p>No graphical screens. <code>qmuxctl query</code> output states:</p>
 <p>Result:</p>
-<pre class="code"><code>$ qmuxctl query --server 127.0.0.1:5353 --class 65280 --type 65280 --name device42.fleet.example.
+<pre class="code"><code>$ qmuxctl query --server 127.0.0.1:5300 --class 65280 --type 65280 --name device42.fleet.example.
 name: device42.fleet.example.
 class: 65280
 type: 65280
@@ -464,7 +464,7 @@ payload: a1016b68656c6c6f</code></pre>
 <p>DNS error (exit 1):</p>
 <pre class="code"><code>error: dns: rcode REFUSED for device42.fleet.example. 65283/65280</code></pre>
 <p>Timeout (exit 1):</p>
-<pre class="code"><code>error: dns: timeout after 3 attempts to 127.0.0.1:5353</code></pre>
+<pre class="code"><code>error: dns: timeout after 3 attempts to 127.0.0.1:5300</code></pre>
 <p>Usage error (exit 64): the usage text for <code>qmuxctl query</code>.</p>
 <h3 id="client-sdk-behaviour-rules">Behaviour rules</h3>
 <ul>
