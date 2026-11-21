@@ -1,34 +1,36 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 )
 
 func main() {
 	os.Exit(run(os.Args, os.Stdout, os.Stderr))
 }
 
-// run dispatches the subcommand in args[1] and returns the process exit code.
+// run runs the probes with the flags in args[1:], or the subcommand in args[1], and
+// returns the process exit code. A first argument that is not a flag names a
+// subcommand.
 func run(args []string, stdout, stderr io.Writer) int {
 	name := filepath.Base(args[0])
-	if len(args) < 2 {
-		// The exit code is 1 whether or not stderr accepts the write.
-		_, _ = fmt.Fprintf(stderr, "Usage: %s <version|help>\n", name)
-		return 1
+	if len(args) < 2 || strings.HasPrefix(args[1], "-") {
+		return runProbe(context.Background(), name, args[1:], stdout, stderr)
 	}
 	var err error
 	switch args[1] {
 	case "version":
 		_, err = fmt.Fprintf(stdout, "%s %s\n", name, versionOf(debug.ReadBuildInfo()))
-	case "help", "-h", "--help":
-		_, err = fmt.Fprintf(stdout, "Usage: %s <command>\n\nCommands:\n  version   Print version\n  help      Show this help\n", name)
+	case "help":
+		return runProbe(context.Background(), name, []string{"--help"}, stdout, stderr)
 	default:
 		// The exit code is 1 whether or not stderr accepts the write.
-		_, _ = fmt.Fprintf(stderr, "Unknown command: %s\nUsage: %s <version|help>\n", args[1], name)
+		_, _ = fmt.Fprintf(stderr, "Unknown command: %s\nUsage: %s --trust-anchors <file> [flags] | <version|help>\n", args[1], name)
 		return 1
 	}
 	if err != nil {

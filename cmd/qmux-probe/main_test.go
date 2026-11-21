@@ -85,14 +85,15 @@ func TestHelpPrintsUsageAndExitsZero(t *testing.T) {
 	}
 }
 
-func TestNoSubcommandPrintsUsageToStderrAndExitsOne(t *testing.T) {
+func TestNoArgumentsIsAUsageErrorBecauseTheTrustAnchorFileIsMissing(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := run([]string{"qmux-probe"}, &stdout, &stderr)
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
+	if code != 64 {
+		t.Fatalf("exit code = %d, want 64", code)
 	}
-	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "Usage: qmux-probe") {
-		t.Errorf("stdout = %q, stderr = %q, want usage on stderr only", stdout.String(), stderr.String())
+	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "--trust-anchors is required") ||
+		!strings.Contains(stderr.String(), "Usage: qmux-probe") {
+		t.Errorf("stdout = %q, stderr = %q, want the error and the usage on stderr only", stdout.String(), stderr.String())
 	}
 }
 
