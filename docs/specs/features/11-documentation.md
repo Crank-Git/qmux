@@ -60,7 +60,9 @@ its proof.
   message type, RCODE rule and default protocol key.
 - FR-docs-14 — `docs/security.md` matches the code for every verification error, default
   and limit.
-- FR-docs-15 — `docs/interoperability.md` matches the latest committed results files.
+- FR-docs-15 — `docs/interoperability.md` matches the latest results files in `docs/results/`:
+  `interop-<UTC date>.json` for the interop matrix and `bench-<UTC timestamp>.json` for the
+  baseline benchmark.
 
 ### Executable examples
 
@@ -156,7 +158,7 @@ Test failure output:
   `pkg/codec` appears in `docs/protocol.md` with the same value.
 - FR-docs-14: every exported verification error in `pkg/security` appears in
   `docs/security.md`.
-- FR-docs-15: every number in `Baseline results` appears in the committed results file.
+- FR-docs-15: every number in `Baseline results` appears in the latest `docs/results/bench-*.json`.
 - FR-docs-16 and FR-docs-17: each README Go block has a marker and a matching `Example`.
 - FR-docs-18: a test changes one README line in a temporary copy and the comparison
   fails.

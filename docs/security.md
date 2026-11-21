@@ -17,6 +17,7 @@ A client trusts an envelope only when a trust anchor signed it.
 
 - The operator runs `qmuxctl keygen --out <prefix>`. The command writes the signing key
   `<prefix>.key` and the trust anchor file `<prefix>.anchor.json`. It prints the key ID.
+  If `<prefix>.key` exists, the command returns an error and does not change the file.
 - The signing key stays on the authoritative server. The file is a PKCS#8 PEM block with
   mode 0600. `security.LoadPrivateKey` returns a warning when the group or other users
   can read it.
@@ -42,7 +43,9 @@ The trust anchor file has this schema:
 
 `security.LoadTrustAnchors` rejects:
 
+- a file that does not have this schema
 - an unknown field
+- a `key_id` that is not 8 bytes of hex
 - a `key_id` that differs from the key ID of `public_key`
 - a `public_key` that is not 32 bytes after base64 decoding
 - two anchors with the same key ID
@@ -62,6 +65,16 @@ The signature block is key 6 of the envelope:
 | 3 | issued_at | The signing time, in Unix seconds. |
 | 4 | expires_at | `issued_at` plus the validity window. The default window is 1 hour. |
 | 5 | signature | The 64-byte Ed25519 signature over the signing input. |
+
+The validity window of `security.Signer` is `Signer.Validity`, and 0 selects 1 hour. The
+`qmuxd` setting `signature_validity` accepts 1 minute to 24 hours, and its default is
+`1h`.
+
+`Signer.Sign` returns an error, and does not change the envelope, in these cases:
+
+- The signing key is not a 64-byte Ed25519 private key.
+- The signing time is before 1970.
+- `expires_at` is not later than `issued_at`.
 
 The signing input is the deterministic CBOR encoding of this array:
 
@@ -100,10 +113,15 @@ The default skew is 60 seconds, and it applies at both ends of the validity wind
 The default `MaxWindow` is 24 hours. A server with a 48-hour validity window gives
 `ErrWindowTooLong` on a client with the default `MaxWindow`.
 
+`Verify` accepts an envelope of up to 65000 bytes. The client applies its own limit of
+16384 bytes before it calls `Verify`. `Verify` reads an `issued_at` or an `expires_at`
+above 2^40 Unix seconds as 2^40, because a larger value overflows `time.Time`.
+
 The freshness store holds the newest accepted `issued_at` for each pair of protocol ID
 and QNAME. The QNAME has ASCII letters in lowercase and has no version label, so a version change does
 not reset freshness. An envelope with an equal `issued_at` passes. The verifier updates
-the store only after every check passes. The store is safe for concurrent use.
+the store only after every check passes. The store is safe for concurrent use. When
+`Verifier.Store` is nil, the verifier keeps an in-memory store for its lifetime.
 
 A device keeps the store across restarts with `FreshnessStore.Save` and
 `security.LoadFreshnessStore`. The file has mode 0600, and `Save` replaces it in one
@@ -112,6 +130,28 @@ rename. The file has this schema:
 ```json
 {"entries":[{"protocol_id":"<protocol ID>","qname":"<lowercase QNAME>","issued_at":<Unix seconds>}]}
 ```
+
+`security.LoadFreshnessStore` rejects a file that does not have this schema, and an
+unknown field. When two entries have the same protocol ID and QNAME, the store keeps the
+newer `issued_at`.
+
+### Manifest cache
+
+Only a discovery client with trust anchors caches manifests, so the cache holds only
+verified manifests. The client keeps a manifest in memory until its `expires_at`. When
+`discovery.Client.CacheDir` is set, the client also writes the file
+`<CacheDir>/<zone>.qmuxcache` with mode 0600. The file is a CBOR map:
+
+| Key | Field | Value |
+|---|---|---|
+| 1 | envelope | The raw manifest envelope, with its signature block. |
+| 2 | qname | The discovery name that the signature binds. |
+| 3 | class | The QCLASS of the discovery key. |
+| 4 | type | The QTYPE of the discovery key. |
+
+The client verifies the file again each time it loads it, and ignores a file that fails
+verification. A new manifest replaces an unexpired cached manifest only when its
+`issued_at` is newer.
 
 QMux uses no nonces. A DNS question carries no client nonce through a resolver cache,
 so the validity window and the freshness store are the replay controls.
