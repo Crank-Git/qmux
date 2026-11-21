@@ -252,7 +252,7 @@ In-memory only. The client holds its configuration. It stores nothing between qu
 package client
 
 type ClientConfig struct {
-    Resolver           string        // "127.0.0.1:5300"
+    Resolver           string        // "127.0.0.1:5353"
     Network            string        // "udp" (default) or "tcp"
     AttemptTimeout     time.Duration // default 1s
     Attempts           int           // default 3
