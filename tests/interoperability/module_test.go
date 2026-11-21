@@ -1,7 +1,9 @@
 package interoperability
 
 import (
-	"runtime/debug"
+	"encoding/json"
+	"os/exec"
+	"path/filepath"
 	"testing"
 
 	// The harness must build against the root module in this checkout. This import
@@ -9,19 +11,49 @@ import (
 	_ "github.com/Crank-Git/qmux"
 )
 
+// listedModule holds the fields of `go list -m -json` that this test reads.
+type listedModule struct {
+	Path    string
+	Replace *struct {
+		Path string
+		Dir  string
+	}
+}
+
+// The test asks the go command for the module graph. The build information in the
+// test binary is not used, because its dependency list changes between Go versions.
 func TestRootModuleResolvesToTheLocalCheckoutThroughReplace(t *testing.T) {
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		t.Fatal("the test binary has no build information")
+	// The go command puts its own GOROOT/bin first in PATH for a test, so this
+	// finds the toolchain that runs the test.
+	goTool, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatalf("find the go command: %v", err)
 	}
-	for _, dep := range info.Deps {
-		if dep.Path != "github.com/Crank-Git/qmux" {
-			continue
-		}
-		if dep.Replace == nil || dep.Replace.Path != "../../" {
-			t.Fatalf("github.com/Crank-Git/qmux replace = %+v, want path ../../", dep.Replace)
-		}
-		return
+	out, err := exec.CommandContext(t.Context(), goTool, "list", "-m", "-json", "github.com/Crank-Git/qmux").Output()
+	if err != nil {
+		t.Fatalf("go list -m github.com/Crank-Git/qmux: %v", err)
 	}
-	t.Fatal("the build does not include github.com/Crank-Git/qmux")
+	var mod listedModule
+	if err := json.Unmarshal(out, &mod); err != nil {
+		t.Fatalf("decode go list output: %v", err)
+	}
+	if mod.Replace == nil || mod.Replace.Path != "../../" {
+		t.Fatalf("github.com/Crank-Git/qmux replace = %+v, want path ../../", mod.Replace)
+	}
+
+	wantDir, err := filepath.EvalSymlinks(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("resolve the repository root: %v", err)
+	}
+	wantDir, err = filepath.Abs(wantDir)
+	if err != nil {
+		t.Fatalf("resolve the repository root: %v", err)
+	}
+	gotDir, err := filepath.EvalSymlinks(mod.Replace.Dir)
+	if err != nil {
+		t.Fatalf("resolve the replace directory %q: %v", mod.Replace.Dir, err)
+	}
+	if gotDir != wantDir {
+		t.Fatalf("github.com/Crank-Git/qmux replace directory = %q, want the repository root %q", gotDir, wantDir)
+	}
 }
