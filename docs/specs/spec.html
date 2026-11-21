@@ -352,6 +352,7 @@ body.rv-open .layout { padding-right:21rem; }
 </table></div>
 <p>QMux has no graphical screens, so the spec has no mockups. Each feature file states the command-line output in place of screens.</p>
 <h2 id="architecture-stack">Architecture &amp; stack</h2>
+<p>The diagram shows the main imports. <code>docs/architecture.md</code> holds the full graph, which comes from <code>go list</code> on the code.</p>
 <div class="diagram"><pre class="mermaid">flowchart LR
     subgraph lib["Library module github.com/Crank-Git/qmux"]
         facade["qmux (root facade)"]
@@ -376,7 +377,6 @@ body.rv-open .layout { padding-right:21rem; }
     demo["examples/embedded-bootstrap"]
 
     registry --&gt; protocol
-    codec --&gt; protocol
     transport --&gt; protocol
     security --&gt; codec
     server --&gt; registry
@@ -384,7 +384,7 @@ body.rv-open .layout { padding-right:21rem; }
     server --&gt; security
     client --&gt; transport
     client --&gt; security
-    discovery --&gt; registry
+    discovery --&gt; server
     discovery --&gt; client
     facade --&gt; server
     facade --&gt; client
@@ -393,7 +393,8 @@ body.rv-open .layout { padding-right:21rem; }
     qmuxctl --&gt; client
     qmuxctl --&gt; discovery
     probe --&gt; client
-    demo --&gt; facade
+    demo --&gt; server
+    demo --&gt; client
     demo --&gt; discovery
     bench --&gt; client
     compose --&gt; qmuxd
@@ -1062,7 +1063,11 @@ golangci-lint run</code></pre>
 <li>2026-11-20 — Benchmark decisions (#11): the user ruled that CoAP keeps the RFC 7252 backoff,
 </li>
 </ul>
-<p>so it makes 3 transmissions in the 5 s deadline (FR-bench-20). <code>make bench</code> fails with the GNU Make exit code 2 when <code>qmux-bench</code> exits 1 (#180). ADR 0007 records the footprint client leaf package. The measured result on the direct path: <code>qmux-private</code> and <code>dns-in</code> have the same latency, bytes and size within the run noise. Private classes do not reach the authoritative server through BIND or Unbound.</p><nav class="pager">
+<p>so it makes 3 transmissions in the 5 s deadline (FR-bench-20). <code>make bench</code> fails with the GNU Make exit code 2 when <code>qmux-bench</code> exits 1 (#180). ADR 0007 records the footprint client leaf package. The measured result on the direct path: <code>qmux-private</code> and <code>dns-in</code> have the same latency, bytes and size within the run noise. Private classes do not reach the authoritative server through BIND or Unbound.</p>
+<ul>
+<li>2026-11-20 — Baseline benchmarks is <code>built</code> (#182).
+</li>
+</ul><nav class="pager">
 <span></span>
 <a href="html/feature-foundation.html">Feature: Foundation &rarr;</a>
 </nav>

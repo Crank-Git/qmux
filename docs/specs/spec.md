@@ -215,6 +215,9 @@ command-line output in place of screens.
 
 ## Architecture & stack
 
+The diagram shows the main imports. `docs/architecture.md` holds the full graph, which comes
+from `go list` on the code.
+
 ```mermaid
 flowchart LR
     subgraph lib["Library module github.com/Crank-Git/qmux"]
@@ -240,7 +243,6 @@ flowchart LR
     demo["examples/embedded-bootstrap"]
 
     registry --> protocol
-    codec --> protocol
     transport --> protocol
     security --> codec
     server --> registry
@@ -248,7 +250,7 @@ flowchart LR
     server --> security
     client --> transport
     client --> security
-    discovery --> registry
+    discovery --> server
     discovery --> client
     facade --> server
     facade --> client
@@ -257,7 +259,8 @@ flowchart LR
     qmuxctl --> client
     qmuxctl --> discovery
     probe --> client
-    demo --> facade
+    demo --> server
+    demo --> client
     demo --> discovery
     bench --> client
     compose --> qmuxd
