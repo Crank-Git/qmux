@@ -124,10 +124,10 @@ func writeJSON(t *testing.T, path string, v any) {
 	}
 }
 
-var readyListen = regexp.MustCompile(`msg="qmuxd ready" listen=(\S+)`)
+var readyListen = regexp.MustCompile(`msg="qmuxd ready" listen=\S+ bound=(\S+)`)
 
 // startQmuxd runs qmuxd with args in dir on a free loopback port, and returns the
-// process and the listen address of its ready record. The process ends when the test
+// process and the bound address of its ready record. The process ends when the test
 // ends. The appended --listen flag replaces any earlier --listen flag in args.
 func startQmuxd(t *testing.T, bins tools, dir string, args ...string) (*exec.Cmd, string) {
 	t.Helper()
