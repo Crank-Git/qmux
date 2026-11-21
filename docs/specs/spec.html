@@ -724,7 +724,7 @@ golangci-lint run</code></pre>
 <tr><td>Epic 8: qmuxd daemon</td><td><code>qmuxd serve</code> runs from a configuration file, with rate limits and an observation log.</td><td>08-qmuxd-daemon</td><td>Epic 7</td><td><code>qmuxd</code> serves <code>examples/qmuxd.json</code>, and <code>qmuxctl</code> verifies every protocol.</td></tr>
 <tr><td>Epic 9: Interop harness</td><td><code>qmux-probe</code> and the Docker Compose matrix record outcomes over every path.</td><td>09-interop-harness</td><td>Epic 8</td><td><code>make interop</code> writes <code>results.json</code>. The CI interop workflow passes.</td></tr>
 <tr><td>Epic 10: Baseline benchmarks</td><td>The private-class path is measured against the four baselines.</td><td>10-baseline-benchmarks</td><td>Epic 9</td><td>Phase 5 deliverable: <code>make bench</code> writes results, and <code>docs/interoperability.md</code> holds a measured table.</td></tr>
-<tr><td>Epic 11: Documentation</td><td>README and every doc in <code>docs/</code> are complete, and every example runs.</td><td>11-documentation</td><td>Epic 10</td><td>The docs example test passes. Each acceptance criterion in § 15 of the brief maps to a test or a doc section.</td></tr>
+<tr><td>Epic 11: Documentation</td><td>README and every doc in <code>docs/</code> are complete, and every example runs.</td><td>11-documentation</td><td>Epic 10</td><td>The docs example test passes. Each acceptance criterion in <code>docs/specs/features/*.md</code> maps to its proof in <code>docs/acceptance.md</code>.</td></tr>
 </table></div>
 <p>Epic 8 depends on Epic 7, because <code>examples/qmuxd.json</code> uses the payload schemas that Epic 7 defines.</p>
 <h2 id="milestones">Milestones</h2>
@@ -736,7 +736,7 @@ golangci-lint run</code></pre>
 <tr><td>M3 — Phase 3</td><td>Epic 6</td><td>Signed envelopes, verified by default when trust anchors exist.</td></tr>
 <tr><td>M4 — Phase 4</td><td>Epics 7 and 8</td><td>The demonstration and the daemon work end to end.</td></tr>
 <tr><td>M5 — Phase 5</td><td>Epics 9 and 10</td><td>Reproducible interop matrix and benchmark results.</td></tr>
-<tr><td>M6</td><td>Epic 11</td><td>Every acceptance criterion of the brief holds. <code>dev</code> is promoted to <code>main</code>.</td></tr>
+<tr><td>M6</td><td>Epic 11</td><td>Every acceptance criterion of the spec holds. <code>dev</code> is promoted to <code>main</code>.</td></tr>
 </table></div>
 <h2 id="assumptions" class="callout-h">Assumptions</h2>
 <ol>

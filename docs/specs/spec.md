@@ -593,7 +593,7 @@ Every epic is one batch, one PR into `dev`, and one CI run.
 | Epic 8: qmuxd daemon | `qmuxd serve` runs from a configuration file, with rate limits and an observation log. | 08-qmuxd-daemon | Epic 7 | `qmuxd` serves `examples/qmuxd.json`, and `qmuxctl` verifies every protocol. |
 | Epic 9: Interop harness | `qmux-probe` and the Docker Compose matrix record outcomes over every path. | 09-interop-harness | Epic 8 | `make interop` writes `results.json`. The CI interop workflow passes. |
 | Epic 10: Baseline benchmarks | The private-class path is measured against the four baselines. | 10-baseline-benchmarks | Epic 9 | Phase 5 deliverable: `make bench` writes results, and `docs/interoperability.md` holds a measured table. |
-| Epic 11: Documentation | README and every doc in `docs/` are complete, and every example runs. | 11-documentation | Epic 10 | The docs example test passes. Each acceptance criterion in § 15 of the brief maps to a test or a doc section. |
+| Epic 11: Documentation | README and every doc in `docs/` are complete, and every example runs. | 11-documentation | Epic 10 | The docs example test passes. Each acceptance criterion in `docs/specs/features/*.md` maps to its proof in `docs/acceptance.md`. |
 
 Epic 8 depends on Epic 7, because `examples/qmuxd.json` uses the payload schemas that Epic 7 defines.
 
@@ -607,7 +607,7 @@ Epic 8 depends on Epic 7, because `examples/qmuxd.json` uses the payload schemas
 | M3 — Phase 3 | Epic 6 | Signed envelopes, verified by default when trust anchors exist. |
 | M4 — Phase 4 | Epics 7 and 8 | The demonstration and the daemon work end to end. |
 | M5 — Phase 5 | Epics 9 and 10 | Reproducible interop matrix and benchmark results. |
-| M6 | Epic 11 | Every acceptance criterion of the brief holds. `dev` is promoted to `main`. |
+| M6 | Epic 11 | Every acceptance criterion of the spec holds. `dev` is promoted to `main`. |
 
 ## Assumptions
 

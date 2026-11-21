@@ -12,7 +12,7 @@ mockups: []
 This feature completes the documentation of QMux and proves that every example runs.
 Earlier epics write parts of `docs/protocol.md`, `docs/security.md` and
 `docs/interoperability.md`. This epic writes `README.md` and `docs/architecture.md`,
-checks every doc against the code, and maps each acceptance criterion of the brief to
+checks every doc against the code, and maps each acceptance criterion of the spec to
 its proof.
 
 ## User stories
@@ -79,10 +79,10 @@ its proof.
 
 ### Acceptance map
 
-- FR-docs-22 — `docs/acceptance.md` quotes each acceptance criterion of § 15 of the brief
-  verbatim.
-- FR-docs-23 — `docs/acceptance.md` names, for each criterion, the test or the doc section
-  that proves it.
+- FR-docs-22 — `docs/acceptance.md` quotes verbatim each acceptance criterion of the approved
+  spec, `docs/specs/features/*.md`.
+- FR-docs-23 — `docs/acceptance.md` names, for each criterion, the test, the doc section, the CI job
+  or the committed file that proves it.
 
 ## User flows
 
@@ -164,8 +164,9 @@ Test failure output:
   fails.
 - FR-docs-19: a temporary README copy with an unmarked Go block fails the test.
 - FR-docs-20 and FR-docs-21: `go test ./tests/integration -run TestQuickstart` passes.
-- FR-docs-22 and FR-docs-23: `docs/acceptance.md` holds 11 rows, one per criterion, each
-  with a test name or a doc section.
+- FR-docs-22 and FR-docs-23: `docs/acceptance.md` holds one row per acceptance criterion of
+  `docs/specs/features/*.md`, and each row names a test or a doc section, or marks the
+  criterion as a criterion with no proof.
 
 ## Out of scope
 
