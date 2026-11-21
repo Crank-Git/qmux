@@ -85,12 +85,8 @@ func runQuery(ctx context.Context, name string, args []string, stdout, stderr io
 		return exitUsage
 	}
 
-	network := "udp"
-	if f.tcp {
-		network = "tcp"
-	}
 	c := client.NewClient(client.ClientConfig{
-		Resolver: f.server, Network: network, AttemptTimeout: f.timeout, TrustAnchors: verifier,
+		Resolver: f.server, Network: networkOf(f.tcp), AttemptTimeout: f.timeout, TrustAnchors: verifier,
 	})
 	res, err := c.Query(ctx, client.Query{Name: f.name, Class: f.class, Type: f.typ, Version: f.ver})
 	code := exitCode(err)
@@ -206,6 +202,15 @@ func uint16Flag(dst *uint16, set *bool) func(string) error {
 		*dst, *set = uint16(v), true
 		return nil
 	}
+}
+
+// networkOf returns the client network of the --tcp flag of qmuxctl query and qmuxctl
+// discover.
+func networkOf(tcp bool) string {
+	if tcp {
+		return "tcp"
+	}
+	return "udp"
 }
 
 // printUsage writes the synopsis, the flags of fs and the exit codes to w, with each

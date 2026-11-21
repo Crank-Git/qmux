@@ -1,7 +1,9 @@
 package server
 
 import (
+	"log/slog"
 	"net/netip"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -85,6 +87,35 @@ func TestServeQueryAnswersAbout100Of200QueriesInOneSecondWithTheQmuxdDefaults(t 
 	// The bucket holds 100 tokens and refills 50 tokens in the second.
 	if answered < 100 || answered > 150 {
 		t.Fatalf("answered %d of 200 queries, want 100 to 150", answered)
+	}
+}
+
+func TestServeQueryLogsARateLimitedQueryAtDebugLevelAndWritesItsObservationLine(t *testing.T) {
+	var log, obs syncBuffer
+	s := newTestServer(t, ServerConfig{
+		RateLimit: RateLimit{QPS: 1, Burst: 1}, Logger: debugLogger(&log), ObservationLog: &obs,
+	}, payloadHandler(nil))
+	for range 3 {
+		answer(s, queryFrom("192.0.2.1", start))
+	}
+	out := log.String()
+	if n := countLevel(out, slog.LevelInfo); n != 1 {
+		t.Fatalf("the log holds %d info records, want 1 for the answered query: %q", n, out)
+	}
+	if n := strings.Count(out, "level=DEBUG msg=query"); n != 2 || strings.Count(out, "rcode=REFUSED") != 2 {
+		t.Fatalf("the log holds %d debug query records, want 2 with rcode=REFUSED: %q", n, out)
+	}
+	if n := strings.Count(obs.String(), "\n"); n != 3 {
+		t.Fatalf("the observation log holds %d lines, want 1 for each of 3 queries", n)
+	}
+}
+
+func TestServeQueryLogsAQueryOutsideTheZonesAtInfoLevel(t *testing.T) {
+	var log syncBuffer
+	s := newTestServer(t, ServerConfig{Zones: []string{"other.example."}, Logger: debugLogger(&log)}, payloadHandler(nil))
+	checkRCode(t, answer(s, validQuery()), transport.RCodeRefused)
+	if out := log.String(); !strings.Contains(out, "level=INFO msg=query") {
+		t.Fatalf("the log holds %q, want one info query record", out)
 	}
 }
 
