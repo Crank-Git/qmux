@@ -214,8 +214,8 @@ func TestServeQueryGivesTheHandlerADeadlineOfTheDefaultHandlerTimeout(t *testing
 	if !ok {
 		t.Fatal("the handler context has no deadline")
 	}
-	if left <= 1500*time.Millisecond || left > 2*time.Second {
-		t.Fatalf("the deadline is %v after the call, want about 2s", left)
+	if left <= 600*time.Millisecond || left > 800*time.Millisecond {
+		t.Fatalf("the deadline is %v after the call, want about 800ms", left)
 	}
 }
 

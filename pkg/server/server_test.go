@@ -72,8 +72,8 @@ func TestNewServerAppliesDefaultsToZeroFields(t *testing.T) {
 	if cfg.UDPSize != 1232 {
 		t.Errorf("UDPSize = %d, want 1232", cfg.UDPSize)
 	}
-	if cfg.HandlerTimeout != 2*time.Second {
-		t.Errorf("HandlerTimeout = %v, want 2s", cfg.HandlerTimeout)
+	if cfg.HandlerTimeout != 800*time.Millisecond {
+		t.Errorf("HandlerTimeout = %v, want 800ms", cfg.HandlerTimeout)
 	}
 	if cfg.ReadTimeout != 2*time.Second {
 		t.Errorf("ReadTimeout = %v, want 2s", cfg.ReadTimeout)
@@ -412,7 +412,8 @@ func TestShutdownWaitsForAHandlerThatFinishesWithinTheGrace(t *testing.T) {
 			return nil, ctx.Err()
 		}
 	})
-	s := newTestServer(t, ServerConfig{ShutdownGrace: 5 * time.Second}, h)
+	// The handler timeout must be longer than the 1s handler, so only the grace limits it.
+	s := newTestServer(t, ServerConfig{HandlerTimeout: 2 * time.Second, ShutdownGrace: 5 * time.Second}, h)
 	cancelServe, addr, errc := startServer(t, s)
 
 	type result struct {
