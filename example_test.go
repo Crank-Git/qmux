@@ -2,12 +2,17 @@ package qmux_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"regexp"
+	"strings"
+	"testing"
 
 	"github.com/Crank-Git/qmux"
+	"github.com/Crank-Git/qmux/pkg/codec"
 	"github.com/Crank-Git/qmux/pkg/protocol"
 )
 
@@ -57,4 +62,72 @@ func ExampleNewClient() {
 		log.Fatal(err)
 	}
 	fmt.Printf("%s\n", res.Payload)
+}
+
+// firmwareRecord is the payload of org.qmux.firmware, protocol version 1 (FR-demo-3).
+type firmwareRecord struct {
+	Version string `cbor:"1,keyasint"`
+	Digest  []byte `cbor:"2,keyasint"`
+	URL     string `cbor:"3,keyasint"`
+	KeyID   []byte `cbor:"4,keyasint"`
+}
+
+func TestFirmwareHandlerEchoesTheRequestVersion(t *testing.T) {
+	res, err := firmwareHandler{}.Handle(context.Background(), &protocol.Request{QName: "device42.fleet.example.", Version: 1})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if res.Version != 1 {
+		t.Errorf("Version = %d, want 1", res.Version)
+	}
+}
+
+func TestFirmwareHandlerPayloadDecodesAsAFirmwareRecord(t *testing.T) {
+	res, err := firmwareHandler{}.Handle(context.Background(), &protocol.Request{QName: "device42.fleet.example.", Version: 1})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	var fw firmwareRecord
+	if err := codec.Unmarshal(res.Payload, &fw); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if fw.Version == "" || fw.URL == "" {
+		t.Errorf("record = %+v, want a version and a URL", fw)
+	}
+}
+
+// The quick-start server is the server that the README client example runs against.
+func TestExamplesUseTheFirmwareKeyOfTheQuickStartServer(t *testing.T) {
+	b, err := os.ReadFile("examples/qmuxd.json")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	var cfg struct {
+		Protocols []struct {
+			ID    string `json:"id"`
+			Class uint16 `json:"class"`
+			Type  uint16 `json:"type"`
+		} `json:"protocols"`
+	}
+	if err := json.Unmarshal(b, &cfg); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	var key *regexp.Regexp
+	for _, p := range cfg.Protocols {
+		if p.ID == "org.qmux.firmware" {
+			key = regexp.MustCompile(fmt.Sprintf(`Class:\s*%d,\s*Type:\s*%d\b`, p.Class, p.Type))
+		}
+	}
+	if key == nil {
+		t.Fatal("examples/qmuxd.json has no org.qmux.firmware protocol")
+	}
+	bodies, err := exampleBodies("example_test.go")
+	if err != nil {
+		t.Fatalf("exampleBodies: %v", err)
+	}
+	for _, name := range []string{"ExampleNewServer", "ExampleNewClient"} {
+		if !key.MatchString(strings.Join(bodies[name], "\n")) {
+			t.Errorf("%s does not use the firmware key %s of examples/qmuxd.json", name, key)
+		}
+	}
 }
