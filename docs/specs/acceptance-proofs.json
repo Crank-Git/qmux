@@ -1,0 +1,4233 @@
+{
+  "00-foundation.md": [
+    {
+      "criterion": "`go.mod` declares `module github.com/Crank-Git/qmux` and `go 1.25.0`. (FR-foundation-1)",
+      "proofs": [
+        {
+          "file": "go.mod"
+        }
+      ]
+    },
+    {
+      "criterion": "`go.mod` lists `github.com/miekg/dns v1.1.73`. (FR-foundation-2)",
+      "proofs": [
+        {
+          "file": "go.mod"
+        }
+      ]
+    },
+    {
+      "criterion": "When a package imports CBOR, `go.mod` lists `github.com/fxamacker/cbor/v2 v2.10.0`. (FR-foundation-3)",
+      "proofs": [
+        {
+          "file": "go.mod"
+        }
+      ]
+    },
+    {
+      "criterion": "Every directory in FR-foundation-4 exists in a fresh clone. (FR-foundation-4)",
+      "proofs": [
+        {
+          "file": "cmd/qmuxd",
+          "note": "each directory holds tracked files; the map check fails when one is missing"
+        },
+        {
+          "file": "cmd/qmuxctl"
+        },
+        {
+          "file": "cmd/qmux-probe"
+        },
+        {
+          "file": "pkg/server"
+        },
+        {
+          "file": "pkg/client"
+        },
+        {
+          "file": "pkg/protocol"
+        },
+        {
+          "file": "pkg/registry"
+        },
+        {
+          "file": "pkg/codec"
+        },
+        {
+          "file": "pkg/discovery"
+        },
+        {
+          "file": "pkg/security"
+        },
+        {
+          "file": "pkg/transport"
+        },
+        {
+          "file": "examples/embedded-bootstrap"
+        },
+        {
+          "file": "tests/integration"
+        },
+        {
+          "file": "tests/interoperability"
+        },
+        {
+          "file": "docs"
+        }
+      ]
+    },
+    {
+      "criterion": "`go doc ./pkg/<name>` prints a package comment for each `pkg/` package. (FR-foundation-5)",
+      "proofs": [
+        {
+          "file": "pkg/client/doc.go",
+          "note": "holds the package comment"
+        },
+        {
+          "file": "pkg/codec/doc.go",
+          "note": "holds the package comment"
+        },
+        {
+          "file": "pkg/discovery/doc.go",
+          "note": "holds the package comment"
+        },
+        {
+          "file": "pkg/protocol/doc.go",
+          "note": "holds the package comment"
+        },
+        {
+          "file": "pkg/registry/doc.go",
+          "note": "holds the package comment"
+        },
+        {
+          "file": "pkg/security/doc.go",
+          "note": "holds the package comment"
+        },
+        {
+          "file": "pkg/server/doc.go",
+          "note": "holds the package comment"
+        },
+        {
+          "file": "pkg/transport/doc.go",
+          "note": "holds the package comment"
+        }
+      ]
+    },
+    {
+      "criterion": "`go doc github.com/Crank-Git/qmux` prints the facade package comment. (FR-foundation-6)",
+      "proofs": [
+        {
+          "file": "qmux.go",
+          "note": "holds the facade package comment"
+        }
+      ]
+    },
+    {
+      "criterion": "`go build ./...` inside `tests/interoperability` succeeds, and its `go.mod` declares `go 1.26` and a `replace` to the root. (FR-foundation-7)",
+      "proofs": [
+        {
+          "file": "tests/interoperability/go.mod",
+          "note": "declares go 1.26.0 and the replace"
+        },
+        {
+          "ci": ".github/workflows/ci.yml",
+          "job": "test",
+          "note": "builds tests/interoperability"
+        }
+      ]
+    },
+    {
+      "criterion": "`LICENSE` holds the MIT text and the line `Copyright (c) 2026 Crank-Git`. (FR-foundation-8)",
+      "proofs": [
+        {
+          "file": "LICENSE"
+        }
+      ]
+    },
+    {
+      "criterion": "`README.md` holds the project name and the `make check` command. (FR-foundation-9)",
+      "proofs": [
+        {
+          "doc": "README.md",
+          "section": "Development",
+          "note": "holds the make check command"
+        }
+      ]
+    },
+    {
+      "criterion": "After `make build`, `bin/` holds `qmuxd`, `qmuxctl` and `qmux-probe`. (FR-foundation-10)",
+      "proofs": [
+        {
+          "file": "Makefile",
+          "note": "the build target runs go build -o bin/ ./cmd/..."
+        }
+      ]
+    },
+    {
+      "criterion": "`bin/qmuxd version` prints a version line and exits 0. The same holds for `qmuxctl` and `qmux-probe`. (FR-foundation-11)",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestVersionPrintsOneVersionLineAndExitsZero"
+        },
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestVersionPrintsOneVersionLineAndExitsZero"
+        },
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestVersionPrintsOneVersionLineAndExitsZero"
+        }
+      ]
+    },
+    {
+      "criterion": "`make test`, `make race`, `make vet` and `make lint` each run their command and exit 0 on a fresh clone. (FR-foundation-12 to FR-foundation-15)",
+      "proofs": [
+        {
+          "file": "Makefile",
+          "note": "defines the test, race, vet and lint targets"
+        },
+        {
+          "ci": ".github/workflows/ci.yml",
+          "job": "test"
+        },
+        {
+          "ci": ".github/workflows/ci.yml",
+          "job": "race"
+        }
+      ]
+    },
+    {
+      "criterion": "`make fuzz FUZZTIME=5s` runs each fuzz target for 5 seconds. (FR-foundation-16)",
+      "proofs": [
+        {
+          "file": "Makefile",
+          "note": "the fuzz target runs each fuzz target for FUZZTIME"
+        }
+      ]
+    },
+    {
+      "criterion": "A deliberate vet error makes `make check` stop before the lint step. (FR-foundation-17)",
+      "proofs": [
+        {
+          "file": "Makefile",
+          "note": "the check target runs vet before lint"
+        }
+      ]
+    },
+    {
+      "criterion": "`golangci-lint linters` lists the eight linters of FR-foundation-18 as enabled. (FR-foundation-18)",
+      "proofs": [
+        {
+          "file": ".golangci.yml",
+          "note": "enables the linters of FR-foundation-18"
+        },
+        {
+          "ci": ".github/workflows/ci.yml",
+          "job": "lint"
+        }
+      ]
+    },
+    {
+      "criterion": "A function with cyclomatic complexity 16 fails `make lint`. (FR-foundation-19)",
+      "proofs": [
+        {
+          "file": ".golangci.yml",
+          "note": "sets gocyclo min-complexity 15"
+        },
+        {
+          "ci": ".github/workflows/ci.yml",
+          "job": "lint"
+        }
+      ]
+    },
+    {
+      "criterion": "An `if` nested to complexity 5 fails `make lint`. (FR-foundation-20)",
+      "proofs": [
+        {
+          "file": ".golangci.yml",
+          "note": "sets nestif min-complexity 4"
+        },
+        {
+          "ci": ".github/workflows/ci.yml",
+          "job": "lint"
+        }
+      ]
+    },
+    {
+      "criterion": "A PR into `dev` starts `ci.yml`. A push to `dev` starts `ci.yml`. (FR-foundation-21)",
+      "proofs": [
+        {
+          "file": ".github/workflows/ci.yml",
+          "note": "triggers on pull_request to dev and push to dev"
+        }
+      ]
+    },
+    {
+      "criterion": "The `ci.yml` run shows each job on Go 1.25 and on stable Go. (FR-foundation-22)",
+      "proofs": [
+        {
+          "file": ".github/workflows/ci.yml",
+          "note": "each job matrix holds 1.25 and stable"
+        }
+      ]
+    },
+    {
+      "criterion": "The `ci.yml` run shows four separate jobs: `lint`, `vet`, `test`, `race`. (FR-foundation-23)",
+      "proofs": [
+        {
+          "ci": ".github/workflows/ci.yml",
+          "job": "lint"
+        },
+        {
+          "ci": ".github/workflows/ci.yml",
+          "job": "vet"
+        },
+        {
+          "ci": ".github/workflows/ci.yml",
+          "job": "test"
+        },
+        {
+          "ci": ".github/workflows/ci.yml",
+          "job": "race"
+        }
+      ]
+    },
+    {
+      "criterion": "The `ci.yml` log shows `go build ./...` inside `tests/interoperability`. (FR-foundation-24)",
+      "proofs": [
+        {
+          "ci": ".github/workflows/ci.yml",
+          "job": "test",
+          "note": "has the step Build tests/interoperability"
+        }
+      ]
+    },
+    {
+      "criterion": "Each `uses:` line in `ci.yml` names a version that the action's README documents. (FR-foundation-25)",
+      "proofs": [],
+      "gap": "No check confirms that each uses: version appears in the README of the action."
+    },
+    {
+      "criterion": "`git branch -r` lists `origin/dev`. (FR-foundation-26)",
+      "proofs": [],
+      "gap": "The branch is a property of the GitHub repository. No committed file or test shows it."
+    },
+    {
+      "criterion": "The Epic 0 batch PR and every later batch PR target `dev`. (FR-foundation-27)",
+      "proofs": [],
+      "gap": "The PR base is a property of each GitHub PR. No committed check enforces it."
+    },
+    {
+      "criterion": "The private class query round-trip test passes. (FR-foundation-28)",
+      "proofs": [
+        {
+          "test": "pkg/transport",
+          "name": "TestPrivateClassQueryRoundTripsUnchanged"
+        }
+      ]
+    },
+    {
+      "criterion": "The opaque RDATA round-trip test passes with byte-exact RDATA. (FR-foundation-29)",
+      "proofs": [
+        {
+          "test": "pkg/transport",
+          "name": "TestOpaqueRDATARoundTripsByteExact"
+        }
+      ]
+    },
+    {
+      "criterion": "The round-trip test passes for classes 1, 3 and 4. (FR-foundation-30)",
+      "proofs": [
+        {
+          "test": "pkg/transport",
+          "name": "TestOpaqueRDATARoundTripsByteExactInStandardClasses"
+        }
+      ]
+    },
+    {
+      "criterion": "The EDNS(0) test reads back a UDP size of 1232. (FR-foundation-31)",
+      "proofs": [
+        {
+          "test": "pkg/transport",
+          "name": "TestEDNS0UDPSizeRoundTrips"
+        }
+      ]
+    },
+    {
+      "criterion": "The truncation test asserts the TC bit and the answer count after `Msg.Truncate`. (FR-foundation-32)",
+      "proofs": [
+        {
+          "test": "pkg/transport",
+          "name": "TestMsgTruncateDropsLargeOpaqueAnswerAndSetsTC"
+        }
+      ]
+    },
+    {
+      "criterion": "ADR 0001 `Consequences` names each observed limitation, or states that the test found none. (FR-foundation-33)",
+      "proofs": [
+        {
+          "file": "docs/adr/0001-miekg-dns-v1.md",
+          "note": "the Consequences section lists the observed limitations"
+        }
+      ]
+    }
+  ],
+  "01-protocol-registry.md": [
+    {
+      "criterion": "`ProtocolKey{Class: 65280, Type: 65280}` compiles with those field names. (FR-registry-1)",
+      "proofs": [
+        {
+          "test": "pkg/protocol",
+          "name": "TestProtocolKeyHasClassAndTypeFields"
+        }
+      ]
+    },
+    {
+      "criterion": "`ProtocolKey{65280, 65281}.String()` returns `65280/65281`. (FR-registry-2)",
+      "proofs": [
+        {
+          "test": "pkg/protocol",
+          "name": "TestProtocolKeyStringIsDecimalClassSlashType"
+        }
+      ]
+    },
+    {
+      "criterion": "An `Info` literal with `ID`, `Versions` and `Schema` compiles. (FR-registry-3)",
+      "proofs": [
+        {
+          "test": "pkg/protocol",
+          "name": "TestInfoLiteralHoldsIDVersionsAndSchema"
+        }
+      ]
+    },
+    {
+      "criterion": "A test type with `Validate(uint16, []byte) error` satisfies `Schema`. (FR-registry-4)",
+      "proofs": [
+        {
+          "file": "pkg/protocol/types_test.go",
+          "note": "the var block asserts stubSchema satisfies Schema at compile time"
+        }
+      ]
+    },
+    {
+      "criterion": "A test type with the brief's `Handle` signature satisfies `Handler`. (FR-registry-5)",
+      "proofs": [
+        {
+          "file": "pkg/protocol/types_test.go",
+          "note": "the var block asserts stubHandler satisfies Handler at compile time"
+        }
+      ]
+    },
+    {
+      "criterion": "A `HandlerFunc` value satisfies `Handler` and calls the wrapped function. (FR-registry-6)",
+      "proofs": [
+        {
+          "test": "pkg/protocol",
+          "name": "TestHandlerFuncCallsTheWrappedFunctionWithItsArguments"
+        }
+      ]
+    },
+    {
+      "criterion": "A test type with `Info() Info` satisfies `Describer`. (FR-registry-7)",
+      "proofs": [
+        {
+          "test": "pkg/protocol",
+          "name": "TestDescriberReturnsInfo"
+        }
+      ]
+    },
+    {
+      "criterion": "`StatusOK` to `StatusUnavailable` equal 0 to 4. (FR-registry-8)",
+      "proofs": [
+        {
+          "test": "pkg/protocol",
+          "name": "TestStatusConstantsMatchTheApplicationStatusTable"
+        }
+      ]
+    },
+    {
+      "criterion": "`MessageRecord` equals 1 and `MessageManifest` equals 2. (FR-registry-9)",
+      "proofs": [
+        {
+          "test": "pkg/protocol",
+          "name": "TestMessageTypeConstantsAreRecordOneAndManifestTwo"
+        }
+      ]
+    },
+    {
+      "criterion": "`IsPrivateClass` returns true for 65280 and 65534, and false for 65279 and 65535. (FR-registry-10)",
+      "proofs": [
+        {
+          "test": "pkg/protocol",
+          "name": "TestIsPrivateClassIsTrueOnlyFrom65280To65534"
+        }
+      ]
+    },
+    {
+      "criterion": "`IsPrivateType` returns true for 65280 and 65534, and false for 65279 and 65535. (FR-registry-11)",
+      "proofs": [
+        {
+          "test": "pkg/protocol",
+          "name": "TestIsPrivateTypeIsTrueOnlyFrom65280To65534"
+        }
+      ]
+    },
+    {
+      "criterion": "The protocol ID `org.qmux.bootstrap` registers. The IDs `qmux`, `Org.Qmux.x`, `org..qmux`, `-org.qmux` and a 129-byte ID return `ErrInvalidID`. (FR-registry-12)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterAcceptsTheProtocolIDOrgQmuxBootstrap"
+        },
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterRejectsAnInvalidProtocolID"
+        }
+      ]
+    },
+    {
+      "criterion": "An `Info` with no versions returns `ErrInvalidVersions`. (FR-registry-13)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterRejectsInvalidVersions/no_versions"
+        }
+      ]
+    },
+    {
+      "criterion": "An `Info` with version 0 returns `ErrInvalidVersions`. (FR-registry-14)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterRejectsInvalidVersions/version_0"
+        }
+      ]
+    },
+    {
+      "criterion": "An `Info` with versions `[1, 1]` returns `ErrInvalidVersions`. (FR-registry-15)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterRejectsInvalidVersions/a_duplicate_version"
+        }
+      ]
+    },
+    {
+      "criterion": "An `Info` with versions `[3, 1, 2]` reads back from `Lookup` as `[1, 2, 3]`. (FR-registry-16)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestLookupReturnsTheVersionsInAscendingOrder"
+        }
+      ]
+    },
+    {
+      "criterion": "Classes 1, 65280 and 65534 register. (FR-registry-17)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterAcceptsTheClassesINAndPrivate"
+        }
+      ]
+    },
+    {
+      "criterion": "Class 3 returns `ErrInvalidKey` by default and registers with `AllowReservedClasses: true`. (FR-registry-18)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterAcceptsAReservedClassOnlyWithAllowReservedClasses"
+        }
+      ]
+    },
+    {
+      "criterion": "Classes 0, 2, 254, 255, 65279 and 65535 return `ErrInvalidKey`. (FR-registry-19)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterRejectsEveryOtherClass"
+        }
+      ]
+    },
+    {
+      "criterion": "Types 65280 and 65534 register. (FR-registry-20)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterAcceptsThePrivateTypes"
+        }
+      ]
+    },
+    {
+      "criterion": "Type 16 returns `ErrInvalidKey` by default and registers with `AllowNonPrivateTypes: true`. (FR-registry-21)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterAcceptsANonPrivateTypeOnlyWithAllowNonPrivateTypes"
+        }
+      ]
+    },
+    {
+      "criterion": "Types 0, 41, 250, 251, 252, 255 and 65535 return `ErrInvalidKey` with both options true. (FR-registry-22)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterAlwaysRejectsTheMetaTypesAndType65535"
+        }
+      ],
+      "ruling": "The user ruled that the registry always rejects type 65535, also with `AllowNonPrivateTypes`. FR-registry-22 lists it (#20)."
+    },
+    {
+      "criterion": "A nil handler returns `ErrInvalidHandler`. (FR-registry-23)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterRejectsANilHandler"
+        }
+      ]
+    },
+    {
+      "criterion": "After a valid `Register`, `Lookup` returns the registration. (FR-registry-24)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestLookupReturnsTheRegistrationAfterAValidRegister"
+        }
+      ]
+    },
+    {
+      "criterion": "A second `Register` at the same protocol key returns `ErrKeyConflict`. (FR-registry-25)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterReturnsErrKeyConflictForARegisteredKey"
+        }
+      ]
+    },
+    {
+      "criterion": "A second `Register` of the same protocol ID at a different key returns `ErrIDConflict`. (FR-registry-26)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterReturnsErrIDConflictForAnIDAtAnotherKey"
+        }
+      ]
+    },
+    {
+      "criterion": "Registrations at `65280/65280` and `65280/65534` both succeed. (FR-registry-27)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRegisterAcceptsTwoTypesInTheSameClass"
+        }
+      ]
+    },
+    {
+      "criterion": "After `Unregister`, `Lookup` returns false. (FR-registry-28)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestUnregisterRemovesTheRegistration"
+        }
+      ]
+    },
+    {
+      "criterion": "`Unregister` of an unknown protocol key returns `ErrNotFound`. (FR-registry-29)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestUnregisterReturnsErrNotFoundForAnUnknownKey"
+        }
+      ]
+    },
+    {
+      "criterion": "`Lookup` of an unknown protocol key returns false. (FR-registry-30)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestLookupReturnsFalseForAnUnknownKey"
+        }
+      ]
+    },
+    {
+      "criterion": "`LookupID(\"org.qmux.bootstrap\")` returns the registration and true. (FR-registry-31)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestLookupIDReturnsTheRegistrationOfTheProtocolID"
+        }
+      ]
+    },
+    {
+      "criterion": "`List()` after registrations at `65281/65280`, `65280/65534` and `65280/65280` returns them in the order `65280/65280`, `65280/65534`, `65281/65280`. (FR-registry-32)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestListOrdersTheRegistrationsByClassThenByType"
+        }
+      ]
+    },
+    {
+      "criterion": "A test that overwrites an element of the `List()` result sees the original value in the next `List()`. (FR-registry-33)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestListReturnsACopyOfTheRegistrations"
+        }
+      ]
+    },
+    {
+      "criterion": "After `Remap(\"org.qmux.bootstrap\", 65283/65280)`, `Lookup(65283/65280)` returns it and `Lookup(65280/65280)` returns false. (FR-registry-34)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRemapMovesTheRegistrationToTheNewKey"
+        }
+      ]
+    },
+    {
+      "criterion": "`Remap` of an unknown protocol ID returns `ErrNotFound`. (FR-registry-35)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRemapFailureReturnsTheSentinelAndLeavesTheRegistryUnchanged/an_unknown_protocol_ID"
+        }
+      ]
+    },
+    {
+      "criterion": "`Remap` onto a key that another protocol ID holds returns `ErrKeyConflict`. (FR-registry-36)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRemapFailureReturnsTheSentinelAndLeavesTheRegistryUnchanged/a_key_of_another_protocol_ID"
+        }
+      ]
+    },
+    {
+      "criterion": "`Remap` onto class 65535 returns `ErrInvalidKey`. (FR-registry-37)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRemapFailureReturnsTheSentinelAndLeavesTheRegistryUnchanged/class_65535"
+        }
+      ]
+    },
+    {
+      "criterion": "After each failed `Remap`, `List()` equals the list before the call. (FR-registry-38)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestRemapFailureReturnsTheSentinelAndLeavesTheRegistryUnchanged"
+        }
+      ]
+    },
+    {
+      "criterion": "A test with 100 goroutines that call every method passes under `go test -race`. (FR-registry-39)",
+      "proofs": [
+        {
+          "test": "pkg/registry",
+          "name": "TestEveryMethodIsSafeForConcurrentUse",
+          "note": "passes under the race job"
+        }
+      ]
+    }
+  ],
+  "02-authoritative-server.md": [
+    {
+      "criterion": "`NewServer(ServerConfig{})` returns a server whose registry accepts a valid registration. (FR-server-1)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestNewServerRegistryAcceptsValidRegistration"
+        }
+      ]
+    },
+    {
+      "criterion": "`NewServer(ServerConfig{})` applies TTL 60, UDP size 1232, handler timeout 2s, read and write timeouts 2s, and shutdown grace 5s. (FR-server-2)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestNewServerAppliesDefaultsToZeroFields"
+        }
+      ]
+    },
+    {
+      "criterion": "`Register` with a `Describer` handler adds a registration with the handler's `Info`. (FR-server-3)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestRegisterUsesTheInfoOfADescriberHandler"
+        }
+      ]
+    },
+    {
+      "criterion": "`Register` with a plain `HandlerFunc` returns `ErrMissingInfo`. (FR-server-4)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestRegisterReturnsErrMissingInfoForAPlainHandlerFunc"
+        }
+      ]
+    },
+    {
+      "criterion": "`RegisterProtocol` adds a registration with the given `Info`. (FR-server-5)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestRegisterProtocolUsesTheGivenInfo"
+        }
+      ]
+    },
+    {
+      "criterion": "A test sends one query over UDP and one over TCP to the same address and gets two answers. (FR-server-6)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestListenAndServeAnswersOverUDPAndTCPOnOneAddress"
+        }
+      ]
+    },
+    {
+      "criterion": "`ListenAndServe` on a port already in use returns a non-nil error. (FR-server-7)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestListenAndServeReturnsTheBindErrorWhenTheUDPPortIsInUse"
+        },
+        {
+          "test": "pkg/server",
+          "name": "TestListenAndServeReturnsTheBindErrorWhenTheTCPPortIsInUse"
+        }
+      ]
+    },
+    {
+      "criterion": "`ListenAndServe` returns nil within 1 second of a context cancel with no load. (FR-server-8)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestListenAndServeReturnsNilWithinOneSecondOfACancel"
+        }
+      ]
+    },
+    {
+      "criterion": "`Serve` with listeners on port 0 answers queries. (FR-server-9)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeAnswersQueriesOnListenersAtPortZero"
+        }
+      ]
+    },
+    {
+      "criterion": "`Addr()` returns a non-zero port after `Serve` starts. (FR-server-10)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestAddrIsNilBeforeServeAndHoldsTheUDPPortAfter"
+        }
+      ]
+    },
+    {
+      "criterion": "During shutdown, a handler that sleeps 1s with a grace of 5s completes and its response arrives. (FR-server-11)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestShutdownWaitsForAHandlerThatFinishesWithinTheGrace"
+        }
+      ]
+    },
+    {
+      "criterion": "During shutdown, a handler that blocks on its context with a grace of 100ms sees its context cancelled. (FR-server-12)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestShutdownCancelsTheContextOfAHandlerPastTheGrace"
+        }
+      ]
+    },
+    {
+      "criterion": "A message with QR set gets no response. (FR-server-13)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryIgnoresAMessageWithQRSet"
+        }
+      ]
+    },
+    {
+      "criterion": "An IQUERY and a NOTIFY each get `NOTIMP`. (FR-server-14)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersNotImpToAnIQueryAndANotify"
+        }
+      ]
+    },
+    {
+      "criterion": "A query with zero questions and one with two questions each get `FORMERR`. (FR-server-15)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersFormErrToZeroAndToTwoQuestions"
+        }
+      ]
+    },
+    {
+      "criterion": "A 600-byte query without EDNS(0) gets `FORMERR`. (FR-server-16)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersFormErrToA600ByteQueryWithoutEDNS"
+        }
+      ]
+    },
+    {
+      "criterion": "A 1300-byte query with EDNS(0) gets `FORMERR`. (FR-server-17)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersFormErrToA1300ByteQueryWithEDNS"
+        }
+      ]
+    },
+    {
+      "criterion": "A query with EDNS version 1 gets `BADVERS`. (FR-server-18)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersBadVersToEDNSVersion1"
+        }
+      ]
+    },
+    {
+      "criterion": "With zone `fleet.example.`, the QNAME `a.other.example.` gets `REFUSED`. (FR-server-19)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersRefusedToAQNameOutsideEveryZone"
+        }
+      ]
+    },
+    {
+      "criterion": "With no zones, the QNAME `a.other.example.` reaches the handler. (FR-server-20)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryPassesEveryQNameToTheHandlerWithNoZones"
+        }
+      ]
+    },
+    {
+      "criterion": "With no zones, the log holds one warning at start. (FR-server-21)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeLogsOneWarningAtStartWithNoZones"
+        }
+      ]
+    },
+    {
+      "criterion": "A query for an unregistered protocol key gets `REFUSED`. (FR-server-22)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersRefusedToAnUnregisteredProtocolKey"
+        }
+      ]
+    },
+    {
+      "criterion": "The QNAME `Device42.Fleet.Example.` reaches the handler as `device42.fleet.example.`. (FR-server-23)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryGivesTheHandlerTheQNameInLowercase"
+        }
+      ]
+    },
+    {
+      "criterion": "The QNAME `_v2.device42.fleet.example.` gives `Request.Version` 2. A QNAME with no version label gives 0, and from Epic 5 the highest version. (FR-server-24, FR-discovery-21)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQuerySetsTheVersionFromTheLeftmostVersionLabel"
+        }
+      ]
+    },
+    {
+      "criterion": "With zone `fleet.example.`, `_v2.device42.fleet.example.` gives `Request.Labels` `[\"device42\"]`. (FR-server-25)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQuerySetsTheVersionFromTheLeftmostVersionLabel/version_2"
+        },
+        {
+          "test": "pkg/server",
+          "name": "TestServeQuerySetsTheLabelsBelowTheZone"
+        }
+      ]
+    },
+    {
+      "criterion": "A handler sees the client source address, `udp` or `tcp`, the query ID, and a non-zero `ReceivedAt`. (FR-server-26)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeGivesTheHandlerTheSourceTransportIDAndReceiveTime"
+        }
+      ]
+    },
+    {
+      "criterion": "A handler sees a context deadline about 2 seconds after the call with default settings. (FR-server-27)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryGivesTheHandlerADeadlineOfTheDefaultHandlerTimeout"
+        }
+      ]
+    },
+    {
+      "criterion": "A schema that counts its calls records one call per answered query. (FR-server-28)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryCallsTheSchemaOncePerAnsweredQuery"
+        }
+      ]
+    },
+    {
+      "criterion": "A handler response gives `NOERROR`, AA set, and an answer count of 1. (FR-server-29)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeAnswersNoErrorWithAAAndOneOpaqueRR"
+        }
+      ]
+    },
+    {
+      "criterion": "The answer RR for `Device42.fleet.example.` class 65281 type 65280 has that exact name, class 65281 and type 65280. (FR-server-30)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeAnswersNoErrorWithAAAndOneOpaqueRR",
+          "note": "checks name, class and type of the answer RR"
+        }
+      ]
+    },
+    {
+      "criterion": "The answer RDATA bytes equal the handler's payload bytes, and from Epic 4 the payload of the decoded envelope. (FR-server-31, FR-codec-29)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeAnswersNoErrorWithAAAndOneOpaqueRR",
+          "note": "checks the envelope payload equals the handler payload"
+        }
+      ]
+    },
+    {
+      "criterion": "A response with TTL 0 gives an RR TTL of 60. A response with TTL 5 gives 5. (FR-server-32)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeUsesTheConfiguredTTLWhenTheResponseTTLIsZero"
+        }
+      ]
+    },
+    {
+      "criterion": "A handler error gives `SERVFAIL`. (FR-server-33)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersServFailWhenTheHandlerReturnsAnError"
+        }
+      ]
+    },
+    {
+      "criterion": "A handler that sleeps past the timeout gives `SERVFAIL`. (FR-server-34)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersServFailAtTheTimeoutToAHandlerThatIgnoresItsContext"
+        }
+      ]
+    },
+    {
+      "criterion": "A handler panic gives `SERVFAIL`, one error log record, and the server keeps answering. (FR-server-35)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeAnswersServFailToAPanicAndKeepsAnswering"
+        }
+      ]
+    },
+    {
+      "criterion": "A schema that returns an error gives `SERVFAIL`. (FR-server-36)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersServFailWhenTheSchemaRejectsThePayload"
+        }
+      ]
+    },
+    {
+      "criterion": "A 600-byte payload to a non-EDNS UDP query gives TC set and no answer RR. (FR-server-37)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeTruncatesA600BytePayloadToAUDPQueryWithoutEDNS"
+        }
+      ]
+    },
+    {
+      "criterion": "A 1500-byte payload to a UDP query that advertises 4096 gives TC set with the default `UDPSize` of 1232. (FR-server-38)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeTruncatesA1500BytePayloadToAQueryThatAdvertises4096WithTheDefaultUDPSize"
+        }
+      ]
+    },
+    {
+      "criterion": "A response to an EDNS(0) query holds an OPT RR with UDP size 1232. (FR-server-39)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeAddsAnOPTRRWithTheConfiguredUDPSizeToEachEDNSResponse"
+        }
+      ]
+    },
+    {
+      "criterion": "A truncated UDP response holds the OPT RR and no answer RR. (FR-server-40)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeKeepsTheOPTRRAndRemovesTheAnswerRRFromATruncatedResponse"
+        }
+      ]
+    },
+    {
+      "criterion": "A 70000-byte payload over TCP gives `SERVFAIL`. (FR-server-41)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeAnswersServFailToA70000BytePayloadOverTCP"
+        }
+      ]
+    },
+    {
+      "criterion": "Each answered query produces one log record with the ten fields of the spec. (FR-server-42)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeLogsOneQueryRecordWithTheTenFieldsOfTheSpec"
+        }
+      ]
+    },
+    {
+      "criterion": "No log record contains the payload bytes of a test payload marker. (FR-server-43)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeLogsNoPayloadBytes"
+        }
+      ]
+    },
+    {
+      "criterion": "`FuzzServeMessage` runs its seed corpus with no panic. (FR-server-44)",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "FuzzServeMessage"
+        }
+      ]
+    },
+    {
+      "criterion": "An integration test with 100 concurrent queries passes under `go test -race`. (FR-server-45)",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestServerAnswers100ConcurrentQueriesOverUDPAndTCP",
+          "note": "runs under the race job"
+        }
+      ]
+    }
+  ],
+  "03-client-sdk.md": [
+    {
+      "criterion": "A query from a client built with `Resolver` set reaches that address. (FR-client-1)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReachesTheResolverAddress"
+        }
+      ]
+    },
+    {
+      "criterion": "`NewClient(ClientConfig{Resolver: addr})` applies attempt timeout 1s, 3 attempts and UDP size 1232. (FR-client-2)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestNewClientAppliesTheDefaultsToZeroFields"
+        }
+      ]
+    },
+    {
+      "criterion": "The server sees one question with the QNAME, class and type of the query. (FR-client-3)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQuerySendsOneQuestionWithTheNameClassAndType"
+        }
+      ]
+    },
+    {
+      "criterion": "A query with `Version: 2` reaches the server as `_v2.<name>`. (FR-client-4)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryAddsTheVersionLabelWhenVersionIsNotZero"
+        }
+      ]
+    },
+    {
+      "criterion": "The server sees an OPT RR with UDP size 1232 on each UDP query. (FR-client-5)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryAdvertisesTheConfiguredUDPSize"
+        }
+      ]
+    },
+    {
+      "criterion": "A test with the system resolver configuration removed still completes a query. (FR-client-6)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryCompletesWithoutTheSystemResolver"
+        }
+      ]
+    },
+    {
+      "criterion": "A test server that drops the first two packets sees three different query IDs. (FR-client-7)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryUsesANewQueryIDForEachAttempt"
+        }
+      ]
+    },
+    {
+      "criterion": "A default client query reaches the server over UDP. (FR-client-8)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQuerySendsOverUDPWhenNetworkIsUDPOrEmpty"
+        }
+      ]
+    },
+    {
+      "criterion": "A client with `Network: \"tcp\"` reaches the server over TCP only. (FR-client-9)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQuerySendsOverTCPOnlyWhenNetworkIsTCP"
+        }
+      ]
+    },
+    {
+      "criterion": "A test server that drops every packet sees exactly 3 attempts. (FR-client-10)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryMakesExactlyThreeAttemptsWhenTheServerDropsEveryPacket"
+        }
+      ]
+    },
+    {
+      "criterion": "A test server that answers `SERVFAIL` sees exactly 1 attempt. (FR-client-11)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryMakesNoNewAttemptAfterAServfailResponse"
+        }
+      ]
+    },
+    {
+      "criterion": "A context with a 200ms deadline against a silent server returns a timeout `DNSError` within 300ms. (FR-client-12)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsATimeoutErrorWhenTheContextExpires"
+        }
+      ]
+    },
+    {
+      "criterion": "A context cancelled during an attempt returns an error for which `errors.Is(err, context.Canceled)` is true. (FR-client-13)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsAnErrorThatWrapsCanceledWhenTheContextIsCancelled"
+        }
+      ]
+    },
+    {
+      "criterion": "A UDP answer with TC set leads to one TCP query and a result with `FellBack` true. (FR-client-14)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryRepeatsATruncatedUDPQueryOnceOverTCP"
+        }
+      ]
+    },
+    {
+      "criterion": "With `DisableTCPFallback`, a TC answer returns a truncation `DNSError`. (FR-client-15)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsATruncationErrorForTheTCBitWithDisableTCPFallback"
+        }
+      ]
+    },
+    {
+      "criterion": "A test server that sends a wrong-ID packet and then the correct packet produces a result. (FR-client-16)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryIgnoresAUDPResponseWithADifferentID"
+        }
+      ]
+    },
+    {
+      "criterion": "A response with a different question type returns a mismatch `DNSError`. (FR-client-17)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsAMismatchErrorForADifferentQuestionType"
+        }
+      ]
+    },
+    {
+      "criterion": "A response question `DEVICE42.fleet.example.` matches a query for `device42.fleet.example.`. (FR-client-18)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryMatchesAResponseNameWithADifferentCase"
+        }
+      ]
+    },
+    {
+      "criterion": "A `NOERROR` response with two answer RRs returns a mismatch `DNSError`. (FR-client-19)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsAMismatchErrorWhenANoErrorResponseDoesNotHoldOneAnswer"
+        }
+      ]
+    },
+    {
+      "criterion": "An answer RR with class 65281 to a class 65280 question returns a mismatch `DNSError`. (FR-client-20)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsAMismatchErrorWhenTheAnswerRRDiffersFromTheQuestion"
+        }
+      ]
+    },
+    {
+      "criterion": "A `REFUSED` response returns a `DNSError` with kind `rcode` and `RCode` 5. (FR-client-21)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsAnRCodeErrorThatHoldsTheRCode"
+        }
+      ]
+    },
+    {
+      "criterion": "A truncated, unparseable TCP response returns a malformed `DNSError`. (FR-client-22)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsAMalformedErrorForATruncatedTCPResponse"
+        }
+      ]
+    },
+    {
+      "criterion": "A query to a closed TCP port returns a network `DNSError`. (FR-client-23)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsANetworkErrorForAClosedTCPPort"
+        }
+      ]
+    },
+    {
+      "criterion": "`AppError{Status: 1, ProtocolID: \"org.qmux.firmware\", Version: 1}` compiles and its `Error()` names the status. (FR-client-24)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestAppErrorNamesTheStatus"
+        }
+      ]
+    },
+    {
+      "criterion": "`VerifyError{Reason: \"expired\"}` compiles and its `Error()` names the reason. From Epic 6, FR-security-36 replaces the string: `Reason` holds the sentinel error. (FR-client-25)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestVerifyErrorNamesTheSentinelOfTheReason",
+          "note": "Reason holds the sentinel error after Epic 6"
+        }
+      ]
+    },
+    {
+      "criterion": "`Result.Payload` equals the payload of the envelope, which is the handler's payload. (FR-client-26)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestResultPayloadEqualsTheHandlerPayload"
+        }
+      ]
+    },
+    {
+      "criterion": "`Result` holds the QNAME, protocol key, `NOERROR` and the RR TTL. (FR-client-27)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestResultHoldsTheNameKeyNoErrorAndTheTTL"
+        }
+      ]
+    },
+    {
+      "criterion": "`Result.Transport` is `tcp` after a fallback and `udp` otherwise. (FR-client-28)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestResultTransportIsTCPAfterAFallbackAndUDPOtherwise"
+        }
+      ]
+    },
+    {
+      "criterion": "`Result.FellBack` is false for a small answer. (FR-client-29)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQuerySetsFellBackToFalseForAUDPAnswer"
+        }
+      ]
+    },
+    {
+      "criterion": "`Result.RTT` is greater than 0. (FR-client-30)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestResultRTTIsTheTimeOfTheFinalAttemptOnly"
+        }
+      ]
+    },
+    {
+      "criterion": "`Result.QueryBytes` and `Result.ResponseBytes` equal the packed sizes the test server records. (FR-client-31)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestResultBytesEqualTheWireSizesOfTheFinalAttempt"
+        }
+      ]
+    },
+    {
+      "criterion": "`Result.Verified` is false. (FR-client-32)",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestResultIsNotVerifiedWithoutTrustAnchors"
+        }
+      ]
+    },
+    {
+      "criterion": "`qmuxctl query --help` lists the eight flags of FR-client-33, and from Epic 6 also `--trust-anchors` (FR-security-50). (FR-client-33)",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestQueryHelpListsTheNineFlags",
+          "note": "the spec now lists nine flags (FR-security-50)"
+        }
+      ]
+    },
+    {
+      "criterion": "`qmuxctl query` prints `payload:` followed by lowercase hex. (FR-client-34)",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestQueryPrintsOneKeyValueLinePerResultFieldWithTheHexPayloadAndExitsZero"
+        }
+      ]
+    },
+    {
+      "criterion": "`qmuxctl query --json` output parses as one JSON object. (FR-client-35)",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestQueryJSONPrintsTheResultAsOneJSONObject"
+        }
+      ]
+    },
+    {
+      "criterion": "`qmuxctl query` against a registered protocol key exits 0. (FR-client-36)",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestQueryPrintsOneKeyValueLinePerResultFieldWithTheHexPayloadAndExitsZero",
+          "note": "checks exit code 0 for a registered key"
+        }
+      ]
+    },
+    {
+      "criterion": "`qmuxctl query` against an unregistered protocol key exits 1. (FR-client-37)",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestQueryExitsOneForAnUnregisteredProtocolKey"
+        }
+      ]
+    },
+    {
+      "criterion": "A unit test of the exit-code function maps an `AppError` to 2. (FR-client-38)",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestExitCodeMapsEachOutcomeToItsExitCode/an_AppError"
+        }
+      ]
+    },
+    {
+      "criterion": "A unit test of the exit-code function maps a `VerifyError` to 3. (FR-client-39)",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestExitCodeMapsEachOutcomeToItsExitCode/a_VerifyError"
+        }
+      ]
+    },
+    {
+      "criterion": "`qmuxctl query` with no `--name` exits 64 and prints the usage. (FR-client-40)",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestQueryWithoutNameExitsSixtyFourAndPrintsTheUsage"
+        }
+      ]
+    },
+    {
+      "criterion": "`qmux.NewServer`, `qmux.NewClient`, `qmux.ServerConfig`, `qmux.ClientConfig`, `qmux.ProtocolKey` and `qmux.Query` resolve in `go doc`. (FR-client-41)",
+      "proofs": [
+        {
+          "file": "qmux.go",
+          "note": "declares the aliases and constructors that go doc lists"
+        }
+      ]
+    },
+    {
+      "criterion": "`go vet ./...` compiles `example_test.go` with both snippets. (FR-client-42)",
+      "proofs": [
+        {
+          "test": ".",
+          "name": "ExampleNewServer",
+          "note": "go vet compiles it"
+        },
+        {
+          "test": ".",
+          "name": "ExampleNewClient",
+          "note": "go vet compiles it"
+        }
+      ]
+    },
+    {
+      "criterion": "The integration test receives payload A from `65280/65280` and payload B from `65281/65280` over UDP. (FR-client-43)",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestPhase1TwoClassesAnswerDifferentPayloadsOverUDPAndTCP",
+          "note": "checks both classes over UDP"
+        }
+      ]
+    },
+    {
+      "criterion": "The integration test receives the same two payloads over TCP. (FR-client-44)",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestPhase1TwoClassesAnswerDifferentPayloadsOverUDPAndTCP",
+          "note": "checks both classes over TCP"
+        }
+      ]
+    },
+    {
+      "criterion": "The integration test receives a 4000-byte payload with `FellBack` true. (FR-client-45)",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestPhase1LargeAnswerArrivesThroughTCPFallback"
+        }
+      ]
+    }
+  ],
+  "04-envelope-codec.md": [
+    {
+      "criterion": "FR-codec-1, FR-codec-2: a test encodes an `Envelope` and finds keys 0–5 as CBOR unsigned integers.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestEncodeWritesKeysZeroToFiveAsUnsignedIntegers"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-3: an envelope with a nil signature block encodes with no key 6.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestEncodeOmitsKeySixWhenSignatureBlockIsNil"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-4: the encoded map keys of a test envelope appear in bytewise order.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestEncodeWritesMapKeysInBytewiseOrder"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-5: `Encode` returns `ErrTooLarge` for a payload that makes the envelope 16385 bytes.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestEncodeReturnsErrTooLargeForA16385ByteEnvelope"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-6: `Encode` returns `ErrFormat` for an envelope with format 2.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestEncodeRejectsInvalidFields/format_2"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-7: `Decode` returns `ErrTooLarge` for 16385 input bytes.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestDecodeReturnsErrTooLargeFor16385InputBytes"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-8: the vectors for a duplicate key, an indefinite length, a tag and invalid UTF-8 each return an error.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestGoldenVectors",
+          "note": "decodes each invalid vector in testdata"
+        },
+        {
+          "test": "pkg/codec",
+          "name": "TestDecodeRejectsMalformedInputWithAWrappedCBORError"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-9: a valid vector with one extra byte returns an error.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestDecodeRejectsMalformedInputWithAWrappedCBORError/one_extra_byte_after_a_valid_envelope"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-10: the non-deterministic key-order vector returns `ErrNotDeterministic`.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestGoldenVectors",
+          "note": "decodes the non-deterministic-key-order vector"
+        },
+        {
+          "test": "pkg/codec",
+          "name": "TestDecodeReturnsErrNotDeterministicForNonCanonicalInput"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-11: the format-2 vector returns `ErrFormat`.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestGoldenVectors",
+          "note": "decodes the format-2 vector"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-12: protocol IDs `\"\"`, `Org.Qmux`, and 129 bytes each return `ErrInvalidProtocolID`.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestEncodeRejectsInvalidFields"
+        },
+        {
+          "test": "pkg/codec",
+          "name": "TestDecodeRejectsInvalidFields"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-13: versions 0 and 65536 each return `ErrInvalidVersion`.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestEncodeRejectsInvalidFields"
+        },
+        {
+          "test": "pkg/codec",
+          "name": "TestDecodeRejectsInvalidFields"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-14: message types 0 and 3 each return `ErrInvalidMessageType`.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestEncodeRejectsInvalidFields"
+        },
+        {
+          "test": "pkg/codec",
+          "name": "TestDecodeRejectsInvalidFields"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-15: a decode error message for a 100-byte payload does not contain the payload bytes in hex or raw form.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestDecodeErrorMessagesNeverContainPayloadBytes"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-16, FR-codec-18: a zero `Limits` rejects 16385 bytes and accepts 16384 bytes.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestDecodeWithZeroLimitsAccepts16384BytesAndRejects16385Bytes"
+        },
+        {
+          "test": "pkg/codec",
+          "name": "TestEncodeReturnsErrTooLargeForA16385ByteEnvelope"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-17: `Limits{MaxEnvelope: 65001}.Validate()` returns an error.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestLimitsValidate/65001_bytes"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-19: `Marshal` of a struct with two int-keyed fields gives bytewise-sorted keys.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestMarshalSortsIntegerKeysBytewise"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-20, FR-codec-21: `Unmarshal` of a map with an undeclared key returns an error.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestUnmarshalRejectsInputThatBreaksTheDecodeOptions/undeclared_key"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-22: `Unmarshal` of a non-shortest integer returns `ErrNotDeterministic`.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestUnmarshalReturnsErrNotDeterministicForNonCanonicalInput/non-shortest_integer"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-23, FR-codec-26: `pkg/codec/testdata/v1/` holds every listed case as a `.cbor` and `.json` pair.",
+      "proofs": [
+        {
+          "file": "pkg/codec/testdata/v1/minimal-record.cbor",
+          "note": "each vector has a .cbor and a .json file"
+        },
+        {
+          "test": "pkg/codec",
+          "name": "TestGoldenVectorsIncludeEveryRequiredCase"
+        },
+        {
+          "test": "pkg/codec",
+          "name": "TestEveryGoldenCBORFileHasAJSONFile"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-24: the vector test passes for every pair.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestGoldenVectors"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-25: every valid vector re-encodes to identical bytes.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "TestGoldenVectors",
+          "note": "encodes each valid vector again and compares the bytes"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-27, FR-codec-28: `go test ./pkg/codec` runs `FuzzDecodeEnvelope` on the seed corpus with no failure.",
+      "proofs": [
+        {
+          "test": "pkg/codec",
+          "name": "FuzzDecodeEnvelope"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-29, FR-codec-30: an integration test receives an answer RR whose RDATA decodes to the registration protocol ID.",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestAnswerRRDataDecodesToTheRegistrationProtocolID"
+        },
+        {
+          "test": "pkg/server",
+          "name": "TestDispatchWrapsTheResponseInAnEnvelopeWithTheRegistrationProtocolID"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-31: a response with `Version` 0 on a registration with versions `[1, 2]` gives envelope version 2.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestDispatchUsesTheHighestRegistrationVersionForResponseVersion0"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-32: a response with `Version` 3 on that registration gives `SERVFAIL`.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestDispatchAnswersServFailForAVersionOutsideTheRegistration"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-33: a response with `MessageType` 0 gives envelope message type 1.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestDispatchUsesMessageTypeRecordForResponseMessageType0"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-34, FR-codec-35: a schema that rejects the payload gives `SERVFAIL` and one log record at level `error`.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestDispatchAnswersServFailAndLogsOneErrorWhenTheSchemaRejectsThePayload"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-36: a 20000-byte payload gives `SERVFAIL`.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestDispatchAnswersServFailForA20000BytePayload"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-37: an answer RR with RDATA `0xff` gives a `DNSError` of kind `malformed`.",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsAMalformedDNSErrorForRDATAThatIsNotAnEnvelope"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-38: a result carries the protocol ID, version, message type, status and payload of the envelope.",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestResultCarriesTheFieldsOfTheEnvelope"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-39: a `not-found` envelope gives a non-nil result and an error that `errors.As` matches to `*client.AppError`.",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsTheResultAndAnAppErrorForANotFoundEnvelope"
+        },
+        {
+          "test": "tests/integration",
+          "name": "TestClientReturnsTheResultAndAnAppErrorForANotFoundAnswer"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-40: `ExpectedProtocolID: \"org.qmux.other\"` gives a `DNSError` of kind `mismatch`.",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsAMismatchDNSErrorForAnUnexpectedProtocolID"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-41: a query with label `_v1` that receives envelope version 2 gives a `DNSError` of kind `mismatch`.",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsAMismatchDNSErrorWhenTheEnvelopeVersionDiffersFromTheLabel"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-42: `qmuxctl query` output contains the five lines of the Screens section.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestQueryPrintsOneKeyValueLinePerResultFieldWithTheHexPayloadAndExitsZero"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-codec-43, FR-codec-44: `docs/protocol.md` has the three sections, and the `Wire format` section holds the envelope table and one hex example.",
+      "proofs": [
+        {
+          "doc": "docs/protocol.md",
+          "section": "Wire format"
+        },
+        {
+          "doc": "docs/protocol.md",
+          "section": "Error semantics"
+        },
+        {
+          "doc": "docs/protocol.md",
+          "section": "Class/type allocation"
+        },
+        {
+          "doc": "docs/protocol.md",
+          "section": "Example",
+          "note": "one hex example from the golden vectors"
+        }
+      ]
+    }
+  ],
+  "05-discovery.md": [
+    {
+      "criterion": "FR-discovery-1, FR-discovery-2, FR-discovery-3: a manifest round trip through `codec.Marshal` and `codec.Unmarshal` gives an equal value.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestManifestRoundTripThroughCodecGivesAnEqualValue"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-4: a manifest with framework version 2 fails validation.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestValidateRejectsFrameworkVersion2"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-5: a manifest for `other.example.` fails validation for the zone `fleet.example.`, and `FLEET.example.` passes.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestValidateRejectsAZoneThatDiffersFromTheQueriedZone"
+        },
+        {
+          "test": "pkg/discovery",
+          "name": "TestValidateIgnoresLetterCaseInTheZone"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-6: a manifest with two `org.qmux.firmware` entries fails validation.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestValidateRejectsTwoEntriesWithOneProtocolID"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-7: a manifest with two entries at `(65281, 65280)` fails validation.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestValidateRejectsTwoEntriesWithOneProtocolKey"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-8: the version lists `[]`, `[0]`, `[2, 1]` and `[1, 1]` each fail validation.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestValidateRejectsABadVersionList"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-9: `Lookup(\"org.qmux.firmware\")` returns the entry and true, and `Lookup(\"x.y\")` returns false.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestLookupReturnsTheEntryForAKnownProtocolID"
+        },
+        {
+          "test": "pkg/discovery",
+          "name": "TestLookupReturnsFalseForAnUnknownProtocolID"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-10, FR-discovery-11: after `Register` with zero options, the registry lists `org.qmux.discovery` at `(65280, 65534)`.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestRegisterWithZeroOptionsRegistersDiscoveryAtDefaultKey"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-12: with `InClass` true, the registry lists it at `(1, 65534)` and not at `(65280, 65534)`.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestRegisterWithInClassRegistersDiscoveryOnlyAtINKey"
+        }
+      ],
+      "ruling": "Discovery decisions (#6): the user ruled that `InClass` registers discovery only at `(1, 65534)` (FR-discovery-12)."
+    },
+    {
+      "criterion": "FR-discovery-13: a query for `_qmux.fleet.example.` returns an envelope with message type 2.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestDiscoveryNameQueryReturnsManifestEnvelope"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-14: a protocol registered after the server starts appears in the next manifest.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestManifestListsProtocolRegisteredAfterStart"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-15: the manifest entries are in class-then-type order and include `org.qmux.discovery`.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestManifestListsEveryRegistrationInClassThenTypeOrder"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-16: a query for `x.fleet.example.` at the discovery key returns status `not-found`.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestOtherQNameAtDiscoveryKeyReturnsNotFound"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-17, FR-discovery-18: a handler that receives `_v2.device42.fleet.example.` sees `Request.Version` 2 and `Request.Name` `device42.fleet.example.`",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryGivesTheHandlerTheVersionAndTheNameWithoutTheVersionLabel"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-19: a query with `_v9` on a registration with `[1]` returns status `version-unsupported`, and the handler call count stays 0.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersVersionUnsupportedForAVersionOutsideTheRegistration"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-20: that envelope carries protocol version 1.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersVersionUnsupportedForAVersionOutsideTheRegistration",
+          "note": "checks envelope version 1"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-21: a query with no version label on a registration with `[1, 2]` gives `Request.Version` 2.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQuerySetsTheHighestVersionWhenNoVersionLabelIsPresent"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-22: a query with `_vx` returns status `bad-request`, and the handler call count stays 0.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersBadRequestForALabelThatStartsWithVButIsNoVersionLabel"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-23, FR-discovery-24: `Discover` with zero `Key` sends one query at `(65280, 65534)`.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestDiscoverWithAZeroKeySendsOneQueryAtTheDefaultKey"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-25: a record envelope at the discovery key makes `Discover` return an error.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestDiscoverReturnsAnErrorForARecordEnvelope"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-26: `Discover` with `InsecureSkipVerify` false returns `ErrInsecure`, and the server receives no query.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestDiscoverWithoutTrustAnchorsOrInsecureSkipVerifyReturnsErrInsecureAndSendsNoQuery"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-27: supported `[2, 3]` against manifest `[1, 2]` returns version 2.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestNegotiatePicksTheHighestCommonVersion"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-28: an unknown protocol ID returns `ErrProtocolNotFound`.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestNegotiateReturnsErrProtocolNotFoundForAnUnknownProtocolID"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-29: supported `[3]` against `[1, 2]` returns `ErrVersionUnsupported`.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestNegotiateReturnsErrVersionUnsupportedWhenNoCommonVersionExists"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-30: a failed negotiation sends no query to the server.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestQueryProtocolSendsNoQueryWhenTheNegotiationFails"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-31: the server receives the QNAME `_v1.device42.fleet.example.` at the negotiated key.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestQueryProtocolSendsTheVersionLabelAtTheNegotiatedKey"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-32: `Static` with a duplicate protocol ID returns an error, and a valid list returns a manifest.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestStaticReturnsAnErrorForADuplicateProtocolID"
+        },
+        {
+          "test": "pkg/discovery",
+          "name": "TestStaticReturnsAManifestForAValidList"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-33, FR-discovery-34: `qmuxctl discover --name fleet.example.` queries `_qmux.fleet.example.`",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestDiscoverQueriesTheDiscoveryNameOfTheZoneAtTheDefaultKey"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-35: `--in` queries at `(1, 65534)`, and `--in --class 65280` exits with code 64.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestDiscoverInQueriesAtTheINKey"
+        },
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestDiscoverWithAnInvalidFlagExitsSixtyFourAndPrintsTheUsage",
+          "note": "the in-with-class case exits 64"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-36: the table output has one row per manifest entry with four columns.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestDiscoverPrintsOneRowWithFourColumnsPerManifestEntry"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-37: the `--json` output parses as JSON with the fields `framework_version` and `protocols`.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestDiscoverJSONPrintsTheManifestAsOneJSONObject"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-38: `qmuxctl discover` without `--insecure` exits with code 3 and the stated message.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestDiscoverWithoutInsecureExitsThreeAndSendsNoQuery"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-39: the Phase 2 integration test passes over UDP and over TCP.",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestPhase2DiscoversAndQueriesThreePrivateClassesOverUDPAndTCP"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-40: the IN-option integration test passes.",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestPhase2DiscoversThroughTheINOption"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-41: the remap integration test passes.",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestPhase2RemapMovesTheProtocolKeyInTheNextDiscovery"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-discovery-42: `docs/protocol.md` has the three new sections.",
+      "proofs": [
+        {
+          "doc": "docs/protocol.md",
+          "section": "Protocol dispatch"
+        },
+        {
+          "doc": "docs/protocol.md",
+          "section": "Discovery"
+        },
+        {
+          "doc": "docs/protocol.md",
+          "section": "Version negotiation"
+        }
+      ]
+    }
+  ],
+  "06-signing-and-freshness.md": [
+    {
+      "criterion": "FR-security-1: `KeyID` of a fixed-seed key equals the committed 8-byte vector.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestKeyIDIsTheFirst8BytesOfTheSHA256OfThePublicKey"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-2: two `GenerateKey` calls return different keys.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestGenerateKeyReturnsADifferentKeyEachCall"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-3: the written key file has mode 0600 and a `PRIVATE KEY` PEM block.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestWritePrivateKeyWritesAPKCS8PEMBlockWithMode0600"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-4: `WritePrivateKey` to an existing path returns an error and leaves the file unchanged.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestWritePrivateKeyRefusesAnExistingFileAndLeavesItUnchanged"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-5: `LoadPrivateKey` of an ECDSA PKCS#8 file returns an error.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestLoadPrivateKeyRejectsAnECDSAPKCS8File"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-6: `LoadPrivateKey` of a 0644 file returns a non-empty warning.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestLoadPrivateKeyWarnsWhenGroupOrWorldCanReadTheFile"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-7, FR-security-10: a written trust anchor file loads to an equal list.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestWriteTrustAnchorsWritesAFileThatLoadsToAnEqualList"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-8: an anchor with a wrong `key_id` makes `LoadTrustAnchors` return an error.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestLoadTrustAnchorsRejectsAKeyIDThatDiffersFromThePublicKey"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-9: a 31-byte public key and a duplicate key ID each make `LoadTrustAnchors` return an error.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestLoadTrustAnchorsRejectsAPublicKeyThatIsNot32Bytes"
+        },
+        {
+          "test": "pkg/security",
+          "name": "TestLoadTrustAnchorsRejectsTwoAnchorsWithOneKeyID"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-11, FR-security-12: a signer with a fixed `Now` sets `issued_at` to that time and `expires_at` one hour later.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestSignSetsTheKeyIDAlgorithmAndAOneHourWindowFromNow"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-13, FR-security-14: the signing input of a fixed envelope equals the committed vector bytes, and the signature verifies with `ed25519.Verify`.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestSigningInputEqualsTheCommittedVector"
+        },
+        {
+          "file": "pkg/security/testdata/signing-input-v1.hex"
+        },
+        {
+          "test": "pkg/security",
+          "name": "TestSignComputesASignatureThatVerifiesOverTheLowercaseSigningInput",
+          "note": "checks ed25519.Verify"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-15: with `Signer` set, a `not-found` answer carries a signature block.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQuerySignsTheEnvelopeOfEveryApplicationStatus"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-16: a query with `_v1.device42.fleet.example.` verifies only against that full QNAME.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQuerySignsWithTheFullQNameIncludingTheVersionLabel"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-17: a signer with a nil key gives `SERVFAIL`.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersServFailWhenSigningFails"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-18: a zero `Verifier` uses 60 s skew and 24 h window.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestZeroVerifierUses60SecondSkewAnd24HourWindow"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-19 to FR-security-28: one table test case per sentinel returns that sentinel.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestVerifyReturnsOneSentinelForEachFailedCheck"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-29: an expired envelope with a bad signature returns `ErrBadSignature`.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestVerifyReturnsErrBadSignatureForAnExpiredEnvelopeWithABadSignature"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-30: a failed `Verify` leaves the store unchanged.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestFailedVerifyLeavesTheStoreUnchanged"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-31: 100 concurrent `Verify` calls pass under `go test -race`.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestVerifyIsSafeFor100ConcurrentCalls",
+          "note": "the race job in CI runs it with -race"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-32: a saved store loads to an equal store.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestSavedFreshnessStoreLoadsToAnEqualStore"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-33: `errors.Is(err, security.ErrExpired)` is true, and the message contains the protocol ID and the QNAME.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "TestVerifyErrorNamesTheProtocolIDAndTheQName"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-34, FR-security-35, FR-security-37: a client with anchors returns `Verified` true for a signed answer.",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsAVerifiedResultForASignedAnswer"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-36: a client with anchors returns a `*client.VerifyError` and a nil result for an unsigned answer.",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsAVerifyErrorAndNoResultForAnUnsignedAnswer"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-38: a client with no anchors returns `Verified` false.",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsAnUnverifiedResultForASignedAnswerWithoutTrustAnchors"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-39: a signed `not-found` answer with a bad signature returns a `VerifyError`, not an `AppError`.",
+      "proofs": [
+        {
+          "test": "pkg/client",
+          "name": "TestQueryReturnsAVerifyErrorAndNoAppErrorForANotFoundAnswerWithABadSignature"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-40: `Discover` with no anchors and `InsecureSkipVerify` false returns `ErrInsecure`.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestDiscoverWithoutTrustAnchorsOrInsecureSkipVerifyReturnsErrInsecureAndSendsNoQuery"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-41, FR-security-42: a second `Discover` before `expires_at` sends no query.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestDiscoverReturnsTheCachedManifestWithNoQueryBeforeExpiresAt"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-43: after `Discover`, the cache file exists in `CacheDir`.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestDiscoverWritesTheCacheFileInCacheDir"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-44: a new client with the same `CacheDir` returns the manifest with no query, and a tampered cache file causes a query.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestANewClientWithTheSameCacheDirReturnsTheManifestWithNoQuery"
+        },
+        {
+          "test": "pkg/discovery",
+          "name": "TestDiscoverSendsAQueryForATamperedCacheFile"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-45: a manifest with an older `issued_at` does not replace the cached manifest.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestAManifestReplacesTheCachedManifestOnlyWhenItsIssuedAtIsNewer"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-46: a manifest with TTL 1 s stays cached until `expires_at`.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestDiscoverKeepsAManifestWithATTLOf1sCachedUntilExpiresAt"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-47: an insecure discovery writes no cache file.",
+      "proofs": [
+        {
+          "test": "pkg/discovery",
+          "name": "TestAnInsecureDiscoverWritesNoCacheFile"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-48: `qmuxctl keygen --out <tmp>/k` writes both files and prints a 16-character hex key ID.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestKeygenWritesTheKeyAndTheAnchorFileAndPrintsTheKeyID"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-49: a second `qmuxctl keygen` with the same prefix exits with code 1.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestASecondKeygenWithTheSamePrefixExitsOne"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-50, FR-security-51: `qmuxctl query --trust-anchors` with a wrong anchor exits with code 3 and prints `ErrUnknownKey`.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxctl",
+          "name": "TestQueryWithAWrongTrustAnchorExitsThreeAndPrintsErrUnknownKey"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-52: `go test ./pkg/security` runs `FuzzVerify` on its seed corpus with no failure.",
+      "proofs": [
+        {
+          "test": "pkg/security",
+          "name": "FuzzVerify"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-53: the Phase 3 integration test passes for all eight cases.",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestPhase3RejectsEachBadEnvelopeWithItsOwnError",
+          "note": "seven table cases and one replay case"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-54, FR-security-55: `docs/security.md` has the five sections and the threat table has three columns.",
+      "proofs": [
+        {
+          "doc": "docs/security.md",
+          "section": "Trust model"
+        },
+        {
+          "doc": "docs/security.md",
+          "section": "Signing"
+        },
+        {
+          "doc": "docs/security.md",
+          "section": "Replay and freshness controls"
+        },
+        {
+          "doc": "docs/security.md",
+          "section": "Threat model",
+          "note": "table with threat, control and residual risk columns"
+        },
+        {
+          "doc": "docs/security.md",
+          "section": "Limitations"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-security-56: the `Limitations` section states each of the five facts.",
+      "proofs": [
+        {
+          "doc": "docs/security.md",
+          "section": "Limitations"
+        }
+      ]
+    }
+  ],
+  "07-embedded-recovery.md": [
+    {
+      "criterion": "FR-demo-1 to FR-demo-3: a round-trip test of each schema returns the same field values.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/schema",
+          "name": "TestBootstrapRoundTripReturnsTheSameFieldValues"
+        },
+        {
+          "test": "examples/embedded-bootstrap/schema",
+          "name": "TestConfigurationRoundTripReturnsTheSameFieldValues"
+        },
+        {
+          "test": "examples/embedded-bootstrap/schema",
+          "name": "TestFirmwareRoundTripReturnsTheSameFieldValues"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-4: encoding the same payload twice gives identical bytes.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/schema",
+          "name": "TestMarshalGivesIdenticalBytesForTheSamePayload"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-5: a test decodes a payload with an extra key and gets an error. A test decodes a 31-byte digest and gets an error.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/schema",
+          "name": "TestUnmarshalConfigurationRejectsAnExtraKey"
+        },
+        {
+          "test": "examples/embedded-bootstrap/schema",
+          "name": "TestUnmarshalConfigurationRejectsA31ByteDigest"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-6: a handler that returns an invalid configuration payload causes `SERVFAIL`.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/schema",
+          "name": "TestServerAnswersServFailWhenTheHandlerReturnsAnInvalidConfiguration"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-7 and FR-demo-8: the first log line names the zone `fleet.example.` and a loopback address.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/fleet",
+          "name": "TestStartPrintsTheZoneAndALoopbackAddressOnTheFirstLine"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-9 and FR-demo-10: the manifest in the test lists the four protocol IDs at the stated protocol keys.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/fleet",
+          "name": "TestManifestListsTheFourProtocolsAtTheirProtocolKeys"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-11: two starts print two different key IDs.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/fleet",
+          "name": "TestTwoStartsPrintTwoDifferentKeyIDs"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-12: an envelope that a different key signs fails verification in the device.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/fleet",
+          "name": "TestEnvelopeThatADifferentKeySignsFailsVerification"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-13 and FR-demo-14: a device client with the system certificate pool cannot connect to the mock HTTPS service.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/fleet",
+          "name": "TestClientWithTheSystemCertificatePoolCannotConnectToTheMockService"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-15: the configuration result for `device42.fleet.example.` holds the URL and digest of the served bundle.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/fleet",
+          "name": "TestConfigurationResultHoldsTheURLAndDigestOfTheServedBundle"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-16: the test reads the request count from the mock HTTPS service.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/fleet",
+          "name": "TestMockServiceCountsEachResourceRequest"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-17 and FR-demo-18: with `--remote-generation 9`, the log shows `remote generation 9`.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestEachDemonstrationCaseGivesItsExitCodeOutputFilesAndHTTPSRequestCount",
+          "note": "the screen case sets --remote-generation 2 and the log shows remote generation 2"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-19 and FR-demo-20: with no state file, the log shows `config_generation=0 firmware_version=0.0.0`.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/device",
+          "name": "TestReconcileWithNoStateFileStartsAtGenerationZeroAndFirmwareZero"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-21: with `--tamper-dns`, the device does not reach the configuration download.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestTamperDNSSendsNoHTTPSRequest"
+        },
+        {
+          "test": "examples/embedded-bootstrap/device",
+          "name": "TestReconcileStopsOnAnUnverifiedConfigurationEnvelopeWithNoHTTPSRequest"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-22: the log shows `v1` for each of the three protocols.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/device",
+          "name": "TestReconcileNegotiatesVersionOneForEachOfTheThreeProtocols"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-23: each query in the test has the QNAME `device42.fleet.example.`",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/device",
+          "name": "TestReconcileSendsEachProtocolQueryForDevice42"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-24: the log shows the management endpoint URL.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/device",
+          "name": "TestReconcileRecordsTheManagementEndpointAndTransport"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-25: the stale case writes `config-7.bin`.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestEachDemonstrationCaseGivesItsExitCodeOutputFilesAndHTTPSRequestCount",
+          "note": "the stale case lists config-7.bin in the data directory"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-26: with a local generation of 9 and a remote generation of 7, the log shows `rollback refused` and the device state keeps generation 9.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/device",
+          "name": "TestReconcileRefusesAConfigurationRollbackAndKeepsTheLocalGeneration"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-27 and FR-demo-30: the current case makes 0 HTTPS requests.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestEachDemonstrationCaseGivesItsExitCodeOutputFilesAndHTTPSRequestCount",
+          "note": "the current case counts 0 HTTPS requests"
+        },
+        {
+          "test": "examples/embedded-bootstrap/device",
+          "name": "TestReconcileOfACurrentDeviceSendsNoHTTPSRequest"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-28: the stale case writes `firmware-2.4.1.img`.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestEachDemonstrationCaseGivesItsExitCodeOutputFilesAndHTTPSRequestCount",
+          "note": "the stale case lists firmware-2.4.1.img"
+        },
+        {
+          "test": "examples/embedded-bootstrap/device",
+          "name": "TestReconcileOfAStaleDeviceStoresBothResourcesAndWritesTheNewState"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-29: with an empty allowed key list, the log shows the skip reason and no firmware request occurs.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/device",
+          "name": "TestReconcileSkipsTheFirmwareWhenTheKeyIDIsNotAllowed"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-31 and FR-demo-32: with `--tamper-https`, the program exits with code 1.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestTamperHTTPSReportsADigestMismatchAndExitsWithCode1"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-33: the data directory holds both files after the stale case.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestEachDemonstrationCaseGivesItsExitCodeOutputFilesAndHTTPSRequestCount",
+          "note": "the stale case lists both files"
+        },
+        {
+          "test": "examples/embedded-bootstrap/device",
+          "name": "TestReconcileOfAStaleDeviceStoresBothResourcesAndWritesTheNewState"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-34 and FR-demo-43: after each tamper case, the device state file has the same bytes as before the run.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestTamperDNSReportsAVerificationFailureAndExitsWithCode1"
+        },
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestTamperHTTPSReportsADigestMismatchAndExitsWithCode1"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-35: the code writes a temporary file and renames it. A test finds no temporary file after a run.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap/device",
+          "name": "TestReconcileWritesOnlyTheStateFileAndTheDataDirectoryAndLeavesNoTemporaryFile"
+        },
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestEachDemonstrationCaseGivesItsExitCodeOutputFilesAndHTTPSRequestCount",
+          "note": "checks no temporary file next to the state file"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-36: the code holds no call that writes outside the data directory and the state file.",
+      "proofs": [],
+      "gap": "No test or check scans the code for writes outside the data directory and the state file."
+    },
+    {
+      "criterion": "FR-demo-37: the stale case output matches the line prefixes in § Screens & states.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestStaleCaseOutputMatchesTheLinePrefixesOfTheScreen"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-38: the stale case and the current case exit with code 0.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestStaleCaseExitsWithCode0"
+        },
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestCurrentCaseExitsWithCode0AndReportsUpToDate"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-39: each tamper case exits with code 1.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestTamperDNSReportsAVerificationFailureAndExitsWithCode1"
+        },
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestTamperHTTPSReportsADigestMismatchAndExitsWithCode1"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-40 and FR-demo-41: with `--tamper-dns`, the log shows `verification failed`, and the mock HTTPS service counts 0 requests.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestTamperDNSReportsAVerificationFailureAndExitsWithCode1"
+        },
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestTamperDNSSendsNoHTTPSRequest"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-42: with `--tamper-https`, the log shows `digest mismatch`.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestTamperHTTPSReportsADigestMismatchAndExitsWithCode1"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-44: `make demo` exits with code 0 on a clean checkout.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestStaleCaseExitsWithCode0",
+          "note": "runs the demo with no state file, as make demo does"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-demo-45: the stale case counts 2 HTTPS requests, and `go test ./examples/...` passes.",
+      "proofs": [
+        {
+          "test": "examples/embedded-bootstrap",
+          "name": "TestEachDemonstrationCaseGivesItsExitCodeOutputFilesAndHTTPSRequestCount",
+          "note": "the stale case counts 2 HTTPS requests"
+        },
+        {
+          "ci": ".github/workflows/ci.yml",
+          "job": "test",
+          "note": "runs go test ./..., which includes the examples"
+        }
+      ]
+    }
+  ],
+  "08-qmuxd-daemon.md": [
+    {
+      "criterion": "FR-qmuxd-1: `qmuxd serve` in a directory with `qmuxd.json` starts with no flag.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeReadsQmuxdJSONInTheWorkingDirectoryByDefault"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-2: with `--listen` set to a free loopback port, `qmuxd` answers on that port and not on the `listen` value of the file.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeListenFlagOverridesTheListenFieldOfTheFile"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-3: a test receives answers over UDP and over TCP from one `qmuxd` process.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeAnswersOverUDPAndTCPFromOneProcess"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-4: the ready record contains `listen`, `zones`, `key_id` and `protocols`.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeReadyRecordHoldsListenZonesKeyIDAndProtocols"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-5: SIGTERM makes `qmuxd` exit with code 0 within the grace period.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeExitsZeroOnASignalWithinTheGracePeriod"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-6: `qmuxd version` prints a line that contains `go1.`.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestVersionPrintsTheGoVersion"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-7: a second `qmuxd` on the same address exits with code 1.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeExitsOneWhenASecondQmuxdUsesTheSameAddress"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-8: a configuration file with the field `listn` exits with code 2.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeExitsTwoBeforeItListensForAnInvalidConfigFile",
+          "note": "the unknown field listn case exits with code 2"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-9: `examples/qmuxd.json` decodes with every field of the schema table that it uses.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestExampleConfigDecodesWithEveryFieldOfTheSchemaTableThatItUses"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-10: a configuration file with a bad payload exits with code 2 and prints the JSON path.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeExitsTwoBeforeItListensForAnInvalidConfigFile",
+          "note": "the null payload case checks the JSON path in the error"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-11: a configuration file without `signing_key` exits with code 2.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeExitsTwoBeforeItListensForAnInvalidConfigFile",
+          "note": "the no signing_key case exits with code 2"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-12: a 0644 key file produces one `warn` log record.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeLogsTheKeyFileWarningAsOneWarnRecord"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-13: a class of 300 exits with code 2.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeExitsTwoBeforeItListensForAnInvalidConfigFile",
+          "note": "the class 300 case exits with code 2"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-14: a record for `x.other.example.` exits with code 2.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeExitsTwoBeforeItListensForAnInvalidConfigFile",
+          "note": "the record outside every zone case exits with code 2"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-15: `qmuxctl discover` against `qmuxd` lists every configured protocol and `org.qmux.discovery`.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestQmuxctlDiscoverListsEveryConfiguredProtocolForEachZone"
+        },
+        {
+          "test": "tests/integration",
+          "name": "TestQmuxdServesTheExampleConfigurationAfterKeygen"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-16: a query for `DEVICE42.fleet.example.` returns the record of `device42.fleet.example.`",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestStaticRecordHandlerAnswersEachQueryWithTheRecordOrNotFound"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-17: a query for `device99.fleet.example.` returns status `not-found`.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestStaticRecordHandlerAnswersEachQueryWithTheRecordOrNotFound"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-18: a record with `version` 1 returns `not-found` for `_v2` on a protocol with versions `[1, 2]`.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestStaticRecordHandlerAnswersEachQueryWithTheRecordOrNotFound"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-19: a record with both `payload` and `payload_hex` exits with code 2.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeExitsTwoBeforeItListensForAnInvalidConfigFile",
+          "note": "two cases cover both and neither of payload and payload_hex"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-20: `payload_hex` `\"0a0b\"` gives the payload bytes `0a 0b`.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestLoadConfigDecodesPayloadHexIntoThePayloadBytes"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-21: a table test converts each JSON value kind to the stated CBOR kind.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestPayloadCBORConvertsEachJSONValueKindToTheStatedCBORKind"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-22: two `qmuxd` loads of one file give identical payload bytes.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestTwoLoadsOfOneFileGiveIdenticalPayloadBytes"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-23: a record without `status` returns status `ok`.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestStaticRecordHandlerAnswersEachQueryWithTheRecordOrNotFound"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-24, FR-qmuxd-25, FR-qmuxd-26: a server with `QPS` 1 and `Burst` 2 answers 2 queries from one source and returns `REFUSED` for the third.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryAnswersTheBurstAndRefusesTheNextQueryFromOneSource"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-27: a unit test with a fake clock removes an idle bucket after 60 s.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestRateLimiterRemovesABucketThatIsFullFor60Seconds"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-28: a unit test with 65537 sources applies the shared bucket to the last source.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestRateLimiterAppliesTheSharedBucketToSource65537"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-29: `\"qps\": 0` answers 500 queries in one second from one source with no `REFUSED`.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestServeQueryWithQPSZeroAnswers500QueriesInOneSecondFromOneSource"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-30: `go list -m all` for the library module lists no rate-limit module.",
+      "proofs": [
+        {
+          "file": "go.mod",
+          "note": "the library module requires only miekg/dns and cbor"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-31, FR-qmuxd-32: with `ObservationLog` set, 10 queries give 10 lines.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestObservationLogWritesOneLineForEachOfTenQueries"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-33: every line holds the 11 fields.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestObservationLogLineHoldsTheElevenFieldsOfTheSpec"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-34: a `REFUSED` query writes a line with `status` null.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestObservationLogWritesARefusedLineWithStatusNullForARateLimitedQuery"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-35: 100 concurrent queries give 100 lines that each parse as JSON.",
+      "proofs": [
+        {
+          "test": "pkg/server",
+          "name": "TestObservationLogSerializesTheLinesOfOneHundredConcurrentQueries"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-36: a restart of `qmuxd` keeps the earlier lines of the observation log.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeKeepsTheEarlierObservationLogLinesAfterARestart"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-37, FR-qmuxd-38, FR-qmuxd-39: `qmuxd` serves `examples/qmuxd.json` after `qmuxctl keygen --out keys/qmuxd`, and each payload decodes with the Epic 7 payload types.",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestQmuxdServesTheExampleConfigurationAfterKeygen"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-40, FR-qmuxd-41: `docker build .` succeeds, and the container runs as a user other than root and answers on port 53.",
+      "proofs": [],
+      "gap": "No test or CI job runs `docker build .`, and no file records the user of the container or port 53."
+    },
+    {
+      "criterion": "FR-qmuxd-42: the integration test verifies every protocol through `qmuxctl`.",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestQmuxdServesTheExampleConfigurationAfterKeygen"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-43: the integration test receives `REFUSED` above the rate limit.",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestQmuxdRefusesQueriesAboveTheRateLimitAndLogsEveryQuery"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-qmuxd-44: the integration test parses every observation log line.",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestQmuxdRefusesQueriesAboveTheRateLimitAndLogsEveryQuery"
+        }
+      ]
+    }
+  ],
+  "09-interop-harness.md": [
+    {
+      "criterion": "FR-interop-1 and FR-interop-2: with `probe.classes = [65281]` and `probe.types = [65280]`, `qmuxctl discover` lists `org.qmux.probe.65281-65280` at `(65281, 65280)`.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestQmuxctlDiscoverListsTenProbeIDsEachAtItsOwnKey",
+          "note": "the default set holds the pair 65281-65280"
+        },
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestProbeIDNamesTheClassAndTheType"
+        }
+      ],
+      "ruling": "Interop decisions (#10): the user ruled that each probe pair registers the protocol ID `org.qmux.probe.<class>-<type>` (#168)."
+    },
+    {
+      "criterion": "FR-interop-2: with the default classes and types of `qmux-probe`, `qmuxctl discover` lists 10 probe protocol IDs, each at its own protocol key.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestQmuxctlDiscoverListsTenProbeIDsEachAtItsOwnKey"
+        },
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeRegistersOneProbeProtocolIDForEachProbeKey"
+        }
+      ],
+      "ruling": "Interop decisions (#10): the user ruled that each probe pair registers the protocol ID `org.qmux.probe.<class>-<type>` (#168)."
+    },
+    {
+      "criterion": "FR-interop-3: a `probe` section with class 3 and no `allow_reserved_classes` makes `qmuxd` exit with an error that names the class.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeExitsTwoForAnInvalidProbeSection",
+          "note": "the class 3 case names the class"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-4: a `probe` section with type 16 and no `allow_non_private_types` makes `qmuxd` exit with an error that names the type.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestServeExitsTwoForAnInvalidProbeSection",
+          "note": "the type 16 case names the type"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-5: a query for `abc.probe.fleet.example.` returns application status `ok`.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestProbeAnswersEveryProbeKeyOfOneDaemonOverUDPAndTCP"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-6 and FR-interop-27: a direct probe has `payload_ok: true`.",
+      "proofs": [
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestDirectProbeHasOutcomeOkAndPayloadOkWhenThePayloadIsTheDigestOfTheQNAME"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-7: a direct QTYPE 16 answer for a 300-byte envelope holds two character-strings.",
+      "proofs": [
+        {
+          "test": "pkg/transport",
+          "name": "TestWriteSplitsAQTYPE16PayloadIntoCharacterStringsOfAtMost255Bytes"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-8: a direct QTYPE 16 probe has outcome `ok`.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestProbeAnswersAQTYPE16QueryWithAVerifiedEnvelope"
+        },
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestDirectProbeHasOutcomeOkAndPayloadOkWhenThePayloadIsTheDigestOfTheQNAME"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-9: no registration outside the probe protocol and the benchmark has QTYPE 16.",
+      "proofs": [
+        {
+          "test": "cmd/qmuxd",
+          "name": "TestNoRegistrationOutsideTheProbeProtocolHasQTYPE16"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-10, FR-interop-13 to FR-interop-15: a run with defaults and two paths writes 40 records.",
+      "proofs": [
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestRunWithDefaultsAndTwoPathsWritesFortyRecords"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-11 and FR-interop-12: a run with `--resolver bind=…` holds records with `path: bind`.",
+      "proofs": [
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestResolverFlagAddsARecordWithTheResolverNameAsPath"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-16 and FR-interop-17: every QNAME in a run is unique and ends in `probe.fleet.example.`",
+      "proofs": [
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestEveryQNAMEIsUniqueAndIsASixteenHexNonceBelowTheZone"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-18: a run with a wrong trust anchor file gives outcome `verify` on the direct path.",
+      "proofs": [
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestWrongTrustAnchorFileGivesOutcomeVerifyOnTheDirectPath"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-19: a probe to an address that never answers has outcome `timeout` after 3 s. A refused port has outcome `network`.",
+      "proofs": [
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestProbeToAPortThatNeverAnswersHasOutcomeTimeoutAfterTheTimeout",
+          "note": "uses a 150 ms timeout"
+        },
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestTimeoutDefaultIsThreeSeconds"
+        },
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestOutcomeMapsEachClientErrorToOneOfTheSixOutcomes",
+          "note": "maps a network error kind; no test uses a refused port"
+        }
+      ],
+      "ruling": "FR-interop-19 — `--timeout` sets the deadline of one probe. The default is 3 s."
+    },
+    {
+      "criterion": "FR-interop-12a: a unit test of `qmux-probe` shows RD=1 in a resolver-path query and RD=0 in a direct-path query.",
+      "proofs": [
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestResolverPathQueryHasRDSetAndDirectPathQueryHasRDClear"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-20 to FR-interop-22: a direct probe has `reached_authoritative: true` and observed class and type equal to the probe.",
+      "proofs": [
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestDirectProbeReachedTheAuthoritativeServerWithTheObservedClassAndType"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-23: `results.json` parses as a JSON array with one object per probe and every field of § Data touched.",
+      "proofs": [
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestOutputIsAJSONArrayWithEveryFieldOfDataTouched"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-24: `--markdown` prints a table with one row per probe.",
+      "proofs": [
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestMarkdownPrintsATableWithOneRowPerProbe"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-25: a run in which every resolver probe fails exits with code 0.",
+      "proofs": [
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestRunInWhichEveryResolverProbeFailsExitsZero"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-26: a run with `--require-direct` and a stopped `qmuxd` exits with code 1.",
+      "proofs": [
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestRequireDirectExitsOneWhenTheServerIsStopped"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-28 to FR-interop-31: `docker compose up` starts the services, and the shared volume holds the key and the trust anchor file.",
+      "proofs": [
+        {
+          "file": "tests/interoperability/compose.yaml",
+          "note": "defines the network, the keygen step and the shared volume"
+        },
+        {
+          "file": "docs/results/interop-2026-11-21.json",
+          "note": "direct records have verified true, so the key and anchor file existed"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-32 to FR-interop-35: an IN class, type 65280 probe through `bind` has `reached_authoritative: true`.",
+      "proofs": [
+        {
+          "file": "docs/results/interop-2026-11-21.json",
+          "note": "bind records of class 1, type 65280 show reached_authoritative true"
+        },
+        {
+          "file": "tests/interoperability/bind/named.conf"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-36: `results/bind-view-65281.txt` exists after a run.",
+      "proofs": [
+        {
+          "doc": "docs/interoperability.md",
+          "section": "Observed results",
+          "note": "quotes the bind-view-65281.txt content of one run"
+        },
+        {
+          "file": "tests/interoperability/compose.yaml",
+          "note": "the bind-view service writes the file"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-39a: `docker compose exec unbound unbound-checkconf` reports no error, and the forward zone for `fleet.example.` is active.",
+      "proofs": [],
+      "gap": "No test or results file shows the output of `unbound-checkconf`."
+    },
+    {
+      "criterion": "FR-interop-39b: a probe repeated after its TTL expires and after `qmuxd` stops shows outcome `rcode` or `timeout` on the `unbound` path, not a cached answer.",
+      "proofs": [],
+      "gap": "No test or results file shows a repeated probe after the TTL and a stopped `qmuxd` on the `unbound` path."
+    },
+    {
+      "criterion": "FR-interop-39c: on an arm64 host, every `bind` record has `emulated: true`, and on an amd64 host it has `emulated: false`.",
+      "proofs": [
+        {
+          "file": "docs/results/interop-2026-11-21.json",
+          "note": "arm64 host: every bind record has emulated true"
+        },
+        {
+          "test": "cmd/qmux-probe",
+          "name": "TestRecordIsEmulatedWhenTheImageArchOfItsPathDiffersFromTheHostArch",
+          "note": "covers the amd64 host case"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-37 to FR-interop-39: an IN class, type 65280 probe through `unbound` has `reached_authoritative: true`.",
+      "proofs": [
+        {
+          "file": "docs/results/interop-2026-11-21.json",
+          "note": "unbound records of class 1, type 65280 show reached_authoritative true"
+        },
+        {
+          "file": "tests/interoperability/unbound/unbound.conf"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-40: `results.json` holds records for the paths `direct`, `bind` and `unbound`.",
+      "proofs": [
+        {
+          "file": "docs/results/interop-2026-11-21.json",
+          "note": "holds records for the paths direct, bind and unbound"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-41 to FR-interop-43: after `make interop`, `docker compose ps` lists no running service, and `results.json` exists.",
+      "proofs": [
+        {
+          "test": "tests/interoperability",
+          "name": "TestInteropStopsTheEnvironmentAfterAProbeThatSucceeds",
+          "note": "the last docker call is compose down -v"
+        },
+        {
+          "file": "docs/results/interop-2026-11-21.json",
+          "note": "holds the results of one make interop run"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-44: a pull request to `dev` shows the interop workflow run.",
+      "proofs": [
+        {
+          "ci": ".github/workflows/interop.yml",
+          "job": "interop",
+          "note": "triggers on pull requests to dev and main"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-45: the workflow run has an artifact that holds `results.json`.",
+      "proofs": [
+        {
+          "ci": ".github/workflows/interop.yml",
+          "job": "interop",
+          "note": "uploads tests/interoperability/results/ as interop-results"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-interop-46 to FR-interop-50: `docs/interoperability.md` holds the five named sections.",
+      "proofs": [
+        {
+          "doc": "docs/interoperability.md",
+          "section": "Test methodology"
+        },
+        {
+          "doc": "docs/interoperability.md",
+          "section": "Resolver configurations"
+        },
+        {
+          "doc": "docs/interoperability.md",
+          "section": "Reproduction steps"
+        },
+        {
+          "doc": "docs/interoperability.md",
+          "section": "Observed results"
+        },
+        {
+          "doc": "docs/interoperability.md",
+          "section": "Known limitations"
+        }
+      ]
+    }
+  ],
+  "10-baseline-benchmarks.md": [
+    {
+      "criterion": "FR-bench-1 and FR-bench-2: `go list -m all` in `tests/interoperability` shows go-coap v3.8.2.",
+      "proofs": [
+        {
+          "test": "tests/interoperability",
+          "name": "TestHarnessModuleRequiresGoCoAPV382"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-3: `go list -m all` in the root module does not show go-coap.",
+      "proofs": [
+        {
+          "test": "tests/interoperability",
+          "name": "TestRootModuleDoesNotRequireGoCoAP"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-4 to FR-bench-8: one lookup per baseline at loss 0 succeeds in a harness test.",
+      "proofs": [
+        {
+          "test": "tests/interoperability/baseline",
+          "name": "TestOneLookupPerBaselineSucceedsAtLossZero"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-9 and FR-bench-10: a test compares the payload of every baseline and the envelope bytes of the CoAP and HTTPS baselines with `qmux-private`.",
+      "proofs": [
+        {
+          "test": "tests/interoperability/baseline",
+          "name": "TestEveryBaselineCarriesTheFirmwarePayloadOfQMuxPrivate"
+        },
+        {
+          "test": "tests/interoperability/baseline",
+          "name": "TestCoAPAndHTTPSCarryTheEnvelopeBytesOfQMuxPrivate"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-11: an envelope with one changed byte counts as a failed lookup.",
+      "proofs": [
+        {
+          "test": "tests/interoperability/baseline",
+          "name": "TestALookupFailsWhenTheEnvelopeHasOneChangedByte"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-12 and FR-bench-13: `tc qdisc show dev eth0` in each container prints `netem delay 10ms loss <X>%` during a benchmark run. At loss 0, `tc` prints `netem delay 10ms` with no loss field.",
+      "proofs": [
+        {
+          "test": "tests/interoperability/netem",
+          "name": "TestDockerTcQdiscShowPrintsTheNetemOfTheLossLevelInEachContainer",
+          "note": "runs only with -tags dockerbench and Docker; the loss 0 check does not assert a missing loss field"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-14: with `NET_ADMIN` removed, `qmux-bench` exits with code 1, `make bench` fails, and the output holds `netem needs NET_ADMIN`.",
+      "proofs": [
+        {
+          "test": "tests/interoperability",
+          "name": "TestBenchExits1AndPrintsTheNetemErrorAndStopsTheEnvironmentWhenNetemFails"
+        },
+        {
+          "test": "tests/interoperability/cmd/qmux-bench",
+          "name": "TestBenchStopsWithTheNetemErrorWhenAContainerRefusesNetAdmin"
+        },
+        {
+          "test": "tests/interoperability/netem",
+          "name": "TestDockerApplyReportsNetemNeedsNetAdminInAContainerWithoutTheCapability",
+          "note": "runs only with -tags dockerbench and Docker"
+        }
+      ],
+      "ruling": "`make bench` fails with the GNU Make exit code 2 when `qmux-bench` exits 1 (#180)."
+    },
+    {
+      "criterion": "FR-bench-15 and FR-bench-16: `make bench LOSS=0 N=10` writes runs with `loss: 0` and `n: 10`.",
+      "proofs": [
+        {
+          "test": "tests/interoperability",
+          "name": "TestBenchRunsQMuxBenchWithLossAndNBetweenUpAndDown",
+          "note": "make bench passes LOSS=0 N=10 as flags"
+        },
+        {
+          "test": "tests/interoperability/cmd/qmux-bench",
+          "name": "TestRunParsesTheLossLevelsAndTheLookupCount"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-17: the server log shows no two lookups of one benchmark run in parallel.",
+      "proofs": [],
+      "gap": "No test or results file shows that one benchmark run has no two lookups in parallel."
+    },
+    {
+      "criterion": "FR-bench-18: at loss 100, every lookup fails after about 5 s.",
+      "proofs": [
+        {
+          "test": "tests/interoperability/cmd/qmux-bench",
+          "name": "TestDockerBenchMeasuresEveryBaselineAtLossZeroAndLossHundred",
+          "note": "runs only with -tags dockerbench and Docker; loss 100 gives success_rate 0"
+        },
+        {
+          "test": "tests/interoperability/baseline",
+          "name": "TestADNSBaselineSendsFiveRequestsInTheDeadlineWhenNoAnswerArrives",
+          "note": "a DNS lookup fails after about 5 s"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-19: at loss 100, a DNS baseline records 5 requests per lookup.",
+      "proofs": [
+        {
+          "test": "tests/interoperability/baseline",
+          "name": "TestADNSBaselineSendsFiveRequestsInTheDeadlineWhenNoAnswerArrives"
+        },
+        {
+          "test": "tests/interoperability/cmd/qmux-bench",
+          "name": "TestDockerBenchMeasuresEveryBaselineAtLossZeroAndLossHundred",
+          "note": "runs only with -tags dockerbench and Docker; checks 5 requests at loss 100"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-20: at loss 100, a `coap` lookup records 3 transmissions of the request.",
+      "proofs": [],
+      "gap": "No test asserts 3 CoAP transmissions in 5 s; a test only logs the count and another shows 2 transmissions in 1.8 s.",
+      "ruling": "the user ruled that CoAP keeps the RFC 7252 backoff, so it makes 3 transmissions in the 5 s deadline (FR-bench-20)."
+    },
+    {
+      "criterion": "FR-bench-20a: the results file holds a `retry` object for every baseline, and the environment block holds `tcp_syn_retries`.",
+      "proofs": [
+        {
+          "file": "docs/results/bench-20261121T015913Z.json",
+          "note": "every run holds a retry object and the environment holds tcp_syn_retries"
+        },
+        {
+          "test": "tests/interoperability/cmd/qmux-bench",
+          "name": "TestEachRunObjectHoldsTheMetricsAndTheRetryObject"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-21: the `https-cold` row shows more packets per lookup than the `https-reuse` row.",
+      "proofs": [
+        {
+          "file": "docs/results/bench-20261121T015913Z.json",
+          "note": "https-cold shows 17.9 packets per lookup and https-reuse 2.1 at loss 0"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-22: the server counts one TLS handshake in an `https-reuse` benchmark run.",
+      "proofs": [
+        {
+          "test": "tests/interoperability/baseline",
+          "name": "TestTheServerLogsOneTLSHandshakeForAConnectionReuseRun"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-23: the server sees a new source port for each lookup of the DNS and CoAP baselines.",
+      "proofs": [
+        {
+          "test": "tests/interoperability/baseline",
+          "name": "TestTheServerSeesANewSourcePortForEachDNSAndCoAPLookup"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-24 and FR-bench-25: each run object holds `success_rate`, `p50_ms` and `p95_ms`.",
+      "proofs": [
+        {
+          "test": "tests/interoperability/cmd/qmux-bench",
+          "name": "TestEachRunObjectHoldsTheMetricsAndTheRetryObject"
+        },
+        {
+          "file": "docs/results/bench-20261121T015913Z.json"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-26: each run object holds nonzero `packets_per_lookup` and `bytes_per_lookup`.",
+      "proofs": [
+        {
+          "file": "docs/results/bench-20261121T015913Z.json",
+          "note": "every run has nonzero packets_per_lookup and bytes_per_lookup"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-27: at loss 0, `qmux-private` records 1 request per lookup.",
+      "proofs": [
+        {
+          "test": "tests/interoperability/baseline",
+          "name": "TestEachBaselineRecordsOneRequestPerLookupAtLossZero"
+        },
+        {
+          "file": "docs/results/bench-20261121T015913Z.json",
+          "note": "qmux-private has requests_per_lookup 1 at loss 0"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-28 and FR-bench-29: the results file and the markdown table exist after a run.",
+      "proofs": [
+        {
+          "file": "docs/results/bench-20261121T015913Z.json"
+        },
+        {
+          "test": "tests/interoperability/cmd/qmux-bench",
+          "name": "TestTheMarkdownTableLabelsTheReferenceAndTheConnectionReuseRows"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-30: the results file holds all seven environment fields.",
+      "proofs": [
+        {
+          "test": "tests/interoperability/cmd/qmux-bench",
+          "name": "TestTheResultsFileHoldsTheFourArraysAndTheEnvironmentBlock"
+        },
+        {
+          "file": "docs/results/bench-20261121T015913Z.json",
+          "note": "the environment block holds the seven fields"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-31 to FR-bench-34: the `clients` array holds one object per baseline with nonzero `binary_bytes`, `max_rss_kib` and `cpu_ms`.",
+      "proofs": [
+        {
+          "file": "docs/results/bench-20261121T015913Z.json",
+          "note": "each of 6 clients has nonzero binary_bytes, max_rss_kib and cpu_ms"
+        },
+        {
+          "test": "tests/interoperability/footprint",
+          "name": "TestMeasureGivesEveryBaselineANonzeroSizeRSSAndCPUTime"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-35 to FR-bench-37: the `dispatch` array holds both microbenchmarks.",
+      "proofs": [
+        {
+          "file": "docs/results/bench-20261121T015913Z.json",
+          "note": "the dispatch array holds both microbenchmarks"
+        },
+        {
+          "test": "tests/interoperability/cmd/qmux-bench",
+          "name": "TestParseDispatchReadsTheNameTheNsPerOpAndTheAllocsPerOp"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-38: `make bench LOSS=0 N=10` exits with code 0.",
+      "proofs": [
+        {
+          "test": "tests/interoperability",
+          "name": "TestBenchRunsQMuxBenchWithLossAndNBetweenUpAndDown",
+          "note": "exits with code 0 with LOSS=0 N=10"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-39 to FR-bench-41: `docs/interoperability.md` holds the three named sections.",
+      "proofs": [
+        {
+          "doc": "docs/interoperability.md",
+          "section": "Baseline results"
+        },
+        {
+          "doc": "docs/interoperability.md",
+          "section": "Assumptions"
+        },
+        {
+          "doc": "docs/interoperability.md",
+          "section": "Findings on the research question"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-bench-42: each finding contains a number that appears in the `Baseline results` table.",
+      "proofs": [
+        {
+          "doc": "docs/interoperability.md",
+          "section": "Findings on the research question",
+          "note": "each finding cites numbers from the Runs table"
+        }
+      ]
+    }
+  ],
+  "11-documentation.md": [
+    {
+      "criterion": "FR-docs-1 to FR-docs-6: `README.md` holds the six named sections.",
+      "proofs": [
+        {
+          "doc": "README.md",
+          "section": "What QMux is"
+        },
+        {
+          "doc": "README.md",
+          "section": "What QMux is not"
+        },
+        {
+          "doc": "README.md",
+          "section": "Quick start"
+        },
+        {
+          "doc": "README.md",
+          "section": "Go examples"
+        },
+        {
+          "doc": "README.md",
+          "section": "Architecture"
+        },
+        {
+          "doc": "README.md",
+          "section": "Security limitations"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-docs-7: the README compatibility table states a date and a commit, and every row appears in `tests/interoperability/results/results.json` at that commit.",
+      "proofs": [
+        {
+          "doc": "README.md",
+          "section": "Compatibility status"
+        },
+        {
+          "file": "docs/results/interop-2026-11-21.json",
+          "note": "holds the matrix that the table copies"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-docs-8: `LICENSE` holds the MIT license text.",
+      "proofs": [
+        {
+          "file": "LICENSE",
+          "note": "holds the MIT license text"
+        },
+        {
+          "doc": "README.md",
+          "section": "License"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-docs-9 and FR-docs-10: GitHub renders both diagrams in `docs/architecture.md`.",
+      "proofs": [
+        {
+          "doc": "docs/architecture.md",
+          "section": "Package import graph"
+        },
+        {
+          "doc": "docs/architecture.md",
+          "section": "Lifecycle of one verified query"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-docs-11: every file in `docs/adr/` has a line in the index.",
+      "proofs": [
+        {
+          "doc": "docs/architecture.md",
+          "section": "ADR index"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-docs-12: each tradeoff names an alternative.",
+      "proofs": [
+        {
+          "doc": "docs/architecture.md",
+          "section": "Design tradeoffs"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-docs-13: every envelope key, status value and message type in `pkg/protocol` and `pkg/codec` appears in `docs/protocol.md` with the same value.",
+      "proofs": [
+        {
+          "doc": "docs/protocol.md",
+          "section": "Envelope",
+          "note": "keys 0 to 6, and message types 1 and 2"
+        },
+        {
+          "doc": "docs/protocol.md",
+          "section": "Application status",
+          "note": "status values 0 to 4 of pkg/protocol/types.go"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-docs-14: every exported verification error in `pkg/security` appears in `docs/security.md`.",
+      "proofs": [
+        {
+          "doc": "docs/security.md",
+          "section": "Replay and freshness controls",
+          "note": "the table names the 10 Err values of pkg/security/verifier.go"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-docs-15: every number in `Baseline results` appears in the latest `docs/results/bench-*.json`.",
+      "proofs": [
+        {
+          "file": "docs/results/bench-20261121T015913Z.json",
+          "note": "the run values equal the Runs table after rounding"
+        },
+        {
+          "doc": "docs/interoperability.md",
+          "section": "Baseline results"
+        }
+      ],
+      "ruling": "FR-docs-15 — `docs/interoperability.md` matches the latest results files in `docs/results/`: `interop-<UTC date>.json` for the interop matrix and `bench-<UTC timestamp>.json` for the baseline benchmark."
+    },
+    {
+      "criterion": "FR-docs-16 and FR-docs-17: each README Go block has a marker and a matching `Example`.",
+      "proofs": [
+        {
+          "test": ".",
+          "name": "TestReadmeExamples"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-docs-18: a test changes one README line in a temporary copy and the comparison fails.",
+      "proofs": [
+        {
+          "test": ".",
+          "name": "TestReadmeExamplesFailWhenABlockLineChanges"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-docs-19: a temporary README copy with an unmarked Go block fails the test.",
+      "proofs": [
+        {
+          "test": ".",
+          "name": "TestReadmeExamplesFailWhenABlockHasNoMarker"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-docs-20 and FR-docs-21: `go test ./tests/integration -run TestQuickstart` passes.",
+      "proofs": [
+        {
+          "test": "tests/integration",
+          "name": "TestQuickstartCommandsExitWithCodeZero"
+        }
+      ]
+    },
+    {
+      "criterion": "FR-docs-22 and FR-docs-23: `docs/acceptance.md` holds one row per acceptance criterion of `docs/specs/features/*.md`, and each row names a test or a doc section, or marks the criterion as a criterion with no proof.",
+      "proofs": [
+        {
+          "doc": "docs/acceptance.md"
+        },
+        {
+          "file": "docs/specs/render-acceptance.py",
+          "note": "fails when a criterion has no entry"
+        }
+      ]
+    }
+  ]
+}

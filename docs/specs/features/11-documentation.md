@@ -12,7 +12,7 @@ mockups: []
 This feature completes the documentation of QMux and proves that every example runs.
 Earlier epics write parts of `docs/protocol.md`, `docs/security.md` and
 `docs/interoperability.md`. This epic writes `README.md` and `docs/architecture.md`,
-checks every doc against the code, and maps each acceptance criterion of the brief to
+checks every doc against the code, and maps each acceptance criterion of the spec to
 its proof.
 
 ## User stories
@@ -60,7 +60,9 @@ its proof.
   message type, RCODE rule and default protocol key.
 - FR-docs-14 — `docs/security.md` matches the code for every verification error, default
   and limit.
-- FR-docs-15 — `docs/interoperability.md` matches the latest committed results files.
+- FR-docs-15 — `docs/interoperability.md` matches the latest results files in `docs/results/`:
+  `interop-<UTC date>.json` for the interop matrix and `bench-<UTC timestamp>.json` for the
+  baseline benchmark.
 
 ### Executable examples
 
@@ -77,10 +79,10 @@ its proof.
 
 ### Acceptance map
 
-- FR-docs-22 — `docs/acceptance.md` quotes each acceptance criterion of § 15 of the brief
-  verbatim.
-- FR-docs-23 — `docs/acceptance.md` names, for each criterion, the test or the doc section
-  that proves it.
+- FR-docs-22 — `docs/acceptance.md` quotes verbatim each acceptance criterion of the approved
+  spec, `docs/specs/features/*.md`.
+- FR-docs-23 — `docs/acceptance.md` names, for each criterion, the test, the doc section, the CI job
+  or the committed file that proves it.
 
 ## User flows
 
@@ -156,14 +158,15 @@ Test failure output:
   `pkg/codec` appears in `docs/protocol.md` with the same value.
 - FR-docs-14: every exported verification error in `pkg/security` appears in
   `docs/security.md`.
-- FR-docs-15: every number in `Baseline results` appears in the committed results file.
+- FR-docs-15: every number in `Baseline results` appears in the latest `docs/results/bench-*.json`.
 - FR-docs-16 and FR-docs-17: each README Go block has a marker and a matching `Example`.
 - FR-docs-18: a test changes one README line in a temporary copy and the comparison
   fails.
 - FR-docs-19: a temporary README copy with an unmarked Go block fails the test.
 - FR-docs-20 and FR-docs-21: `go test ./tests/integration -run TestQuickstart` passes.
-- FR-docs-22 and FR-docs-23: `docs/acceptance.md` holds 11 rows, one per criterion, each
-  with a test name or a doc section.
+- FR-docs-22 and FR-docs-23: `docs/acceptance.md` holds one row per acceptance criterion of
+  `docs/specs/features/*.md`, and each row names a test or a doc section, or marks the
+  criterion as a criterion with no proof.
 
 ## Out of scope
 

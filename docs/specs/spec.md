@@ -215,6 +215,9 @@ command-line output in place of screens.
 
 ## Architecture & stack
 
+The diagram shows the main imports. `docs/architecture.md` holds the full graph, which comes
+from `go list` on the code.
+
 ```mermaid
 flowchart LR
     subgraph lib["Library module github.com/Crank-Git/qmux"]
@@ -240,7 +243,6 @@ flowchart LR
     demo["examples/embedded-bootstrap"]
 
     registry --> protocol
-    codec --> protocol
     transport --> protocol
     security --> codec
     server --> registry
@@ -248,7 +250,7 @@ flowchart LR
     server --> security
     client --> transport
     client --> security
-    discovery --> registry
+    discovery --> server
     discovery --> client
     facade --> server
     facade --> client
@@ -257,7 +259,8 @@ flowchart LR
     qmuxctl --> client
     qmuxctl --> discovery
     probe --> client
-    demo --> facade
+    demo --> server
+    demo --> client
     demo --> discovery
     bench --> client
     compose --> qmuxd
@@ -590,7 +593,7 @@ Every epic is one batch, one PR into `dev`, and one CI run.
 | Epic 8: qmuxd daemon | `qmuxd serve` runs from a configuration file, with rate limits and an observation log. | 08-qmuxd-daemon | Epic 7 | `qmuxd` serves `examples/qmuxd.json`, and `qmuxctl` verifies every protocol. |
 | Epic 9: Interop harness | `qmux-probe` and the Docker Compose matrix record outcomes over every path. | 09-interop-harness | Epic 8 | `make interop` writes `results.json`. The CI interop workflow passes. |
 | Epic 10: Baseline benchmarks | The private-class path is measured against the four baselines. | 10-baseline-benchmarks | Epic 9 | Phase 5 deliverable: `make bench` writes results, and `docs/interoperability.md` holds a measured table. |
-| Epic 11: Documentation | README and every doc in `docs/` are complete, and every example runs. | 11-documentation | Epic 10 | The docs example test passes. Each acceptance criterion in § 15 of the brief maps to a test or a doc section. |
+| Epic 11: Documentation | README and every doc in `docs/` are complete, and every example runs. | 11-documentation | Epic 10 | The docs example test passes. Each acceptance criterion in `docs/specs/features/*.md` maps to its proof in `docs/acceptance.md`. |
 
 Epic 8 depends on Epic 7, because `examples/qmuxd.json` uses the payload schemas that Epic 7 defines.
 
@@ -604,7 +607,7 @@ Epic 8 depends on Epic 7, because `examples/qmuxd.json` uses the payload schemas
 | M3 — Phase 3 | Epic 6 | Signed envelopes, verified by default when trust anchors exist. |
 | M4 — Phase 4 | Epics 7 and 8 | The demonstration and the daemon work end to end. |
 | M5 — Phase 5 | Epics 9 and 10 | Reproducible interop matrix and benchmark results. |
-| M6 | Epic 11 | Every acceptance criterion of the brief holds. `dev` is promoted to `main`. |
+| M6 | Epic 11 | Every acceptance criterion of the spec holds. `dev` is promoted to `main`. |
 
 ## Assumptions
 
@@ -834,3 +837,9 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   have the same latency, bytes and size within the run noise. Private classes do not reach
   the authoritative server through BIND or Unbound.
 - 2026-11-20 — Baseline benchmarks is `built` (#182).
+- 2026-11-20 — Documentation decisions (#12): the user ruled that `docs/acceptance.md` maps
+  the acceptance criteria of the spec, because the source brief is not in the repository.
+  Dated results snapshots live in `docs/results/` (FR-docs-15). The `qmuxd` example and
+  default address is `127.0.0.1:5300`, because mDNS holds port 5353 on macOS (#186, #189).
+  `docs/acceptance.md` maps 414 criteria: 405 name a proof, and 9 are listed as having no
+  automated proof.

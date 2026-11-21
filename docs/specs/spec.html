@@ -352,6 +352,7 @@ body.rv-open .layout { padding-right:21rem; }
 </table></div>
 <p>QMux has no graphical screens, so the spec has no mockups. Each feature file states the command-line output in place of screens.</p>
 <h2 id="architecture-stack">Architecture &amp; stack</h2>
+<p>The diagram shows the main imports. <code>docs/architecture.md</code> holds the full graph, which comes from <code>go list</code> on the code.</p>
 <div class="diagram"><pre class="mermaid">flowchart LR
     subgraph lib["Library module github.com/Crank-Git/qmux"]
         facade["qmux (root facade)"]
@@ -376,7 +377,6 @@ body.rv-open .layout { padding-right:21rem; }
     demo["examples/embedded-bootstrap"]
 
     registry --&gt; protocol
-    codec --&gt; protocol
     transport --&gt; protocol
     security --&gt; codec
     server --&gt; registry
@@ -384,7 +384,7 @@ body.rv-open .layout { padding-right:21rem; }
     server --&gt; security
     client --&gt; transport
     client --&gt; security
-    discovery --&gt; registry
+    discovery --&gt; server
     discovery --&gt; client
     facade --&gt; server
     facade --&gt; client
@@ -393,7 +393,8 @@ body.rv-open .layout { padding-right:21rem; }
     qmuxctl --&gt; client
     qmuxctl --&gt; discovery
     probe --&gt; client
-    demo --&gt; facade
+    demo --&gt; server
+    demo --&gt; client
     demo --&gt; discovery
     bench --&gt; client
     compose --&gt; qmuxd
@@ -723,7 +724,7 @@ golangci-lint run</code></pre>
 <tr><td>Epic 8: qmuxd daemon</td><td><code>qmuxd serve</code> runs from a configuration file, with rate limits and an observation log.</td><td>08-qmuxd-daemon</td><td>Epic 7</td><td><code>qmuxd</code> serves <code>examples/qmuxd.json</code>, and <code>qmuxctl</code> verifies every protocol.</td></tr>
 <tr><td>Epic 9: Interop harness</td><td><code>qmux-probe</code> and the Docker Compose matrix record outcomes over every path.</td><td>09-interop-harness</td><td>Epic 8</td><td><code>make interop</code> writes <code>results.json</code>. The CI interop workflow passes.</td></tr>
 <tr><td>Epic 10: Baseline benchmarks</td><td>The private-class path is measured against the four baselines.</td><td>10-baseline-benchmarks</td><td>Epic 9</td><td>Phase 5 deliverable: <code>make bench</code> writes results, and <code>docs/interoperability.md</code> holds a measured table.</td></tr>
-<tr><td>Epic 11: Documentation</td><td>README and every doc in <code>docs/</code> are complete, and every example runs.</td><td>11-documentation</td><td>Epic 10</td><td>The docs example test passes. Each acceptance criterion in § 15 of the brief maps to a test or a doc section.</td></tr>
+<tr><td>Epic 11: Documentation</td><td>README and every doc in <code>docs/</code> are complete, and every example runs.</td><td>11-documentation</td><td>Epic 10</td><td>The docs example test passes. Each acceptance criterion in <code>docs/specs/features/*.md</code> maps to its proof in <code>docs/acceptance.md</code>.</td></tr>
 </table></div>
 <p>Epic 8 depends on Epic 7, because <code>examples/qmuxd.json</code> uses the payload schemas that Epic 7 defines.</p>
 <h2 id="milestones">Milestones</h2>
@@ -735,7 +736,7 @@ golangci-lint run</code></pre>
 <tr><td>M3 — Phase 3</td><td>Epic 6</td><td>Signed envelopes, verified by default when trust anchors exist.</td></tr>
 <tr><td>M4 — Phase 4</td><td>Epics 7 and 8</td><td>The demonstration and the daemon work end to end.</td></tr>
 <tr><td>M5 — Phase 5</td><td>Epics 9 and 10</td><td>Reproducible interop matrix and benchmark results.</td></tr>
-<tr><td>M6</td><td>Epic 11</td><td>Every acceptance criterion of the brief holds. <code>dev</code> is promoted to <code>main</code>.</td></tr>
+<tr><td>M6</td><td>Epic 11</td><td>Every acceptance criterion of the spec holds. <code>dev</code> is promoted to <code>main</code>.</td></tr>
 </table></div>
 <h2 id="assumptions" class="callout-h">Assumptions</h2>
 <ol>
@@ -1062,7 +1063,14 @@ golangci-lint run</code></pre>
 <li>2026-11-20 — Benchmark decisions (#11): the user ruled that CoAP keeps the RFC 7252 backoff,
 </li>
 </ul>
-<p>so it makes 3 transmissions in the 5 s deadline (FR-bench-20). <code>make bench</code> fails with the GNU Make exit code 2 when <code>qmux-bench</code> exits 1 (#180). ADR 0007 records the footprint client leaf package. The measured result on the direct path: <code>qmux-private</code> and <code>dns-in</code> have the same latency, bytes and size within the run noise. Private classes do not reach the authoritative server through BIND or Unbound.</p><nav class="pager">
+<p>so it makes 3 transmissions in the 5 s deadline (FR-bench-20). <code>make bench</code> fails with the GNU Make exit code 2 when <code>qmux-bench</code> exits 1 (#180). ADR 0007 records the footprint client leaf package. The measured result on the direct path: <code>qmux-private</code> and <code>dns-in</code> have the same latency, bytes and size within the run noise. Private classes do not reach the authoritative server through BIND or Unbound.</p>
+<ul>
+<li>2026-11-20 — Baseline benchmarks is <code>built</code> (#182).
+</li>
+<li>2026-11-20 — Documentation decisions (#12): the user ruled that <code>docs/acceptance.md</code> maps
+</li>
+</ul>
+<p>the acceptance criteria of the spec, because the source brief is not in the repository. Dated results snapshots live in <code>docs/results/</code> (FR-docs-15). The <code>qmuxd</code> example and default address is <code>127.0.0.1:5300</code>, because mDNS holds port 5353 on macOS (#186, #189). <code>docs/acceptance.md</code> maps 414 criteria: 405 name a proof, and 9 are listed as having no automated proof.</p><nav class="pager">
 <span></span>
 <a href="html/feature-foundation.html">Feature: Foundation &rarr;</a>
 </nav>

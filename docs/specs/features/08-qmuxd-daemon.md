@@ -195,7 +195,7 @@ sequenceDiagram
 No graphical screens. Console output of `qmuxd serve` with the `text` log format:
 
 ```
-time=2026-11-20T10:00:00Z level=INFO msg="qmuxd ready" listen=127.0.0.1:5353 zones=[fleet.example.] key_id=3f9a1c0b7d2e4a65 protocols=4
+time=2026-11-20T10:00:00Z level=INFO msg="qmuxd ready" listen=127.0.0.1:5300 zones=[fleet.example.] key_id=3f9a1c0b7d2e4a65 protocols=4
 ```
 
 Configuration error:
@@ -216,7 +216,7 @@ One observation log line:
 
 | Field | Type | Default | Rule |
 |---|---|---|---|
-| `listen` | string | `127.0.0.1:5353` | `host:port`. |
+| `listen` | string | `127.0.0.1:5300` | `host:port`. |
 | `zones` | array of string | — | Required. At least one fully qualified name. |
 | `signing_key` | string | — | Required. Path to a PKCS#8 PEM Ed25519 key. Relative to the configuration file directory. |
 | `signature_validity` | string | `1h` | Go duration, 1 min to 24 h. |

@@ -169,7 +169,7 @@ func parseQueryFlags(usage string, args []string) (queryFlags, *flag.FlagSet, er
 	// runQuery prints the error and the usage, so that --help goes to stdout and an
 	// error goes to stderr once.
 	fs.SetOutput(io.Discard)
-	fs.StringVar(&f.server, "server", "", "IP address and port of the server, for example 127.0.0.1:5353 (required)")
+	fs.StringVar(&f.server, "server", "", "IP address and port of the server, for example 127.0.0.1:5300 (required)")
 	fs.Func("class", "QCLASS of the protocol key, 0 to 65535 (required)", uint16Flag(&f.class, &f.setClass))
 	fs.Func("type", "QTYPE of the protocol key, 0 to 65535 (required)", uint16Flag(&f.typ, &f.setTyp))
 	fs.StringVar(&f.name, "name", "", "QNAME of the resource (required)")

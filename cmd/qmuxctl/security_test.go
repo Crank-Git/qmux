@@ -173,7 +173,7 @@ func TestQueryWithTrustAnchorsExitsThreeAndPrintsErrUnsignedForAnUnsignedAnswer(
 
 func TestQueryWithAnUnreadableTrustAnchorFileExitsSixtyFourAndPrintsTheUsage(t *testing.T) { // FR-security-50
 	missing := filepath.Join(t.TempDir(), "missing.json")
-	code, stdout, stderr := queryCmd(append(keyArgs("127.0.0.1:5353"), "--trust-anchors", missing)...)
+	code, stdout, stderr := queryCmd(append(keyArgs("127.0.0.1:5300"), "--trust-anchors", missing)...)
 	if code != 64 {
 		t.Fatalf("exit code = %d, want 64", code)
 	}
@@ -206,7 +206,7 @@ func TestDiscoverWithAWrongTrustAnchorExitsThreeAndPrintsErrUnknownKey(t *testin
 
 func TestDiscoverWithAnUnreadableTrustAnchorFileExitsSixtyFour(t *testing.T) { // FR-security-50
 	missing := filepath.Join(t.TempDir(), "missing.json")
-	code, _, stderr := discoverCmd("--server", "127.0.0.1:5353", "--name", testZone, "--trust-anchors", missing)
+	code, _, stderr := discoverCmd("--server", "127.0.0.1:5300", "--name", testZone, "--trust-anchors", missing)
 	if code != 64 || !strings.Contains(stderr, "--trust-anchors") {
 		t.Errorf("exit code = %d, stderr = %q; want 64 and an error that names --trust-anchors", code, stderr)
 	}

@@ -13,6 +13,10 @@ Every answer RR carries one envelope as its RDATA. The answer RR has the QNAME o
 question, and the class and the type of the protocol key. A response has one answer RR
 or none.
 
+When the QTYPE is TXT (16), the RDATA holds the envelope as TXT character-strings of at
+most 255 bytes each. The client joins the character-strings before it decodes the
+envelope.
+
 ### Envelope
 
 The envelope is a CBOR map with unsigned integer keys. QMux encodes it with the core
@@ -135,15 +139,23 @@ They never overlap.
 | Condition | RCODE | Answer |
 |---|---|---|
 | A registration answers, with any application status | `NOERROR`, AA set | One RR with the envelope |
+| The source address has no token in its rate-limit bucket | `REFUSED` | none |
 | The question count is not 1, or the packet does not parse | `FORMERR` | none |
+| The query is larger than 512 bytes, or than `ServerConfig.UDPSize` with EDNS(0) | `FORMERR` | none |
 | The opcode is not QUERY | `NOTIMP` | none |
 | No registration for the protocol key | `REFUSED` | none |
 | The QNAME is outside every configured zone | `REFUSED` | none |
-| The handler returns an error, times out or panics | `SERVFAIL` | none |
+| The handler returns an error or a nil response, times out or panics | `SERVFAIL` | none |
 | `Response.Version` is not a version of the registration | `SERVFAIL` | none |
 | The schema rejects the payload of a response with status `ok` | `SERVFAIL` | none |
 | `codec.Encode` returns an error, for example `ErrTooLarge` or `ErrInvalidMessageType` | `SERVFAIL` | none |
+| `ServerConfig.Signer` is set and signing fails | `SERVFAIL` | none |
+| A TCP response is larger than 65535 bytes | `SERVFAIL` | none |
+| A UDP response is larger than the UDP size limit | The RCODE of the answer, with the TC bit set | none |
 | The EDNS version is above 0 | `BADVERS` | none |
+
+The UDP size limit is 512 bytes without EDNS(0). With EDNS(0), it is the smaller of the
+size in the query and `ServerConfig.UDPSize`, and never less than 512 bytes.
 
 The server calls the schema only for a response with status `ok`. A response with another
 status has no schema check, so a protocol with a schema can answer `not-found` with no
@@ -168,15 +180,25 @@ level `error`. The log record never holds payload bytes.
 
 The client returns three separate Go error types:
 
-- `*client.DNSError` for an RCODE that is not `NOERROR`, a transport failure, a timeout,
-  a mismatch between the question and the answer, or an envelope that does not decode.
-  The kind `malformed` reports an envelope that `codec.Decode` rejects. The kind
-  `mismatch` also reports an envelope protocol ID or version that differs from the
-  query.
+- `*client.DNSError` for a DNS outcome that gives no result. Its kind is one of these
+  values:
+  - `rcode`: the RCODE is not `NOERROR`.
+  - `timeout`: no response arrived before the attempts or the context ended.
+  - `network`: the dial, the write or the read failed.
+  - `mismatch`: the response does not answer the query, or the envelope protocol ID or
+    version differs from the query.
+  - `malformed`: the response does not parse, a TCP response has the TC bit, the RDATA
+    is longer than 16384 bytes, or `codec.Decode` rejects the RDATA.
+  - `truncation`: a UDP response has the TC bit, and `DisableTCPFallback` is true.
 - `*client.AppError` for an application status that is not `ok`. `Client.Query` returns
   it together with the result. It holds the status, the protocol ID and the protocol
   version.
-- `client.VerifyError` for a signature or freshness failure (Epic 6).
+- `*client.VerifyError` for a signature or freshness failure. `Client.Query` returns it
+  with no result. `docs/security.md` lists the checks.
+
+A client with trust anchors verifies the RDATA with `security.Verifier.Verify` before
+every envelope check. RDATA that is not a valid envelope then gives a
+`*client.VerifyError`, not a `*client.DNSError` of kind `malformed`.
 
 ## Class/type allocation
 
@@ -184,12 +206,16 @@ Each protocol owns one protocol key, a `(QCLASS, QTYPE)` pair. The registry appl
 these rules:
 
 - The registry accepts the private classes 65280–65534 and IN (1).
-- The registry accepts a reserved class only when `AllowReservedClasses` is true.
+- The registry accepts the reserved classes CH (3) and HS (4) only when
+  `AllowReservedClasses` is true.
 - The registry rejects every other class, for example 0, 254 (NONE) and 255 (ANY).
 - The registry accepts the private types 65280–65534.
 - The registry accepts a non-private type only when `AllowNonPrivateTypes` is true.
 - The registry always rejects the types 0, OPT (41), TSIG (250), IXFR (251), AXFR (252),
   ANY (255) and the reserved type 65535.
+
+The registry also requires a protocol ID of two or more labels. Each label starts and
+ends with a letter or a digit. This rule is stricter than the envelope rule of the codec.
 
 Class and type numbers are local to one server. The protocol ID is the stable name of a
 protocol.
@@ -210,15 +236,17 @@ QNAME names the resource and never selects the protocol. The server applies thes
 to each query in this order. The first check that fails decides the response.
 
 1. If the QR bit is set, the server sends no response.
-2. If the opcode is not QUERY, the server returns `NOTIMP`.
-3. If the packet does not parse or the question count is not 1, the server returns
+2. If the rate limit is on and the bucket of the source address is empty, the server
+   returns `REFUSED`.
+3. If the opcode is not QUERY, the server returns `NOTIMP`.
+4. If the packet does not parse or the question count is not 1, the server returns
    `FORMERR`.
-4. If the query is larger than the size limit, the server returns `FORMERR`.
-5. If the EDNS version is above 0, the server returns `BADVERS`.
-6. If the QNAME is outside every configured zone, the server returns `REFUSED`.
-7. If no registration holds the `(QCLASS, QTYPE)` pair, the server returns `REFUSED`.
-8. The server reads the version label. See [Version negotiation](#version-negotiation).
-9. The server calls the handler of the registration.
+5. If the query is larger than the size limit, the server returns `FORMERR`.
+6. If the EDNS version is above 0, the server returns `BADVERS`.
+7. If the QNAME is outside every configured zone, the server returns `REFUSED`.
+8. If no registration holds the `(QCLASS, QTYPE)` pair, the server returns `REFUSED`.
+9. The server reads the version label. See [Version negotiation](#version-negotiation).
+10. The server calls the handler of the registration.
 
 The comparison of the QNAME with the zones ignores letter case. The handler receives a
 `protocol.Request` with these fields:
@@ -230,6 +258,12 @@ The comparison of the QNAME with the zones ignores letter case. The handler rece
 | `Key` | The protocol key of the question. |
 | `Version` | The protocol version that the server selected from the version label. |
 | `Labels` | The labels below the zone, without the version label. |
+| `Zone` | The longest configured zone that matches the QNAME, or `.` when the server has no zones. |
+| `Source` | The source address and port of the query. |
+| `Transport` | `udp` or `tcp`. |
+| `UDPSize` | The UDP size that the OPT RR of the query advertises, or 0 without EDNS(0). |
+| `ID` | The DNS message ID of the query. |
+| `ReceivedAt` | The time when the server received the query. |
 
 The registry holds one protocol key for each protocol ID. The operator can remap a
 protocol ID to a different protocol key while the server runs. After the remap, a query at
@@ -304,9 +338,15 @@ Manifest validation returns an error that wraps `ErrInvalidManifest` in these ca
 The protocol keys in a manifest are local to the server that sent it. A client never
 uses a protocol key from the manifest of a different server.
 
-In Epic 5, the client cannot verify the signature of a manifest. `Discover` returns
-`ErrInsecure` and sends no query when `InsecureSkipVerify` is false. Epic 6 adds the
-signature verification.
+A client with trust anchors verifies the manifest envelope before it reads the manifest.
+If verification fails, `Discover` returns the `*client.VerifyError`. If the client has no
+trust anchors and `InsecureSkipVerify` is false, `Discover` returns `ErrInsecure` and
+sends no query.
+
+A client with trust anchors keeps each verified manifest in memory until its
+`expires_at`. When `discovery.Client.CacheDir` is set, it also writes the envelope to
+`<CacheDir>/<zone>.qmuxcache`. `docs/security.md` describes the cache file. The TTL
+never ends a cached manifest.
 
 A device with a preconfigured mapping can skip discovery. `discovery.Static` returns a
 manifest from a list of entries, and applies the same manifest validation.

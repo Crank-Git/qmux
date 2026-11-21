@@ -194,7 +194,7 @@ No graphical screens. `qmuxctl query` output states:
 Result:
 
 ```
-$ qmuxctl query --server 127.0.0.1:5353 --class 65280 --type 65280 --name device42.fleet.example.
+$ qmuxctl query --server 127.0.0.1:5300 --class 65280 --type 65280 --name device42.fleet.example.
 name: device42.fleet.example.
 class: 65280
 type: 65280
@@ -218,7 +218,7 @@ error: dns: rcode REFUSED for device42.fleet.example. 65283/65280
 Timeout (exit 1):
 
 ```
-error: dns: timeout after 3 attempts to 127.0.0.1:5353
+error: dns: timeout after 3 attempts to 127.0.0.1:5300
 ```
 
 Usage error (exit 64): the usage text for `qmuxctl query`.
@@ -402,7 +402,7 @@ miekg/dns v1.1.73 facts, verified against https://github.com/miekg/dns (v1.1.73)
 - `Result.QueryBytes` and `Result.ResponseBytes` equal the packed sizes the test server
   records. (FR-client-31)
 - `Result.Verified` is false. (FR-client-32)
-- `qmuxctl query --help` lists the eight flags. (FR-client-33)
+- `qmuxctl query --help` lists the eight flags of FR-client-33, and from Epic 6 also `--trust-anchors` (FR-security-50). (FR-client-33)
 - `qmuxctl query` prints `payload:` followed by lowercase hex. (FR-client-34)
 - `qmuxctl query --json` output parses as one JSON object. (FR-client-35)
 - `qmuxctl query` against a registered protocol key exits 0. (FR-client-36)

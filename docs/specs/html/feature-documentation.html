@@ -156,7 +156,7 @@ body.rv-open .layout { padding-right:21rem; }
 <h1>Feature: Documentation</h1>
 <p class="meta">Epic 11: Documentation &nbsp; <span class="badge">issued</span></p>
 <h3 id="documentation-purpose">Purpose</h3>
-<p>This feature completes the documentation of QMux and proves that every example runs. Earlier epics write parts of <code>docs/protocol.md</code>, <code>docs/security.md</code> and <code>docs/interoperability.md</code>. This epic writes <code>README.md</code> and <code>docs/architecture.md</code>, checks every doc against the code, and maps each acceptance criterion of the brief to its proof.</p>
+<p>This feature completes the documentation of QMux and proves that every example runs. Earlier epics write parts of <code>docs/protocol.md</code>, <code>docs/security.md</code> and <code>docs/interoperability.md</code>. This epic writes <code>README.md</code> and <code>docs/architecture.md</code>, checks every doc against the code, and maps each acceptance criterion of the spec to its proof.</p>
 <h3 id="documentation-user-stories">User stories</h3>
 <ul>
 <li>As a protocol developer, I want a README that runs as written, so that I can start in
@@ -241,9 +241,10 @@ body.rv-open .layout { padding-right:21rem; }
 </ul>
 <p>and limit.</p>
 <ul>
-<li>FR-docs-15 — <code>docs/interoperability.md</code> matches the latest committed results files.
+<li>FR-docs-15 — <code>docs/interoperability.md</code> matches the latest results files in <code>docs/results/</code>:
 </li>
 </ul>
+<p><code>interop-&lt;UTC date&gt;.json</code> for the interop matrix and <code>bench-&lt;UTC timestamp&gt;.json</code> for the baseline benchmark.</p>
 <h4 id="documentation-executable-examples">Executable examples</h4>
 <ul>
 <li>FR-docs-16 — The root package holds <code>example_test.go</code> with one Go <code>Example</code> function per
@@ -273,15 +274,15 @@ body.rv-open .layout { padding-right:21rem; }
 </ul>
 <h4 id="documentation-acceptance-map">Acceptance map</h4>
 <ul>
-<li>FR-docs-22 — <code>docs/acceptance.md</code> quotes each acceptance criterion of § 15 of the brief
+<li>FR-docs-22 — <code>docs/acceptance.md</code> quotes verbatim each acceptance criterion of the approved
 </li>
 </ul>
-<p>verbatim.</p>
+<p>spec, <code>docs/specs/features/*.md</code>.</p>
 <ul>
-<li>FR-docs-23 — <code>docs/acceptance.md</code> names, for each criterion, the test or the doc section
+<li>FR-docs-23 — <code>docs/acceptance.md</code> names, for each criterion, the test, the doc section, the CI job
 </li>
 </ul>
-<p>that proves it.</p>
+<p>or the committed file that proves it.</p>
 <h3 id="documentation-user-flows">User flows</h3>
 <h4 id="documentation-flow-1-a-readme-example-drifts">Flow 1 — A README example drifts</h4>
 <div class="diagram"><pre class="mermaid">flowchart TD
@@ -383,7 +384,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ul>
 <p><code>docs/security.md</code>.</p>
 <ul>
-<li>FR-docs-15: every number in <code>Baseline results</code> appears in the committed results file.
+<li>FR-docs-15: every number in <code>Baseline results</code> appears in the latest <code>docs/results/bench-*.json</code>.
 </li>
 <li>FR-docs-16 and FR-docs-17: each README Go block has a marker and a matching <code>Example</code>.
 </li>
@@ -396,10 +397,10 @@ body.rv-open .layout { padding-right:21rem; }
 </li>
 <li>FR-docs-20 and FR-docs-21: <code>go test ./tests/integration -run TestQuickstart</code> passes.
 </li>
-<li>FR-docs-22 and FR-docs-23: <code>docs/acceptance.md</code> holds 11 rows, one per criterion, each
+<li>FR-docs-22 and FR-docs-23: <code>docs/acceptance.md</code> holds one row per acceptance criterion of
 </li>
 </ul>
-<p>with a test name or a doc section.</p>
+<p><code>docs/specs/features/*.md</code>, and each row names a test or a doc section, or marks the criterion as a criterion with no proof.</p>
 <h3 id="documentation-out-of-scope">Out of scope</h3>
 <ul>
 <li>A documentation website or a generated API reference beyond <code>go doc</code>.

@@ -459,7 +459,7 @@ body.rv-open .layout { padding-right:21rem; }
 </ol>
 <h3 id="qmuxd-daemon-screens-states">Screens &amp; states</h3>
 <p>No graphical screens. Console output of <code>qmuxd serve</code> with the <code>text</code> log format:</p>
-<pre class="code"><code>time=2026-11-20T10:00:00Z level=INFO msg="qmuxd ready" listen=127.0.0.1:5353 zones=[fleet.example.] key_id=3f9a1c0b7d2e4a65 protocols=4</code></pre>
+<pre class="code"><code>time=2026-11-20T10:00:00Z level=INFO msg="qmuxd ready" listen=127.0.0.1:5300 zones=[fleet.example.] key_id=3f9a1c0b7d2e4a65 protocols=4</code></pre>
 <p>Configuration error:</p>
 <pre class="code"><code>qmuxd: config: protocols[1].class: 300 is not an allowed class</code></pre>
 <p>One observation log line:</p>
@@ -468,7 +468,7 @@ body.rv-open .layout { padding-right:21rem; }
 <h4 id="qmuxd-daemon-configuration-file-schema">Configuration file schema</h4>
 <div class="table-wrap"><table>
 <tr><th>Field</th><th>Type</th><th>Default</th><th>Rule</th></tr>
-<tr><td><code>listen</code></td><td>string</td><td><code>127.0.0.1:5353</code></td><td><code>host:port</code>.</td></tr>
+<tr><td><code>listen</code></td><td>string</td><td><code>127.0.0.1:5300</code></td><td><code>host:port</code>.</td></tr>
 <tr><td><code>zones</code></td><td>array of string</td><td>—</td><td>Required. At least one fully qualified name.</td></tr>
 <tr><td><code>signing_key</code></td><td>string</td><td>—</td><td>Required. Path to a PKCS#8 PEM Ed25519 key. Relative to the configuration file directory.</td></tr>
 <tr><td><code>signature_validity</code></td><td>string</td><td><code>1h</code></td><td>Go duration, 1 min to 24 h.</td></tr>
