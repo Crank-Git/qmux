@@ -74,9 +74,11 @@ numbers.
   the deadline.
 - FR-bench-20 — The `coap` baseline sets `TransmissionAcknowledgeTimeout` to 1 s,
   `TransmissionAcknowledgeRandomFactor` to 1.0 and `TransmissionMaxRetransmit` to 4. The
-  first timeout and the attempt count then equal those of the DNS baselines. The go-coap
-  v3.8.2 defaults are 2 s, 1.5 and 4 (`udp/client/config.go`, tag v3.8.2), and they give
-  CoAP fewer retransmissions in the 5 s deadline than DNS gets.
+  first timeout then equals that of the DNS baselines. CoAP doubles each later timeout
+  (RFC 7252 § 4.2), so it sends at 0, 1 and 3 s and makes 3 transmissions in the 5 s
+  deadline, while each DNS baseline makes 5. The user ruled on 2026-11-20 to keep this
+  backoff and the equal deadline. The go-coap v3.8.2 defaults are 2 s, 1.5 and 4
+  (`udp/client/config.go`, tag v3.8.2), and they give CoAP even fewer transmissions.
 - FR-bench-20a — The results file and the `Assumptions` section state the retry settings of
   every baseline. The HTTPS baselines use the Linux TCP defaults of the client container,
   and the environment block records `net.ipv4.tcp_syn_retries` and the kernel version.
@@ -260,7 +262,8 @@ External interfaces:
   envelope bytes of the CoAP and HTTPS baselines with `qmux-private`.
 - FR-bench-11: an envelope with one changed byte counts as a failed lookup.
 - FR-bench-12 and FR-bench-13: `tc qdisc show dev eth0` in each container prints
-  `netem delay 10ms loss <X>%` during a benchmark run.
+  `netem delay 10ms loss <X>%` during a benchmark run. At loss 0, `tc` prints
+  `netem delay 10ms` with no loss field.
 - FR-bench-14: with `NET_ADMIN` removed, `make bench` exits with code 1 and prints
   `netem needs NET_ADMIN`.
 - FR-bench-15 and FR-bench-16: `make bench LOSS=0 N=10` writes runs with `loss: 0` and
@@ -268,7 +271,7 @@ External interfaces:
 - FR-bench-17: the server log shows no two lookups of one benchmark run in parallel.
 - FR-bench-18: at loss 100, every lookup fails after about 5 s.
 - FR-bench-19: at loss 100, a DNS baseline records 5 requests per lookup.
-- FR-bench-20: at loss 100, a `coap` lookup records 5 transmissions of the request.
+- FR-bench-20: at loss 100, a `coap` lookup records 3 transmissions of the request.
 - FR-bench-20a: the results file holds a `retry` object for every baseline, and the
   environment block holds `tcp_syn_retries`.
 - FR-bench-21: the `https-cold` row shows more packets per lookup than the `https-reuse`
