@@ -15,8 +15,7 @@ or none.
 
 When the QTYPE is TXT (16), the RDATA holds the envelope as TXT character-strings of at
 most 255 bytes each. The client joins the character-strings before it decodes the
-envelope. An empty envelope payload still gives one character-string, because TXT RDATA
-holds at least one.
+envelope.
 
 ### Envelope
 
