@@ -210,7 +210,7 @@ flowchart TD
 No graphical screens. `qmuxctl discover` output:
 
 ```
-$ qmuxctl discover --server 127.0.0.1:5353 --name fleet.example. --insecure
+$ qmuxctl discover --server 127.0.0.1:5300 --name fleet.example. --insecure
 zone fleet.example.  framework 1  verified no
 PROTOCOL                 VERSIONS  CLASS  TYPE
 org.qmux.bootstrap       1         65280  65280

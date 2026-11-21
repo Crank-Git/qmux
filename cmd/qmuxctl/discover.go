@@ -149,7 +149,7 @@ func parseDiscoverFlags(usage string, args []string) (discoverFlags, *flag.FlagS
 	// runDiscover prints the error and the usage, so that --help goes to stdout and an
 	// error goes to stderr once.
 	fs.SetOutput(io.Discard)
-	fs.StringVar(&f.server, "server", "", "IP address and port of the server, for example 127.0.0.1:5353 (required)")
+	fs.StringVar(&f.server, "server", "", "IP address and port of the server, for example 127.0.0.1:5300 (required)")
 	fs.StringVar(&f.name, "name", "", "zone of the server; the query goes to _qmux.<zone> (required)")
 	fs.Func("class", "QCLASS of the discovery key, 0 to 65535 (default 65280)", uint16Flag(&f.class, &f.setClass))
 	fs.Func("type", "QTYPE of the discovery key, 0 to 65535 (default 65534)", uint16Flag(&f.typ, &f.setTyp))

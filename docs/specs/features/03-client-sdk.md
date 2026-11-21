@@ -194,7 +194,7 @@ No graphical screens. `qmuxctl query` output states:
 Result:
 
 ```
-$ qmuxctl query --server 127.0.0.1:5353 --class 65280 --type 65280 --name device42.fleet.example.
+$ qmuxctl query --server 127.0.0.1:5300 --class 65280 --type 65280 --name device42.fleet.example.
 name: device42.fleet.example.
 class: 65280
 type: 65280
@@ -218,7 +218,7 @@ error: dns: rcode REFUSED for device42.fleet.example. 65283/65280
 Timeout (exit 1):
 
 ```
-error: dns: timeout after 3 attempts to 127.0.0.1:5353
+error: dns: timeout after 3 attempts to 127.0.0.1:5300
 ```
 
 Usage error (exit 64): the usage text for `qmuxctl query`.
@@ -252,7 +252,7 @@ In-memory only. The client holds its configuration. It stores nothing between qu
 package client
 
 type ClientConfig struct {
-    Resolver           string        // "127.0.0.1:5353"
+    Resolver           string        // "127.0.0.1:5300"
     Network            string        // "udp" (default) or "tcp"
     AttemptTimeout     time.Duration // default 1s
     Attempts           int           // default 3
