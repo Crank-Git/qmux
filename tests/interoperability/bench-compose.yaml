@@ -1,0 +1,39 @@
+# The benchmark environment of FR-bench-12. Each container has the capability NET_ADMIN,
+# so the netem step can run tc in it (FR-bench-13).
+# Reference: https://docs.docker.com/reference/compose-file/
+#
+# Run it with a project name of its own, and remove it after the run:
+#   docker compose -p qmux-bench -f tests/interoperability/bench-compose.yaml up -d --build
+#   docker compose -p qmux-bench -f tests/interoperability/bench-compose.yaml down -v
+#
+# A container on the Docker bridge network has the interface eth0, which netem shapes.
+
+name: qmux-bench
+
+networks:
+  bench:
+
+x-bench: &bench
+  build:
+    context: ../..
+    dockerfile: tests/interoperability/Dockerfile.bench
+  cap_add:
+    - NET_ADMIN
+  # init forwards SIGTERM, so compose down stops each container without the 10 s timeout.
+  init: true
+  networks:
+    - bench
+
+services:
+  # The TLS certificate of the HTTPS baselines names the host bench-server, so the
+  # service name must stay bench-server.
+  bench-server:
+    <<: *bench
+    command: ["--dns", ":5353", "--coap", ":5683", "--https", ":8443"]
+
+  # bench-client stays idle. The harness runs its commands in it with docker compose exec.
+  bench-client:
+    <<: *bench
+    entrypoint: ["sleep", "infinity"]
+    depends_on:
+      - bench-server

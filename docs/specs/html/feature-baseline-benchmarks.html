@@ -242,10 +242,10 @@ body.rv-open .layout { padding-right:21rem; }
 </ul>
 <p><code>tc qdisc replace dev eth0 root netem delay 10ms loss &lt;X&gt;%</code> in both containers.</p>
 <ul>
-<li>FR-bench-14 — If a container refuses <code>NET_ADMIN</code>, <code>make bench</code> exits with code 1 and
+<li>FR-bench-14 — If a container refuses <code>NET_ADMIN</code>, <code>qmux-bench</code> exits with code 1 and
 </li>
 </ul>
-<p>prints <code>netem needs NET_ADMIN: &lt;tc error&gt;</code>.</p>
+<p>prints <code>netem needs NET_ADMIN: &lt;tc error&gt;</code>. <code>make bench</code> then fails with the exit code that GNU Make gives a failed recipe (2).</p>
 <h4 id="baseline-benchmarks-qmux-bench-runner">qmux-bench runner</h4>
 <ul>
 <li>FR-bench-15 — <code>qmux-bench</code> runs the loss levels from <code>--loss</code>. The default is
@@ -270,7 +270,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li>FR-bench-20 — The <code>coap</code> baseline sets <code>TransmissionAcknowledgeTimeout</code> to 1 s,
 </li>
 </ul>
-<p><code>TransmissionAcknowledgeRandomFactor</code> to 1.0 and <code>TransmissionMaxRetransmit</code> to 4. The first timeout and the attempt count then equal those of the DNS baselines. The go-coap v3.8.2 defaults are 2 s, 1.5 and 4 (<code>udp/client/config.go</code>, tag v3.8.2), and they give CoAP fewer retransmissions in the 5 s deadline than DNS gets.</p>
+<p><code>TransmissionAcknowledgeRandomFactor</code> to 1.0 and <code>TransmissionMaxRetransmit</code> to 4. The first timeout then equals that of the DNS baselines. CoAP doubles each later timeout (RFC 7252 § 4.2), so it sends at 0, 1 and 3 s and makes 3 transmissions in the 5 s deadline, while each DNS baseline makes 5. The user ruled on 2026-11-20 to keep this backoff and the equal deadline. The go-coap v3.8.2 defaults are 2 s, 1.5 and 4 (<code>udp/client/config.go</code>, tag v3.8.2), and they give CoAP even fewer transmissions.</p>
 <ul>
 <li>FR-bench-20a — The results file and the <code>Assumptions</code> section state the retry settings of
 </li>
@@ -542,9 +542,9 @@ qmux-bench: wrote results/bench-20261120T150405Z.json</code></pre>
 <li>FR-bench-12 and FR-bench-13: <code>tc qdisc show dev eth0</code> in each container prints
 </li>
 </ul>
-<p><code>netem delay 10ms loss &lt;X&gt;%</code> during a benchmark run.</p>
+<p><code>netem delay 10ms loss &lt;X&gt;%</code> during a benchmark run. At loss 0, <code>tc</code> prints <code>netem delay 10ms</code> with no loss field.</p>
 <ul>
-<li>FR-bench-14: with <code>NET_ADMIN</code> removed, <code>make bench</code> exits with code 1 and prints
+<li>FR-bench-14: with <code>NET_ADMIN</code> removed, <code>qmux-bench</code> exits with code 1, <code>make bench</code> fails, and the output holds
 </li>
 </ul>
 <p><code>netem needs NET_ADMIN</code>.</p>
@@ -560,7 +560,7 @@ qmux-bench: wrote results/bench-20261120T150405Z.json</code></pre>
 </li>
 <li>FR-bench-19: at loss 100, a DNS baseline records 5 requests per lookup.
 </li>
-<li>FR-bench-20: at loss 100, a <code>coap</code> lookup records 5 transmissions of the request.
+<li>FR-bench-20: at loss 100, a <code>coap</code> lookup records 3 transmissions of the request.
 </li>
 <li>FR-bench-20a: the results file holds a <code>retry</code> object for every baseline, and the
 </li>

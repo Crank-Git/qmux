@@ -1,4 +1,4 @@
-.PHONY: check build test race vet lint fuzz demo interop
+.PHONY: check build test race vet lint fuzz demo interop bench
 
 FUZZTIME ?= 30s
 
@@ -23,6 +23,11 @@ demo:
 # REQUIRE_DIRECT=true makes the run exit 1 when a direct probe fails.
 interop:
 	REQUIRE_DIRECT=$(REQUIRE_DIRECT) sh tests/interoperability/interop.sh
+
+# bench stops the compose environment on every exit path. LOSS and N set the --loss and
+# --n flags of qmux-bench (FR-bench-38). An empty value keeps the qmux-bench default.
+bench:
+	LOSS=$(LOSS) N=$(N) sh tests/interoperability/bench.sh
 
 test:
 	go test ./...

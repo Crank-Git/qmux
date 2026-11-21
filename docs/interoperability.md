@@ -9,7 +9,8 @@ measurable benefit over IN-class DNS. The interop matrix answers one part of tha
 question. It shows which classes and types a query can use through BIND 9.20 and
 Unbound 1.26.2 in their tested configurations. It does not measure speed, size or
 packet loss. The baseline benchmark of `docs/specs/features/10-baseline-benchmarks.md`
-measures those.
+measures those. The sections `Baseline results`, `Assumptions` and `Findings on the
+research question` state what one benchmark run measured.
 
 ## Test methodology
 
@@ -367,3 +368,196 @@ benchmark measures that.
   firewalls, DNS over TLS, DNS over HTTPS and DNS over QUIC are out of scope.
 - **The outcomes are not assertions.** CI fails only when a direct probe fails. A change
   of a resolver outcome does not fail CI.
+
+## Baseline results
+
+One local run of `make bench LOSS=0,5,10 N=100` gave the results below. The run took
+4 min 26 s and exited with code 0. The run size is 6 baselines, 3 loss levels and 100
+lookups per benchmark run, so 1800 lookups in total. The spec default is 4 loss levels
+and 500 lookups. This run is smaller, so that it completes in minutes on a laptop.
+
+The host is a laptop with an Apple M4 CPU and macOS 27.2 on arm64. Docker Desktop runs
+the two containers in its linuxkit virtual machine. netem shapes the container network
+in that virtual machine, not a physical link. The commit in the environment block is the
+commit of this branch that adds `make bench`.
+
+To repeat the run, run this command from the repository root:
+
+```bash
+make bench LOSS=0,5,10 N=100
+```
+
+`qmux-bench` writes `tests/interoperability/results/bench-<UTC timestamp>.json` and a
+markdown file with the same stem. The tables below are the verbatim markdown file of the
+run `bench-20261121T014201Z`, without its retry table. The `Assumptions` section holds the
+retry table.
+
+### Runs
+
+| Baseline | Loss % | n | Success % | p50 ms | p95 ms | Packets per lookup | Bytes per lookup | Requests per lookup |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| qmux-private | 0 | 100 | 100.0 | 24.8 | 26.2 | 2.1 | 453 | 1.00 |
+| dns-in | 0 | 100 | 100.0 | 24.3 | 26.1 | 2.0 | 452 | 1.00 |
+| dns-in-txt (reference) | 0 | 100 | 100.0 | 25.0 | 26.2 | 2.0 | 452 | 1.00 |
+| coap | 0 | 100 | 100.0 | 23.7 | 25.9 | 2.0 | 368 | 1.00 |
+| https-cold | 0 | 100 | 100.0 | 72.2 | 74.1 | 17.9 | 5084 | 1.00 |
+| https-reuse (connection reuse) | 0 | 100 | 100.0 | 25.3 | 26.4 | 2.1 | 676 | 1.00 |
+| qmux-private | 5 | 100 | 100.0 | 25.3 | 1028.5 | 2.0 | 448 | 1.09 |
+| dns-in | 5 | 100 | 100.0 | 25.3 | 1030.3 | 2.0 | 456 | 1.12 |
+| dns-in-txt (reference) | 5 | 100 | 100.0 | 25.4 | 1027.8 | 2.1 | 457 | 1.09 |
+| coap | 5 | 100 | 100.0 | 24.3 | 1034.7 | 2.0 | 371 | 1.10 |
+| https-cold | 5 | 100 | 100.0 | 73.1 | 1082.2 | 17.7 | 5070 | 1.00 |
+| https-reuse (connection reuse) | 5 | 100 | 100.0 | 25.7 | 257.4 | 2.4 | 719 | 1.00 |
+| qmux-private | 10 | 100 | 100.0 | 25.4 | 1031.9 | 2.2 | 458 | 1.28 |
+| dns-in | 10 | 100 | 100.0 | 25.8 | 1031.6 | 2.1 | 462 | 1.26 |
+| dns-in-txt (reference) | 10 | 100 | 100.0 | 25.4 | 1030.5 | 2.1 | 460 | 1.18 |
+| coap | 10 | 100 | 100.0 | 24.8 | 1038.2 | 2.2 | 379 | 1.24 |
+| https-cold | 10 | 100 | 98.0 | 73.8 | 1362.3 | 17.6 | 5024 | 0.98 |
+| https-reuse (connection reuse) | 10 | 100 | 100.0 | 25.8 | 292.9 | 2.4 | 732 | 1.00 |
+
+### Client footprint
+
+| Baseline | Binary bytes | Max RSS KiB | CPU ms |
+|---|---:|---:|---:|
+| qmux-private | 4449922 | 15568 | 14.4 |
+| dns-in | 4449922 | 15152 | 14.2 |
+| dns-in-txt (reference) | 4449922 | 15536 | 14.8 |
+| coap | 5506530 | 14496 | 19.1 |
+| https-cold | 6257922 | 17904 | 47.1 |
+| https-reuse (connection reuse) | 6257922 | 13392 | 14.5 |
+
+### Dispatch
+
+| Benchmark | ns/op | allocs/op |
+|---|---:|---:|
+| BenchmarkDispatchByClass | 1263.0 | 19 |
+| BenchmarkDispatchByLabel | 1294.0 | 19 |
+
+### Environment
+
+- CPU: Apple M4
+- OS: macOS 27.2
+- Kernel: 7.0.14-linuxkit
+- Docker: 29.9.3
+- Go: go1.27.3
+- Commit: 999b4e984e87ec460aee51856154d0078010c619
+- Date: 2026-11-21T01:42:01Z
+- net.ipv4.tcp_syn_retries: 6
+
+## Assumptions
+
+The benchmark sets or assumes the values in this section. It does not measure them.
+
+### Assumptions in the results file
+
+`qmux-bench` writes these assumptions into the results file. The table is verbatim.
+
+| Name | Value |
+|---|---|
+| envelope signing | Ed25519, one signing time at server start, validity window 24 h |
+| protocol IDs | one protocol ID per DNS protocol key (ADR 0006), all of the same length |
+| firmware payload | schema.Firmware version 2.4.1, the same bytes in every baseline |
+| https server | one self-signed Ed25519 certificate, TLS 1.3 only |
+| https client | HTTP/1.1, no TLS session resumption |
+| coap server | go-coap v3.8.2 UDP server defaults, confirmable GET only |
+| dns server | pkg/server defaults, one UDP and TCP port for the three DNS baselines |
+| lookup deadline | 5 s per lookup; a lookup that misses it is a failure |
+| latency | wall-clock time from the start of the lookup to the verified envelope, socket creation included |
+| percentiles | nearest-rank p50 and p95 of the successful lookups |
+| coap request count | a loopback relay in the client counts the CoAP transmissions; it adds one loopback hop in each direction |
+| coap retransmission check | every 10 ms; the go-coap default is every 4 s |
+| packets and bytes | eth0 rx plus tx of the client container over the whole run, divided by n |
+| client footprint | each client does 100 lookups against baseline servers on the loopback of the host, with no netem |
+| loss shaping | tc netem delay 10ms loss X% on eth0 of both containers, so each direction gets X% |
+
+### Retry settings
+
+The results file holds a `retry` object for every baseline. This table is the verbatim
+retry table of the markdown file.
+
+| Baseline | Retry |
+|---|---|
+| qmux-private | a new UDP query on a new socket after each 1s attempt timeout, at most 5 queries; one TCP query after a truncated UDP answer |
+| dns-in | a new UDP query on a new socket after each 1s attempt timeout, at most 5 queries; one TCP query after a truncated UDP answer |
+| dns-in-txt (reference) | a new UDP query on a new socket after each 1s attempt timeout, at most 5 queries; one TCP query after a truncated UDP answer |
+| coap | confirmable retransmission with binary exponential back-off (RFC 7252 4.2): ACK timeout 1s, random factor 1.0, 4 retransmissions |
+| https-cold | no application retry; the Linux TCP defaults of the client container repeat lost segments (see tcp_syn_retries in the environment block) |
+| https-reuse (connection reuse) | no application retry; the Linux TCP defaults of the client container repeat lost segments (see tcp_syn_retries in the environment block) |
+
+The HTTPS baselines use the TCP of the client container kernel `7.0.14-linuxkit`, with
+`net.ipv4.tcp_syn_retries` 6.
+
+The user ruled on FR-bench-20 on 2026-11-20. CoAP keeps the binary exponential back-off
+of RFC 7252 § 4.2 and the same 5 s deadline as the DNS baselines. CoAP thus sends at 0, 1
+and 3 s and makes 3 transmissions in the deadline. Each DNS baseline makes 5 queries in
+the same deadline.
+
+### Other assumptions
+
+- **Host and emulation.** The host is an Apple M4 with macOS 27.2 on arm64. The
+  containers run in the Docker Desktop linuxkit virtual machine. netem shapes the
+  virtual network of that machine. The 10 ms delay and the loss are emulated values, not
+  a radio link.
+- **Run size.** The run has 100 lookups per benchmark run and the loss levels 0, 5 and
+  10. With 100 successful lookups, five lookups are slower than the p95. The data is one
+  run, and the spec puts significance tests out of scope.
+- **Host Go toolchain.** `qmux-bench` runs on the host. The host Go toolchain `go1.27.3`
+  builds `qmux-bench`, the six footprint clients and the dispatch microbenchmarks. The
+  container image builds `bench-server` and the in-container `qmux-bench` with
+  `golang:1.26`.
+- **Client footprint host.** The footprint clients are `darwin/arm64` binaries that run
+  on the host, not in a Linux container. A cross-compiled device build can have a
+  different size, memory and CPU time. The spec puts device builds out of scope.
+- **Dispatch with no signer.** The dispatch microbenchmarks run a server with no signer.
+  They measure dispatch without the Ed25519 signing cost.
+- **Fixed public seeds.** The envelope signing key and the TLS certificate come from fixed
+  seeds in `tests/interoperability/baseline/fixture`. These keys are for the benchmark
+  harness only. They are never production keys. A container thus needs no key file.
+- **One signature.** Each server signs once at start, with a validity window of 24 h.
+  Every lookup gets the same envelope bytes, so a lookup measures verification and not
+  signing.
+
+## Findings on the research question
+
+The research question asks whether multiple DNS classes give a measurable benefit for
+application protocol multiplexing over IN-class DNS. Each finding below compares
+`qmux-private` with `dns-in`. The two baselines differ only in the class and the QNAME.
+Each number comes from the `Baseline results` section.
+
+- **Latency at loss 0.** The p50 latency is 24.8 ms for `qmux-private` and 24.3 ms for
+  `dns-in`. The p95 latency is 26.2 ms and 26.1 ms. The run shows no latency benefit for
+  the private class.
+- **Latency under loss.** At loss 10, the p50 latency is 25.4 ms for `qmux-private` and
+  25.8 ms for `dns-in`. The p95 latency is 1031.9 ms and 1031.6 ms. Both p95 values are
+  near the 1 s attempt timeout. This agrees with one retry after a lost packet on both
+  paths, but the run does not isolate the cause.
+- **Requests and success under loss.** At loss 10, `qmux-private` sends 1.28 requests
+  per lookup and `dns-in` sends 1.26. Both have a success rate of 100.0%. The run shows
+  no difference in the recovery from loss.
+- **Packets and bytes.** At loss 0, `qmux-private` uses 2.1 packets and 453 bytes per
+  lookup, and `dns-in` uses 2.0 packets and 452 bytes. At loss 5, the values are 448 and
+  456 bytes. The difference changes sign between loss levels, so the run shows no size
+  benefit for the private class.
+- **Client footprint.** The `qmux-private` and `dns-in` clients are both 4449922 bytes.
+  The two clients differ only in constants (the class, the QNAME and the protocol ID), so
+  an equal size is expected and does not compare the protocols. The maximum RSS is 15568
+  KiB and 15152 KiB. The CPU time is 14.4 ms and 14.2 ms. The run shows no footprint
+  benefit for the private class.
+- **Server dispatch.** Dispatch by class, the method of `qmux-private`, takes 1263.0
+  ns/op. Dispatch by the first QNAME label, the method of `dns-in`, takes 1294.0 ns/op.
+  Both make 19 allocs/op. The difference is 31 ns per query, which is 2.4% of the
+  dispatch cost. This value comes from one run with no signer and no variance estimate,
+  so it does not show a difference between the two methods.
+- **Reach through resolvers.** The interop matrix (Epic 9) tested the classes 1, 3, 4,
+  65280 and 65281. Through BIND 9.20 and Unbound 1.26.2, only class 1 (IN) reached the
+  authoritative server. The benchmark uses class 65282, which the matrix did not test. The
+  matrix result for the other private classes suggests that class 65282 also does not pass
+  these resolvers, but this run does not measure it. On the direct path, the p50 latency
+  is 24.8 ms for `qmux-private` and 24.3 ms for `dns-in`.
+
+In summary, this run measured no difference between a private class and IN-class DNS on
+the direct path that is larger than the noise of one run. In the interop matrix, only class
+IN passed BIND 9.20 and Unbound 1.26.2, so the private classes that the matrix tested have
+less reach. These results hold for
+this host, this emulation and this run size. They do not show how a real radio link, a
+device build or a larger run behaves.
