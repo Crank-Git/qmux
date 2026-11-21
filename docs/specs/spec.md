@@ -843,3 +843,4 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   default address is `127.0.0.1:5300`, because mDNS holds port 5353 on macOS (#186, #189).
   `docs/acceptance.md` maps 414 criteria: 405 name a proof, and 9 are listed as having no
   automated proof.
+- 2026-11-20 — Documentation is `built` (#192). Every feature of the spec is now `built`.
