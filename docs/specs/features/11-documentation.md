@@ -30,7 +30,8 @@ its proof.
 
 ### README
 
-- FR-docs-1 — `README.md` has a section that states what QMux is.
+- FR-docs-1 — `README.md` has a section, `Why QMux`, that states what QMux is and the
+  research question that it answers.
 - FR-docs-2 — `README.md` has a section that states what QMux is not: not a DNS tunnel,
   not a replacement for conventional DNS, not a TCP-over-DNS transport.
 - FR-docs-3 — `README.md` has a quick start with the exact commands to build, run
@@ -122,7 +123,8 @@ Test failure output:
 - The comparison in `docs_test.go` trims leading tabs of one indent level and trailing
   blank lines. It changes nothing else.
 - The compatibility table in the README holds only rows from a committed results file.
-- Every doc follows the STE rule of `.claude/rules/ste.md` and the spec's `## Terms`.
+- Every doc except `README.md` follows the STE rule of `.claude/rules/ste.md` and the
+  spec's `## Terms`. `README.md` uses the voice of the owner.
 - Every link in the docs is relative inside the repository.
 
 ## Data touched

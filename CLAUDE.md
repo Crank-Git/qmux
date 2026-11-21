@@ -57,6 +57,7 @@ python3 docs/specs/render-spec.py   # regenerate docs/specs/spec.html after a sp
 ## Conventions
 
 - Write prose, issue bodies and code comments in Simplified Technical English. See `.claude/rules/ste.md`.
+  `README.md` is the one exception: it uses the voice of the owner.
 - Follow `.claude/rules/go.md` and `.claude/rules/quality.md`.
 - Read external docs before you call an external API. See `.claude/rules/external-apis.md`.
 - The RCODE reports DNS outcomes. The application status reports application outcomes. They never share an error type.
