@@ -1,14 +1,15 @@
-# This image holds bench-server for the bench-server and bench-client services of
-# bench-compose.yaml. The build context is the repository root.
+# This image holds bench-server and qmux-bench for the bench-server and bench-client
+# services of bench-compose.yaml. qmux-bench on the host runs the lookups and ready
+# commands of qmux-bench in bench-client. The build context is the repository root.
 # Dockerfile.bench.dockerignore replaces the root .dockerignore, which excludes tests/.
 FROM golang:1.26 AS build
 WORKDIR /src/tests/interoperability
 COPY . /src
-RUN CGO_ENABLED=0 go build -trimpath -o /out/ ./cmd/bench-server
+RUN CGO_ENABLED=0 go build -trimpath -o /out/ ./cmd/bench-server ./cmd/qmux-bench
 
 # tc comes from iproute2. The netem step runs tc in each container (FR-bench-13).
 # The image runs as root, because tc needs root with the capability NET_ADMIN.
 FROM alpine:3.20
 RUN apk add --no-cache iproute2
-COPY --from=build /out/bench-server /usr/local/bin/bench-server
+COPY --from=build /out/bench-server /out/qmux-bench /usr/local/bin/
 ENTRYPOINT ["/usr/local/bin/bench-server"]
