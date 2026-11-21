@@ -13,6 +13,9 @@ Every spec file, issue body, comment, manual page and **code comment** in QMux u
 Simplified Technical English. The project's controlled vocabulary is the `## Terms`
 table in `docs/specs/spec.md`.
 
+`README.md` is the one exception. It uses the voice of the owner, not STE. It still uses
+US English. Every other Markdown file, including each page in `docs/`, keeps this standard.
+
 ---
 
 ## 1 — What must be STE, and what must not

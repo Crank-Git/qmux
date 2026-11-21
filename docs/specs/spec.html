@@ -170,7 +170,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li><a href="html/feature-documentation.html">Documentation</a></li>
 </ul></aside>
 <main>
-<p class="meta"><span class="badge">approved</span> &nbsp; created 2026-11-20 &nbsp; rendered 2026-11-20</p>
+<p class="meta"><span class="badge">approved</span> &nbsp; created 2026-11-20 &nbsp; rendered 2026-11-21</p>
 <h1>QMux</h1>
 <h1 id="qmux">QMux</h1>
 <h2 id="overview">Overview</h2>
@@ -1078,7 +1078,12 @@ golangci-lint run</code></pre>
 <li>2026-11-20 — Review decisions (#193): the user ruled that the default <code>HandlerTimeout</code> of
 </li>
 </ul>
-<p>the server is 800 ms. The user also ruled that a discovery client drops its cached manifest after <code>version-unsupported</code>, <code>REFUSED</code> or a <code>mismatch</code>, and that <code>discovery.Client.Forget(zone)</code> drops it on request. The PM decided that only a query that the rate limit refuses logs at the <code>debug</code> level. The <code>qmuxd ready</code> record adds <code>bound</code>, and a usage error of a command-line tool exits with code 64.</p><nav class="pager">
+<p>the server is 800 ms. The user also ruled that a discovery client drops its cached manifest after <code>version-unsupported</code>, <code>REFUSED</code> or a <code>mismatch</code>, and that <code>discovery.Client.Forget(zone)</code> drops it on request. The PM decided that only a query that the rate limit refuses logs at the <code>debug</code> level. The <code>qmuxd ready</code> record adds <code>bound</code>, and a usage error of a command-line tool exits with code 64.</p>
+<ul>
+<li>2026-11-21 — Decision: the README uses the voice of the owner. The owner exempted
+</li>
+</ul>
+<p><code>README.md</code> from STE. Every other document keeps the standard. <code>CLAUDE.md</code> and <code>.claude/rules/ste.md</code> state the exception. The section <code>What QMux is</code> becomes <code>Why QMux</code> (FR-docs-1), and the research result moves into it. The exit codes and the container procedure move to <code>docs/commands.md</code>.</p><nav class="pager">
 <span></span>
 <a href="html/feature-foundation.html">Feature: Foundation &rarr;</a>
 </nav>
