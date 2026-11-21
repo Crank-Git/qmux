@@ -77,7 +77,7 @@ address on the subnet `172.28.62.0/24`:
 The image reads its configuration from `/etc/bind/named.conf`. The harness mounts
 `tests/interoperability/bind/named.conf` at that path. The configuration allows recursion
 for the compose subnet only. It forwards the zone `fleet.example` class IN to `qmuxd`.
-The zone has no DNSSEC signature, so `validate-except` turns off validation for it.
+The zone has no signature, so `validate-except` turns off validation for it.
 
 `tests/interoperability/bind/named.conf`:
 
@@ -156,7 +156,7 @@ References:
 The image includes each file `/etc/unbound/custom.conf.d/*.conf`. The harness mounts
 `tests/interoperability/unbound/unbound.conf` as `/etc/unbound/custom.conf.d/qmux.conf`.
 The configuration forwards the zone `fleet.example.` to `qmuxd`. `domain-insecure` turns
-off DNSSEC validation for the zone. The `unbound.conf` of the image sets
+off validation for the zone. The `unbound.conf` of the image sets
 `serve-expired: yes`. The harness sets `serve-expired: no`, because an expired answer
 from the cache hides the outcome of a probe.
 
@@ -363,7 +363,7 @@ benchmark measures that.
   times of emulated records are not comparable with native records. The outcome of a
   probe does not depend on emulation. The CI run on `ubuntu-latest` (amd64) is the
   reference run.
-- **The matrix covers two resolvers.** Public resolvers, ISP resolvers, middleboxes,
+- **The matrix covers two resolvers.** Public resolvers, the resolvers of internet providers, middleboxes,
   firewalls, DNS over TLS, DNS over HTTPS and DNS over QUIC are out of scope.
 - **The outcomes are not assertions.** CI fails only when a direct probe fails. A change
   of a resolver outcome does not fail CI.
