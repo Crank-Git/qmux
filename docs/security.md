@@ -153,6 +153,12 @@ The client verifies the file again each time it loads it, and ignores a file tha
 verification. A new manifest replaces an unexpired cached manifest only when its
 `issued_at` is newer.
 
+An on-path attacker can make the client drop its cached manifest. A `REFUSED` answer
+carries no signature, and a `mismatch` answer can be an answer with no RR. After either
+answer, `QueryProtocol` drops the cached manifest of the zone. The cost is one more
+discovery query, and the client verifies its answer. The freshness store still rejects a
+manifest that is older than the newest accepted manifest.
+
 QMux uses no nonces. A DNS question carries no client nonce through a resolver cache,
 so the validity window and the freshness store are the replay controls.
 

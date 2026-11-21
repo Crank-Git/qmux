@@ -68,6 +68,7 @@ You need Go 1.25 or later. Run each command from the repository root.
    protocols on `127.0.0.1:5300`. It names the signing key `keys/qmuxd.key`, relative to
    the directory of the file. The file does not use port 5353, because `mDNSResponder`
    holds UDP port 5353 on macOS. To use a different address, add `--listen <addr>`.
+   [`docs/configuration.md`](docs/configuration.md) lists every field of the file.
 
 5. In a second terminal, query the bootstrap record and verify it:
 
@@ -114,17 +115,33 @@ You need Go 1.25 or later. Run each command from the repository root.
    is `[device]  result: reconciled (2 downloads)`. See
    [`examples/embedded-bootstrap/README.md`](examples/embedded-bootstrap/README.md).
 
-`qmuxctl query` exits with 0 for a result, 1 for a DNS error, 2 for an application error
-and 3 for a verification error.
+`qmuxctl query` exits with these codes:
+
+- 0 for a result.
+- 1 for a DNS error.
+- 2 for an application error.
+- 3 for a verification error.
+- 64 for a usage error.
+
+`qmuxctl discover` uses the same codes. It exits with 3 when you give neither
+`--trust-anchors` nor `--insecure`. It also exits with 1 for an invalid manifest. To send
+the discovery query over TCP, add `--tcp`.
+
+`qmuxd` and `qmuxctl` exit with 64 when the subcommand is missing or unknown.
+`qmux-probe` exits with 64 for an unknown subcommand or a missing `--trust-anchors`. The
+`--help` output of each command, for example `bin/qmuxctl query --help`, lists its exit
+codes.
 
 ## Go examples
 
 Each block below is the body of an `Example` function in
-[`example_test.go`](example_test.go). The `firmwareHandler` type is also in that file.
+[`example_test.go`](example_test.go). The `firmwareHandler` and `firmwareRecord` types
+are also in that file. The blocks use the firmware protocol key `65282/65280` of the
+quick start.
 
 ### Server
 
-The server answers the firmware protocol at the protocol key `65280/65280`:
+The server answers the firmware protocol at the protocol key `65282/65280`:
 
 <!-- example: ExampleNewServer -->
 ```go
@@ -132,7 +149,7 @@ srv := qmux.NewServer(qmux.ServerConfig{
 	Address: "127.0.0.1:5300",
 	Zones:   []string{"fleet.example."},
 })
-key := qmux.ProtocolKey{Class: 65280, Type: 65280}
+key := qmux.ProtocolKey{Class: 65282, Type: 65280}
 if err := srv.Register(key, firmwareHandler{}); err != nil {
 	log.Fatal(err)
 }
@@ -144,22 +161,48 @@ if err := srv.ListenAndServe(ctx); err != nil {
 }
 ```
 
+A handler obeys these rules:
+
+- The handler types `protocol.Request`, `protocol.Response`, `protocol.Info` and
+  `protocol.HandlerFunc` come from `github.com/Crank-Git/qmux/pkg/protocol`. The root
+  package `qmux` does not alias them.
+- `Register` accepts only a handler that has an `Info() protocol.Info` method. A handler
+  without it gives `server.ErrMissingInfo`.
+- The handler sets `Response.Version` to `req.Version`. If `Response.Version` is 0, the
+  server uses the highest registered version, which is not always the version of the
+  query.
+
+This server and the quick-start `qmuxd` both listen on `127.0.0.1:5300`. Stop `qmuxd`
+before you start this server, or change `Address` to a free port.
+
 ### Client
 
-The client asks the server above for the firmware metadata of `device42.fleet.example.`:
+The client asks for the firmware record of `device42.fleet.example.` and decodes the
+CBOR payload with `codec.Unmarshal` from `github.com/Crank-Git/qmux/pkg/codec`. The
+quick-start `qmuxd` and the server above both answer it:
 
 <!-- example: ExampleNewClient -->
 ```go
 c := qmux.NewClient(qmux.ClientConfig{Resolver: "127.0.0.1:5300"})
 res, err := c.Query(context.Background(), qmux.Query{
 	Name:  "device42.fleet.example.",
-	Class: 65280,
+	Class: 65282,
 	Type:  65280,
 })
 if err != nil {
 	log.Fatal(err)
 }
-fmt.Printf("%s\n", res.Payload)
+var fw firmwareRecord
+if err := codec.Unmarshal(res.Payload, &fw); err != nil {
+	log.Fatal(err)
+}
+fmt.Printf("%s v%d: firmware %s at %s\n", res.ProtocolID, res.Version, fw.Version, fw.URL)
+```
+
+Against the quick-start `qmuxd`, the client prints:
+
+```text
+org.qmux.firmware v1: firmware 2.4.1 at https://mgmt.fleet.example/firmware/2.4.1.bin
 ```
 
 This client has no trust anchors, so the result has `Verified: false`. A client with

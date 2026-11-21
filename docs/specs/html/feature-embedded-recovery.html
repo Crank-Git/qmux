@@ -502,6 +502,8 @@ body.rv-open .layout { padding-right:21rem; }
 <li>Rollback: <code>[device]  configuration: remote generation 2 &lt; local 3, rollback refused</code>.
 </li>
 </ul>
+<p>From the review #193, a run with <code>--tamper-https</code> that ends with no error downloaded no configuration bundle. The tamper thus had no effect, and the device prints this line before the result line:</p>
+<pre class="code"><code>[device]  tamper: --tamper-https has no effect, the device downloads no configuration bundle; use a new --state path or a higher --remote-generation</code></pre>
 <h3 id="embedded-recovery-behaviour-rules">Behaviour rules</h3>
 <ul>
 <li>Version comparison for firmware uses the three integer fields of <code>MAJOR.MINOR.PATCH</code> in
