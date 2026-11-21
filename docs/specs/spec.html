@@ -1042,7 +1042,12 @@ golangci-lint run</code></pre>
 <li>2026-11-20 — qmuxd decisions (#9): one discovery registration serves every zone
 </li>
 </ul>
-<p>(<code>discovery.RegisterZones</code>). The <code>ttl</code> range is 1–86400, and 0 exits 2 (#155). A parsed query whose response write fails still writes an observation line. <code>qmuxd</code> checks each payload against the codec decode limits at load time (#159). <code>qmuxd</code> binds with <code>transport.Listen</code> (#158).</p><nav class="pager">
+<p>(<code>discovery.RegisterZones</code>). The <code>ttl</code> range is 1–86400, and 0 exits 2 (#155). A parsed query whose response write fails still writes an observation line. <code>qmuxd</code> checks each payload against the codec decode limits at load time (#159). <code>qmuxd</code> binds with <code>transport.Listen</code> (#158).</p>
+<ul>
+<li>2026-11-20 — qmuxd daemon is <code>built</code> (#163). A config error gives the same text on every
+</li>
+</ul>
+<p>Go version (#164).</p><nav class="pager">
 <span></span>
 <a href="html/feature-foundation.html">Feature: Foundation &rarr;</a>
 </nav>

@@ -328,7 +328,7 @@ External interfaces:
   `probe.fleet.example.`
 - FR-interop-18: a run with a wrong trust anchor file gives outcome `verify` on the
   direct path.
-- FR-interop-19: a probe to a port with no listener has outcome `timeout` after 3 s.
+- FR-interop-19: a probe to an address that never answers has outcome `timeout` after 3 s. A refused port has outcome `network`.
 - FR-interop-12a: a unit test of `qmux-probe` shows RD=1 in a resolver-path query and RD=0 in a direct-path query.
 - FR-interop-20 to FR-interop-22: a direct probe has `reached_authoritative: true` and
   observed class and type equal to the probe.
