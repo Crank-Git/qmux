@@ -97,13 +97,14 @@ func TestNoArgumentsIsAUsageErrorBecauseTheTrustAnchorFileIsMissing(t *testing.T
 	}
 }
 
-func TestUnknownSubcommandPrintsAnErrorToStderrAndExitsOne(t *testing.T) {
+func TestUnknownSubcommandPrintsAnErrorAndTheUsageToStderrAndExitsSixtyFour(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := run([]string{"qmux-probe", "unknown"}, &stdout, &stderr)
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
+	if code != 64 {
+		t.Fatalf("exit code = %d, want 64", code)
 	}
-	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "Unknown command: unknown") {
+	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "Unknown command: unknown") ||
+		!strings.Contains(stderr.String(), "Usage: qmux-probe") {
 		t.Errorf("stdout = %q, stderr = %q, want the error on stderr only", stdout.String(), stderr.String())
 	}
 }

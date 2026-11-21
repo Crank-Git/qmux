@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Crank-Git/qmux/pkg/discovery"
 	"github.com/Crank-Git/qmux/pkg/security"
@@ -29,6 +30,10 @@ const (
 
 // defaultListen is the listen address when the configuration file has no listen field.
 const defaultListen = "127.0.0.1:5300"
+
+// shutdownGrace is the wait for in-flight handlers after a signal. qmuxd sets it, so
+// that the shutdown records can show it. The value is the 5 s grace period of the spec.
+const shutdownGrace = 5 * time.Second
 
 // runServe runs qmuxd serve with the flags in args and returns the exit code. It serves
 // until ctx ends or the process receives SIGINT or SIGTERM.
@@ -132,6 +137,7 @@ func newDaemon(path, listen string, stderr io.Writer) (d *daemon, err error) {
 		TTL:            cfg.TTL,
 		UDPSize:        cfg.UDPSize,
 		HandlerTimeout: cfg.HandlerTimeout,
+		ShutdownGrace:  shutdownGrace,
 		Logger:         logger,
 		Registry:       cfg.Registry,
 		Signer:         signer,
@@ -191,12 +197,29 @@ func (d *daemon) serve(ctx context.Context, stderr io.Writer) (code int) {
 
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	// The UDP socket of 0.0.0.0 is dual-stack and reports [::], so the record shows the
+	// configured address and the bound address separately.
 	logger.Info("qmuxd ready",
-		"listen", pc.LocalAddr().String(),
+		"listen", d.cfg.Listen,
+		"bound", pc.LocalAddr().String(),
 		"zones", d.cfg.Zones,
 		"key_id", fmt.Sprintf("%x", d.keyID),
 		"protocols", len(d.srv.Registry().List()))
-	if err := d.srv.Serve(ctx, pc, l); err != nil {
+	// Serve blocks through the whole shutdown, so it runs apart and serve can log the
+	// start. The goroutine ends when Serve returns, at the latest one grace after ctx ends.
+	served := make(chan error, 1)
+	go func() { served <- d.srv.Serve(ctx, pc, l) }()
+	select {
+	case err = <-served:
+	case <-ctx.Done():
+		begun := time.Now()
+		logger.Info("qmuxd shutdown started", "grace", shutdownGrace)
+		err = <-served
+		if err == nil {
+			logger.Info("qmuxd shutdown complete", "grace", shutdownGrace, "duration", time.Since(begun))
+		}
+	}
+	if err != nil {
 		// The exit code is 1 whether or not stderr accepts the write.
 		_, _ = fmt.Fprintf(stderr, "qmuxd: %v\n", err)
 		return exitFailure
@@ -204,12 +227,18 @@ func (d *daemon) serve(ctx context.Context, stderr io.Writer) (code int) {
 	return exitResult
 }
 
-// printUsage writes the usage text of qmuxd serve with the flags of fs to w.
+// printUsage writes the usage text of qmuxd serve with the flags of fs to w. A flag
+// with a non-empty default shows the default, so that a reader knows which file qmuxd
+// reads without --config.
 func printUsage(w io.Writer, synopsis string, fs *flag.FlagSet) error {
 	var b strings.Builder
 	b.WriteString("Usage: " + synopsis + "\n\nFlags:\n")
 	fs.VisitAll(func(fl *flag.Flag) {
-		fmt.Fprintf(&b, "  --%-9s %s\n", fl.Name, fl.Usage)
+		fmt.Fprintf(&b, "  --%-9s %s", fl.Name, fl.Usage)
+		if fl.DefValue != "" {
+			fmt.Fprintf(&b, " (default %s)", fl.DefValue)
+		}
+		b.WriteString("\n")
 	})
 	b.WriteString("\nExit codes: 0 shut down after SIGINT or SIGTERM, 1 a listener does not bind, " +
 		"2 the configuration file or the signing key does not load, 64 usage error.\n")

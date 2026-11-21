@@ -29,9 +29,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "help":
 		return runProbe(context.Background(), name, []string{"--help"}, stdout, stderr)
 	default:
-		// The exit code is 1 whether or not stderr accepts the write.
+		// The exit code is 64 whether or not stderr accepts the write.
 		_, _ = fmt.Fprintf(stderr, "Unknown command: %s\nUsage: %s --trust-anchors <file> [flags] | <version|help>\n", args[1], name)
-		return 1
+		return exitUsage
 	}
 	if err != nil {
 		// A caller that reads stdout must not see exit 0 with missing output.
