@@ -2,6 +2,7 @@
 # address, because the resolver configurations name qmuxd by its address.
 # Reference: https://docs.docker.com/reference/compose-file/
 #
+# make interop runs tests/interoperability/interop.sh, which runs these commands.
 # Run it with a project name of its own, and remove the shared volume after the run:
 #   docker compose -p qmux-interop -f tests/interoperability/compose.yaml up --build
 #   docker compose -p qmux-interop -f tests/interoperability/compose.yaml down -v
@@ -121,6 +122,8 @@ services:
       # The platform of the bind service (FR-interop-39c).
       - --image-arch=bind=amd64
       - --markdown
+      # interop.sh sets QMUX_REQUIRE_DIRECT. make interop REQUIRE_DIRECT=true sets it to true (FR-interop-44).
+      - --require-direct=${QMUX_REQUIRE_DIRECT:-false}
     volumes:
       - shared:/shared:ro
       - ./results:/results
