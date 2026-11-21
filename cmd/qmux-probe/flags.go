@@ -74,8 +74,8 @@ func parseFlags(name string, args []string) (probeFlags, *flag.FlagSet, error) {
 		return err
 	})
 	fs.Var(imageArch, "image-arch", "name=arch of the image of one path, when it differs from --host-arch; the flag repeats")
-	// The probe container runs without emulation, so its architecture is the host
-	// architecture.
+	// The harness runs qmux-probe without emulation, so the architecture of the binary
+	// is the host architecture.
 	fs.StringVar(&f.hostArch, "host-arch", runtime.GOARCH, "architecture of the Docker host")
 	fs.StringVar(&classes, "classes", defaultClasses, "comma-separated QCLASS list")
 	fs.StringVar(&types, "types", defaultTypes, "comma-separated QTYPE list")
