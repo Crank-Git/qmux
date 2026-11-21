@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -32,6 +34,9 @@ var errNoAnchors = errors.New("--trust-anchors is required")
 // path is one destination of the probes: the direct path or one resolver.
 type path struct {
 	name, addr string
+	// emulated is true when the image of the path has an architecture other than the
+	// host architecture (FR-interop-39c).
+	emulated bool
 }
 
 // probeFlags holds the parsed flags of qmux-probe.
@@ -43,9 +48,11 @@ type probeFlags struct {
 	trustAnchors   string
 	timeout        time.Duration
 	observationLog string
-	output         string
-	markdown       bool
-	requireDirect  bool
+	// hostArch is the architecture of the Docker host, in the GOARCH form.
+	hostArch      string
+	output        string
+	markdown      bool
+	requireDirect bool
 }
 
 // parseFlags returns the flags in args. It returns flag.ErrHelp for --help, and an
@@ -55,6 +62,7 @@ func parseFlags(name string, args []string) (probeFlags, *flag.FlagSet, error) {
 	var f probeFlags
 	var server, classes, types, transports string
 	var resolvers []path
+	imageArch := archFlag{}
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	// runProbe prints the error and the usage, so that --help goes to stdout and an
 	// error goes to stderr once.
@@ -65,6 +73,10 @@ func parseFlags(name string, args []string) (probeFlags, *flag.FlagSet, error) {
 		resolvers = append(resolvers, r)
 		return err
 	})
+	fs.Var(imageArch, "image-arch", "name=arch of the image of one path, when it differs from --host-arch; the flag repeats")
+	// The probe container runs without emulation, so its architecture is the host
+	// architecture.
+	fs.StringVar(&f.hostArch, "host-arch", runtime.GOARCH, "architecture of the Docker host")
 	fs.StringVar(&classes, "classes", defaultClasses, "comma-separated QCLASS list")
 	fs.StringVar(&types, "types", defaultTypes, "comma-separated QTYPE list")
 	fs.StringVar(&transports, "transports", defaultTransports, "comma-separated list of udp and tcp")
@@ -93,6 +105,9 @@ func parseFlags(name string, args []string) (probeFlags, *flag.FlagSet, error) {
 	}
 	f.paths = append(f.paths, resolvers...)
 	if err := checkPaths(f.paths); err != nil {
+		return f, fs, err
+	}
+	if err := setEmulated(f.paths, imageArch, f.hostArch); err != nil {
 		return f, fs, err
 	}
 	var err error
@@ -142,6 +157,45 @@ func checkPaths(paths []path) error {
 			return fmt.Errorf("invalid value for flag --resolver: the name %q is used twice", p.name)
 		}
 		seen[p.name] = true
+	}
+	return nil
+}
+
+// archFlag maps a path name to the image architecture of the path. Its Set method
+// reads one --image-arch value name=arch.
+type archFlag map[string]string
+
+// String returns the empty default of --image-arch.
+func (a archFlag) String() string { return "" }
+
+// Set adds one value name=arch. It returns an error for a value with no name or no
+// arch, and for a second value of the same path.
+func (a archFlag) Set(s string) error {
+	name, arch, ok := strings.Cut(s, "=")
+	switch {
+	case !ok || name == "" || arch == "":
+		return fmt.Errorf("%q is not name=arch", s)
+	case a[name] != "":
+		return fmt.Errorf("the path %q has two values", name)
+	}
+	a[name] = arch
+	return nil
+}
+
+// setEmulated marks each path whose image architecture in imageArch differs from
+// hostArch. A path that imageArch does not name has an image of the host architecture.
+// It returns an error when hostArch is empty, and when imageArch names no path,
+// because the value then labels no record.
+func setEmulated(paths []path, imageArch archFlag, hostArch string) error {
+	if hostArch == "" {
+		return errors.New("invalid value for flag --host-arch: the value is empty")
+	}
+	for name, arch := range imageArch {
+		i := slices.IndexFunc(paths, func(p path) bool { return p.name == name })
+		if i < 0 {
+			return fmt.Errorf("invalid value for flag --image-arch: no path has the name %q", name)
+		}
+		paths[i].emulated = arch != hostArch
 	}
 	return nil
 }

@@ -12,6 +12,12 @@
 // authoritative server. --output writes the records as a JSON array, and --markdown
 // prints the interop matrix as a markdown table.
 //
+// Each record holds host_arch and emulated (FR-interop-39c). --host-arch sets host_arch,
+// and its default is the architecture of the qmux-probe binary. Each --image-arch
+// name=arch gives the image architecture of one path. A record is emulated when the
+// image architecture of its path differs from host_arch. A path with no --image-arch
+// has an image of the host architecture.
+//
 // The exit code is 0 when every probe has a record, whatever the outcomes are. With
 // --require-direct, the exit code is 1 when a probe on the direct path has an outcome
 // other than ok. A usage error exits 64.
