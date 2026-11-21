@@ -190,6 +190,8 @@ error: verify: ErrExpired: org.qmux.firmware _v1.device42.fleet.example.
 
 - DNS gives no confidentiality. QMux does not encrypt envelopes, so an on-path observer
   reads each QNAME and each payload.
+- QMux supports read-only operations only. A handler answers a query. QMux has no
+  remote command execution, no arbitrary RPC and no device control.
 - Freshness depends on the client clock. If the client clock is 2 hours fast, a 1-hour
   window gives `ErrExpired`. If the clock is slow, the client accepts an envelope after
   its real expiry.

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 250" role="img" aria-labelledby="title">
+  <title id="title">QMux: a terminal running qmuxctl discover against a local qmuxd for the zone fleet.example., which answers with a verified manifest that lists org.qmux.bootstrap on class 65280, type 65280.</title>
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 21px; }
+    .name { font-size: 50px; font-weight: 700; fill: #e6edf3; }
+    .sub { fill: #8b949e; }
+    .prompt { fill: #7ee787; }
+    .cmd { fill: #e6edf3; }
+    .long { font-size: 19px; }
+    .answer { fill: #ffa657; }
+    .cursor { fill: #7ee787; animation: blink 1.2s steps(2, start) infinite; }
+    @keyframes blink { to { visibility: hidden; } }
+    @media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
+  </style>
+  <rect x="1" y="1" width="898" height="248" rx="10" fill="#0d1117" stroke="#30363d" stroke-width="2"/>
+  <text class="name" x="36" y="66">QMux</text>
+  <text class="sub" x="182" y="64">protocols over QCLASS, QTYPE, and QNAME</text>
+  <text class="long" x="36" y="108"><tspan class="prompt">$ </tspan><tspan class="cmd">bin/qmuxctl discover --server 127.0.0.1:5300 --name fleet.example. …</tspan></text>
+  <text class="answer" x="36" y="140" xml:space="preserve">zone fleet.example.  framework 1  verified yes</text>
+  <text class="answer" x="36" y="166" xml:space="preserve">PROTOCOL                VERSIONS  CLASS  TYPE</text>
+  <text class="answer" x="36" y="192" xml:space="preserve">org.qmux.bootstrap      1         65280  65280</text>
+  <text class="prompt" x="36" y="228">$</text>
+  <rect class="cursor" x="60" y="211" width="12" height="22"/>
+</svg>

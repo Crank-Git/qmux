@@ -6,7 +6,7 @@ status: approved
 spec_version: 2
 created: 2026-11-20
 approved: 2026-11-20
-html_generated: 2026-11-20
+html_generated: 2026-11-21
 branch_model: dev-and-live
 visibility: public
 features:
@@ -855,3 +855,8 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   `discovery.Client.Forget(zone)` drops it on request. The PM decided that only a query
   that the rate limit refuses logs at the `debug` level. The `qmuxd ready` record adds
   `bound`, and a usage error of a command-line tool exits with code 64.
+- 2026-11-21 — Decision: the README uses the voice of the owner. The owner exempted
+  `README.md` from STE. Every other document keeps the standard. `CLAUDE.md` and
+  `.claude/rules/ste.md` state the exception. The section `What QMux is` becomes
+  `Why QMux` (FR-docs-1), and the research result moves into it. The exit codes and the
+  container procedure move to `docs/commands.md`.
