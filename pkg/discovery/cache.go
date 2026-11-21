@@ -37,13 +37,17 @@ func newCached(m *Manifest, e codec.Envelope) cached {
 
 // lookup returns a copy of the manifest of zone from the memory cache, or from the
 // cache file when the memory cache has no manifest. The bool is false when neither
-// holds a manifest that verifies and has not expired at the time of v.
+// holds a manifest that verifies and has not expired at the time of v. lookup skips the
+// cache file of a zone that Forget dropped, until store keeps a new manifest.
 func (c *Client) lookup(v *security.Verifier, zone string, f cacheFile) (*Manifest, bool) {
 	now := clock(v)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if e, ok := c.cache[zone]; ok && now.Before(e.expiresAt) {
 		return e.manifest.clone(), true
+	}
+	if c.forgotten[zone] {
+		return nil, false
 	}
 	e, ok := load(v, c.cachePath(zone), f, zone)
 	if !ok || !now.Before(e.expiresAt) {
@@ -96,6 +100,7 @@ func (c *Client) store(v *security.Verifier, zone string, m *Manifest, f cacheFi
 		return nil
 	}
 	c.set(zone, n)
+	delete(c.forgotten, zone)
 	path := c.cachePath(zone)
 	if path == "" {
 		return nil
