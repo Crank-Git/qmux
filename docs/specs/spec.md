@@ -825,3 +825,5 @@ spec-to-issues created these issues on 2026-11-20 in `Crank-Git/qmux`.
   rule. The QTYPE 16 TXT path joins the character-strings in the client (ADR 0005, Exchange
   rule 6). The observed matrix: every direct probe is ok, and through BIND 9.20 and
   Unbound 1.26.2 only class IN reaches the authoritative server.
+- 2026-11-20 — Interop harness is `built` (#173). The CI interop run on amd64 (no emulation)
+  gives the same matrix as the arm64 run.

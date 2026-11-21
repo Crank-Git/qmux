@@ -2,7 +2,7 @@
 id: interop-harness
 feature: Interop harness
 epic: "Epic 9: Interop harness"
-status: issued
+status: built
 issues: [10, 60, 61, 62, 63, 64]
 mockups: []
 ---
