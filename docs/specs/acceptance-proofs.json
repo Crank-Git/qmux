@@ -3906,7 +3906,7 @@
       "criterion": "FR-bench-20a: the results file holds a `retry` object for every baseline, and the environment block holds `tcp_syn_retries`.",
       "proofs": [
         {
-          "file": "docs/results/bench-20261121T015913Z.json",
+          "file": "docs/results/bench-20261121T025043Z.json",
           "note": "every run holds a retry object and the environment holds tcp_syn_retries"
         },
         {
@@ -3919,8 +3919,8 @@
       "criterion": "FR-bench-21: the `https-cold` row shows more packets per lookup than the `https-reuse` row.",
       "proofs": [
         {
-          "file": "docs/results/bench-20261121T015913Z.json",
-          "note": "https-cold shows 17.9 packets per lookup and https-reuse 2.1 at loss 0"
+          "file": "docs/results/bench-20261121T025043Z.json",
+          "note": "https-cold shows 18.0 packets per lookup and https-reuse 2.0 at loss 0"
         }
       ]
     },
@@ -3950,7 +3950,7 @@
           "name": "TestEachRunObjectHoldsTheMetricsAndTheRetryObject"
         },
         {
-          "file": "docs/results/bench-20261121T015913Z.json"
+          "file": "docs/results/bench-20261121T025043Z.json"
         }
       ]
     },
@@ -3958,7 +3958,7 @@
       "criterion": "FR-bench-26: each run object holds nonzero `packets_per_lookup` and `bytes_per_lookup`.",
       "proofs": [
         {
-          "file": "docs/results/bench-20261121T015913Z.json",
+          "file": "docs/results/bench-20261121T025043Z.json",
           "note": "every run has nonzero packets_per_lookup and bytes_per_lookup"
         }
       ]
@@ -3971,7 +3971,7 @@
           "name": "TestEachBaselineRecordsOneRequestPerLookupAtLossZero"
         },
         {
-          "file": "docs/results/bench-20261121T015913Z.json",
+          "file": "docs/results/bench-20261121T025043Z.json",
           "note": "qmux-private has requests_per_lookup 1 at loss 0"
         }
       ]
@@ -3980,7 +3980,7 @@
       "criterion": "FR-bench-28 and FR-bench-29: the results file and the markdown table exist after a run.",
       "proofs": [
         {
-          "file": "docs/results/bench-20261121T015913Z.json"
+          "file": "docs/results/bench-20261121T025043Z.json"
         },
         {
           "test": "tests/interoperability/cmd/qmux-bench",
@@ -3996,7 +3996,7 @@
           "name": "TestTheResultsFileHoldsTheFourArraysAndTheEnvironmentBlock"
         },
         {
-          "file": "docs/results/bench-20261121T015913Z.json",
+          "file": "docs/results/bench-20261121T025043Z.json",
           "note": "the environment block holds the seven fields"
         }
       ]
@@ -4005,7 +4005,7 @@
       "criterion": "FR-bench-31 to FR-bench-34: the `clients` array holds one object per baseline with nonzero `binary_bytes`, `max_rss_kib` and `cpu_ms`.",
       "proofs": [
         {
-          "file": "docs/results/bench-20261121T015913Z.json",
+          "file": "docs/results/bench-20261121T025043Z.json",
           "note": "each of 6 clients has nonzero binary_bytes, max_rss_kib and cpu_ms"
         },
         {
@@ -4018,7 +4018,7 @@
       "criterion": "FR-bench-35 to FR-bench-37: the `dispatch` array holds both microbenchmarks.",
       "proofs": [
         {
-          "file": "docs/results/bench-20261121T015913Z.json",
+          "file": "docs/results/bench-20261121T025043Z.json",
           "note": "the dispatch array holds both microbenchmarks"
         },
         {
@@ -4181,7 +4181,7 @@
       "criterion": "FR-docs-15: every number in `Baseline results` appears in the latest `docs/results/bench-*.json`.",
       "proofs": [
         {
-          "file": "docs/results/bench-20261121T015913Z.json",
+          "file": "docs/results/bench-20261121T025043Z.json",
           "note": "the run values equal the Runs table after rounding"
         },
         {
