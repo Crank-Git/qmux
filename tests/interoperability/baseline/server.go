@@ -216,6 +216,8 @@ func coapRouter(envelope func() ([]byte, error), logger *slog.Logger) (*mux.Rout
 			// FR-bench-7 measures the confirmable exchange, with its retransmissions.
 			code = codes.BadRequest
 		default:
+			// The source shows that each lookup uses a new socket (FR-bench-23).
+			logger.Info("coap request", "source", w.Conn().RemoteAddr().String())
 			b, err := envelope()
 			if err != nil {
 				logger.Error("baseline: coap envelope", "err", err)
@@ -269,8 +271,17 @@ func serveHTTPS(ctx context.Context, served chan<- error, l net.Listener, cert t
 		}
 	})
 	hs := &http.Server{
-		Handler:           m,
-		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13},
+		Handler: m,
+		TLSConfig: &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS13,
+			// crypto/tls calls VerifyConnection once per handshake, so the log counts the
+			// TLS handshakes of a benchmark run (FR-bench-21 and FR-bench-22).
+			VerifyConnection: func(cs tls.ConnectionState) error {
+				logger.Info("https handshake", "resumed", cs.DidResume)
+				return nil
+			},
+		},
 		ReadHeaderTimeout: 5 * time.Second,
 		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelWarn),
 	}
