@@ -158,8 +158,9 @@ func (s *Server) Register(key protocol.ProtocolKey, h protocol.Handler) error {
 // RegisterProtocol registers h for key with info. Errors wrap a sentinel error of
 // package registry.
 func (s *Server) RegisterProtocol(key protocol.ProtocolKey, info protocol.Info, h protocol.Handler) error {
+	// The registry error already names the key and the protocol ID.
 	if err := s.reg.Register(key, info, h); err != nil {
-		return fmt.Errorf("server: register %s: %w", key, err)
+		return fmt.Errorf("server: %w", err)
 	}
 	return nil
 }
@@ -168,7 +169,7 @@ func (s *Server) RegisterProtocol(key protocol.ProtocolKey, info protocol.Info, 
 // when key has no registration.
 func (s *Server) Unregister(key protocol.ProtocolKey) error {
 	if err := s.reg.Unregister(key); err != nil {
-		return fmt.Errorf("server: unregister %s: %w", key, err)
+		return fmt.Errorf("server: %w", err)
 	}
 	return nil
 }

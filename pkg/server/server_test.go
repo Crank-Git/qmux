@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -141,6 +142,25 @@ func TestRegisterReturnsTheRegistryError(t *testing.T) {
 	}
 	if err := s.Register(testKey, h); !errors.Is(err, registry.ErrKeyConflict) {
 		t.Fatalf("second Register: got %v, want ErrKeyConflict", err)
+	}
+}
+
+func TestRegistrationErrorTextNamesTheKeyOnce(t *testing.T) {
+	s := NewServer(ServerConfig{})
+	reserved := protocol.ProtocolKey{Class: 3, Type: 65280}
+	err := s.RegisterProtocol(reserved, testInfo, payloadHandler(nil))
+	if !errors.Is(err, registry.ErrInvalidKey) {
+		t.Fatalf("RegisterProtocol = %v, want ErrInvalidKey", err)
+	}
+	if got := strings.Count(err.Error(), reserved.String()); got != 1 {
+		t.Fatalf("error %q holds the key %s %d times, want 1", err, reserved, got)
+	}
+	err = s.Unregister(testKey)
+	if !errors.Is(err, registry.ErrNotFound) {
+		t.Fatalf("Unregister = %v, want ErrNotFound", err)
+	}
+	if got := strings.Count(err.Error(), testKey.String()); got != 1 {
+		t.Fatalf("error %q holds the key %s %d times, want 1", err, testKey, got)
 	}
 }
 
