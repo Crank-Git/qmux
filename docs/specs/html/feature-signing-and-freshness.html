@@ -405,6 +405,23 @@ body.rv-open .layout { padding-right:21rem; }
 </li>
 </ul>
 <p>trust anchors exist.</p>
+<p><strong>Note.</strong> From the review #193, a stale manifest also ends a cache entry, before its <code>expires_at</code>. This amends FR-security-42 and FR-security-46:</p>
+<ul>
+<li><code>discovery.Client.QueryProtocol</code> drops the cached manifest of the zone when the query
+</li>
+</ul>
+<p>gets the status <code>version-unsupported</code>, the RCODE <code>REFUSED</code> or a <code>*client.DNSError</code> of kind <code>mismatch</code>.</p>
+<ul>
+<li><code>discovery.Client.Forget(zone)</code> drops the cached manifest of the zone.
+</li>
+<li>A dropped manifest leaves memory, and its cache file in <code>CacheDir</code> is removed. The next
+</li>
+</ul>
+<p><code>Discover</code> for the zone sends a query.</p>
+<ul>
+<li>Any other answer, for example <code>ok</code>, keeps the cached manifest.
+</li>
+</ul>
 <h4 id="signing-and-freshness-qmuxctl-fuzz-and-phase-3-test">qmuxctl, fuzz and Phase 3 test</h4>
 <ul>
 <li><strong>FR-security-48</strong> — <code>qmuxctl keygen --out &lt;prefix&gt;</code> writes <code>&lt;prefix&gt;.key</code> and
