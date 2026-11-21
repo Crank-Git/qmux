@@ -60,6 +60,8 @@ type qmuxdProcess struct {
 	// test reads it only after done closes.
 	done    chan struct{}
 	waitErr error
+	// lines holds every stderr line. A test reads it only after done closes.
+	lines []string
 }
 
 // startQmuxd starts "qmuxd serve" with args in the directory dir. The process ends
@@ -82,6 +84,7 @@ func startQmuxd(t *testing.T, dir string, args ...string) *qmuxdProcess {
 		// the pipe. Wait comes after the scan, as exec.Cmd.StderrPipe requires.
 		sc := bufio.NewScanner(stderr)
 		for sc.Scan() {
+			p.lines = append(p.lines, sc.Text())
 			if strings.Contains(sc.Text(), `msg="qmuxd ready"`) {
 				p.ready <- sc.Text()
 			}
@@ -129,14 +132,15 @@ func (p *qmuxdProcess) waitExit(t *testing.T, limit time.Duration) int {
 	return -1
 }
 
-var listenField = regexp.MustCompile(`\blisten=(\S+)`)
+var boundField = regexp.MustCompile(`\bbound=(\S+)`)
 
-// readyAddr returns the listen value of the ready record line.
+// readyAddr returns the bound value of the ready record line. The tests listen on port
+// 0, so only the bound address names the port to query.
 func readyAddr(t *testing.T, line string) string {
 	t.Helper()
-	m := listenField.FindStringSubmatch(line)
+	m := boundField.FindStringSubmatch(line)
 	if m == nil {
-		t.Fatalf("ready record has no listen field: %q", line)
+		t.Fatalf("ready record has no bound field: %q", line)
 	}
 	return m[1]
 }
@@ -246,6 +250,45 @@ func TestServeExitsZeroOnASignalWithinTheGracePeriod(t *testing.T) { // FR-qmuxd
 				t.Errorf("exit code = %d, want 0", code)
 			}
 		})
+	}
+}
+
+func TestServeReadyRecordShowsTheConfiguredListenAddressOfADualStackSocket(t *testing.T) { // FR-qmuxd-4
+	p := startQmuxd(t, writeConfig(t, "0.0.0.0:0"))
+	line := p.waitReady(t)
+	// The UDP socket of 0.0.0.0 is dual-stack, so its local address is [::]:<port>.
+	if !strings.Contains(line, "listen=0.0.0.0:0 ") || !strings.Contains(line, "bound=") {
+		t.Errorf("ready record %q has no listen=0.0.0.0:0 and bound field", line)
+	}
+}
+
+func TestServeLogsTheStartAndTheEndOfTheShutdownOnSIGTERM(t *testing.T) { // FR-qmuxd-5
+	p := startQmuxd(t, writeConfig(t, "127.0.0.1:0"))
+	p.waitReady(t)
+	if err := p.cmd.Process.Signal(syscall.SIGTERM); err != nil {
+		t.Fatalf("Signal: %v", err)
+	}
+	if code := p.waitExit(t, startTimeout); code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	var shutdown []string
+	for _, line := range p.lines {
+		if strings.Contains(line, "shutdown") {
+			shutdown = append(shutdown, line)
+		}
+	}
+	if len(shutdown) != 2 {
+		t.Fatalf("stderr holds %d shutdown records, want 2: %q", len(shutdown), p.lines)
+	}
+	for i, want := range [][]string{
+		{"level=INFO", `msg="qmuxd shutdown started"`, "grace=5s"},
+		{"level=INFO", `msg="qmuxd shutdown complete"`, "grace=5s", "duration="},
+	} {
+		for _, w := range want {
+			if !strings.Contains(shutdown[i], w) {
+				t.Errorf("shutdown record %d %q has no %q", i, shutdown[i], w)
+			}
+		}
 	}
 }
 

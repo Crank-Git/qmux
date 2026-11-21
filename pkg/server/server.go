@@ -70,7 +70,8 @@ type ServerConfig struct {
 	ShutdownGrace time.Duration
 	// Logger receives the log records. The default is slog.Default(). The server logs
 	// one info record "query" per answered query, also when the response write fails.
-	// The record never holds payload bytes.
+	// The record of a query that the rate limit refuses is at debug level. The record
+	// never holds payload bytes.
 	Logger *slog.Logger
 	// Registry holds the options of the registry of the server.
 	Registry registry.Options
@@ -237,7 +238,8 @@ func (s *Server) serveQuery(ctx context.Context, q *transport.Query, w transport
 	// The rate limit applies before every other check, so a source with an empty
 	// bucket costs the server no further work (FR-qmuxd-26).
 	if s.limiter != nil && !s.limiter.allow(q.Source.Addr(), q.ReceivedAt) {
-		s.write(ctx, q, w, transport.Answer{RCode: transport.RCodeRefused}, nil)
+		// A flood of refused queries must not also flood the log at the default level.
+		s.writeAt(ctx, slog.LevelDebug, q, w, transport.Answer{RCode: transport.RCodeRefused}, nil)
 		return
 	}
 	if rcode, ok := s.checkHeader(q); !ok {
@@ -315,6 +317,12 @@ func (s *Server) matchZone(name string) (string, bool) {
 // record and the line then hold the RCODE of a, bytes_out 0 and no status. The line
 // shows that the query reached the server also when no response left it.
 func (s *Server) write(ctx context.Context, q *transport.Query, w transport.Writer, a transport.Answer, status *protocol.Status) {
+	s.writeAt(ctx, slog.LevelInfo, q, w, a, status)
+}
+
+// writeAt is write with the query record at level. Only a query that the rate limit
+// refuses gets a level other than info.
+func (s *Server) writeAt(ctx context.Context, level slog.Level, q *transport.Query, w transport.Writer, a transport.Answer, status *protocol.Status) {
 	sent, err := w.Write(a)
 	if err != nil {
 		s.cfg.Logger.Debug("server: write response", "error", err)
@@ -331,7 +339,7 @@ func (s *Server) write(ctx context.Context, q *transport.Query, w transport.Writ
 	if status != nil {
 		statusAttr = strconv.FormatUint(uint64(*status), 10)
 	}
-	s.cfg.Logger.LogAttrs(ctx, slog.LevelInfo, "query",
+	s.cfg.Logger.LogAttrs(ctx, level, "query",
 		slog.String("qname", q.Name),
 		slog.Int("qclass", int(q.Key.Class)),
 		slog.Int("qtype", int(q.Key.Type)),

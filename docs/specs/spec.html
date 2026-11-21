@@ -636,7 +636,7 @@ body.rv-open .layout { padding-right:21rem; }
 </li>
 </ul>
 <h3 id="logging">Logging</h3>
-<p>The server and <code>qmuxd</code> log with <code>log/slog</code>. One record per query carries <code>qname</code>, <code>qclass</code>, <code>qtype</code>, <code>transport</code>, <code>source</code>, <code>rcode</code>, <code>status</code>, <code>bytes_in</code>, <code>bytes_out</code> and <code>duration_ms</code>. The default level is <code>info</code>. The library never logs payload bytes or private keys.</p>
+<p>The server and <code>qmuxd</code> log with <code>log/slog</code>. One record per query carries <code>qname</code>, <code>qclass</code>, <code>qtype</code>, <code>transport</code>, <code>source</code>, <code>rcode</code>, <code>status</code>, <code>bytes_in</code>, <code>bytes_out</code> and <code>duration_ms</code>. The default level is <code>info</code>. From the review #193, the record of a query that the rate limit refuses is at level <code>debug</code>, so a flood does not fill the log. Other <code>REFUSED</code> records stay at <code>info</code>. The observation log still gets its line for each query. The library never logs payload bytes or private keys.</p>
 <h3 id="performance-targets">Performance targets</h3>
 <ul>
 <li>A direct UDP query on loopback completes in under 2 ms at the median. This is a
