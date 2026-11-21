@@ -242,7 +242,7 @@ body.rv-open .layout { padding-right:21rem; }
 <tr><td>static record</td><td>noun</td><td>A payload for one QNAME that the configuration file declares.</td><td>fixture, entry</td></tr>
 <tr><td>observation log</td><td>noun</td><td>The JSONL file in which <code>qmuxd</code> writes one line per received query.</td><td>query log, access log</td></tr>
 <tr><td>probe</td><td>noun</td><td>One query that <code>qmux-probe</code> sends for one combination of path, transport, class and type.</td><td>test case, check</td></tr>
-<tr><td>probe protocol</td><td>noun</td><td>The echo protocol <code>org.qmux.probe</code> that <code>qmuxd</code> serves for interop runs.</td><td>test protocol</td></tr>
+<tr><td>probe protocol</td><td>noun</td><td>The echo protocol <code>org.qmux.probe.&lt;class&gt;-&lt;type&gt;</code> that <code>qmuxd</code> serves for interop runs, one protocol ID for each class and type pair.</td><td>test protocol</td></tr>
 <tr><td>path</td><td>noun</td><td>The route of a probe: direct, through BIND, or through Unbound.</td><td>route, hop</td></tr>
 <tr><td>interop matrix</td><td>noun</td><td>The table of probe outcomes over every path, transport, class and type.</td><td>compatibility table</td></tr>
 <tr><td>baseline</td><td>noun</td><td>One of the comparison implementations: IN-class DNS, IN + TXT, CoAP or HTTPS.</td><td>alternative, competitor</td></tr>
@@ -576,7 +576,7 @@ body.rv-open .layout { padding-right:21rem; }
 <tr><td><code>org.qmux.bootstrap</code></td><td>65280</td><td>65280</td></tr>
 <tr><td><code>org.qmux.configuration</code></td><td>65281</td><td>65280</td></tr>
 <tr><td><code>org.qmux.firmware</code></td><td>65282</td><td>65280</td></tr>
-<tr><td><code>org.qmux.probe</code></td><td>as the interop configuration lists</td><td>as the interop configuration lists</td></tr>
+<tr><td><code>org.qmux.probe.&lt;class&gt;-&lt;type&gt;</code></td><td>as the interop configuration lists</td><td>as the interop configuration lists</td></tr>
 </table></div>
 <h3 id="error-semantics">Error semantics</h3>
 <p>The RCODE reports DNS-level outcomes. The application status reports application outcomes. They never overlap.</p>
