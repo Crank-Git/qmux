@@ -393,3 +393,13 @@ func TestServeHelpListsTheConfigAndListenFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestServeHelpShowsTheDefaultOfTheConfigFlag(t *testing.T) { // FR-qmuxd-1
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"qmuxd", "serve", "--help"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if !strings.Contains(stdout.String(), "(default ./qmuxd.json)") {
+		t.Errorf("help text has no default of --config:\n%s", stdout.String())
+	}
+}
