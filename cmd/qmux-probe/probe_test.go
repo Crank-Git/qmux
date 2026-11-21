@@ -21,6 +21,7 @@ import (
 	"github.com/Crank-Git/qmux/pkg/protocol"
 	"github.com/Crank-Git/qmux/pkg/security"
 	"github.com/Crank-Git/qmux/pkg/server"
+	"github.com/Crank-Git/qmux/pkg/transport/transporttest"
 )
 
 // The fixed seeds of the test keys. anchorSeed signs for the trust anchor file, and
@@ -322,6 +323,29 @@ func TestProbeToAPortThatNeverAnswersHasOutcomeTimeoutAfterTheTimeout(t *testing
 	}
 	if elapsed < 150*time.Millisecond || r["rtt_ms"].(float64) < 150 {
 		t.Errorf("elapsed = %v, rtt_ms = %v; want at least 150ms", elapsed, r["rtt_ms"])
+	}
+}
+
+func TestProbeAnsweredWithNXDOMAINHasOutcomeRCodeAndNamesTheRCode(t *testing.T) { // FR-interop-23
+	// QMux never sends NXDOMAIN, but a resolver can. A fake server sends it here.
+	addr := transporttest.StartServer(t, func(_ string, query []byte) [][]byte {
+		q, err := transporttest.Unpack(query)
+		if err != nil {
+			return nil
+		}
+		wire, err := transporttest.Pack(transporttest.Message{ID: q.ID, Response: true, RCode: 3, Question: q.Question})
+		if err != nil {
+			return nil
+		}
+		return [][]byte{wire}
+	})
+	recs := readRecords(t, append(oneKey(), "--server", addr, "--trust-anchors", writeAnchors(t, anchorSeed))...)
+	r := recs[0]
+	if r["outcome"] != "rcode" || r["rcode"] != "NXDOMAIN" {
+		t.Errorf("record = %v, want outcome rcode and rcode NXDOMAIN", r)
+	}
+	if e, _ := r["error"].(string); !strings.Contains(e, "rcode NXDOMAIN") {
+		t.Errorf("error = %q, want the text %q", e, "rcode NXDOMAIN")
 	}
 }
 

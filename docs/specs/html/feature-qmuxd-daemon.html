@@ -474,7 +474,7 @@ body.rv-open .layout { padding-right:21rem; }
 <tr><td><code>signature_validity</code></td><td>string</td><td><code>1h</code></td><td>Go duration, 1 min to 24 h.</td></tr>
 <tr><td><code>ttl</code></td><td>integer</td><td>60</td><td>1–86400 seconds.</td></tr>
 <tr><td><code>udp_size</code></td><td>integer</td><td>1232</td><td>512–4096.</td></tr>
-<tr><td><code>handler_timeout</code></td><td>string</td><td><code>2s</code></td><td>Go duration, 10 ms to 30 s.</td></tr>
+<tr><td><code>handler_timeout</code></td><td>string</td><td><code>800ms</code></td><td>Go duration, 10 ms to 30 s. From the review #193, the default is 800 ms and not 2 s.</td></tr>
 <tr><td><code>rate_limit</code></td><td>object <code>{qps, burst}</code></td><td><code>{50, 100}</code></td><td><code>qps</code> 0 disables. <code>burst</code> ≥ <code>qps</code> when <code>qps</code> &gt; 0.</td></tr>
 <tr><td><code>allow_reserved_classes</code></td><td>boolean</td><td>false</td><td>Passed to the registry.</td></tr>
 <tr><td><code>allow_non_private_types</code></td><td>boolean</td><td>false</td><td>Passed to the registry.</td></tr>

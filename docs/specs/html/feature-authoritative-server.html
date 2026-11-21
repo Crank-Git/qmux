@@ -190,7 +190,7 @@ body.rv-open .layout { padding-right:21rem; }
 <li>FR-server-2 — <code>NewServer</code> applies the defaults from the spec's timeouts table to every
 </li>
 </ul>
-<p>zero field of <code>ServerConfig</code>.</p>
+<p>zero field of <code>ServerConfig</code>. From the review #193, the default <code>HandlerTimeout</code> is 800 ms and not 2 s, because it must be shorter than the client attempt timeout of 1 s.</p>
 <ul>
 <li>FR-server-3 — <code>Register(key, h)</code> registers <code>h</code> with the <code>Info</code> that <code>h.Info()</code> returns.
 </li>
@@ -512,7 +512,7 @@ type ServerConfig struct {
     Zones          []string      // empty: every QNAME
     TTL            uint32        // default 60
     UDPSize        uint16        // default 1232
-    HandlerTimeout time.Duration // default 2s
+    HandlerTimeout time.Duration // default 800ms
     ReadTimeout    time.Duration // default 2s
     WriteTimeout   time.Duration // default 2s
     ShutdownGrace  time.Duration // default 5s
@@ -602,7 +602,7 @@ type Response struct {
 </ul>
 <p>registration. (FR-server-1)</p>
 <ul>
-<li><code>NewServer(ServerConfig{})</code> applies TTL 60, UDP size 1232, handler timeout 2s, read and
+<li><code>NewServer(ServerConfig{})</code> applies TTL 60, UDP size 1232, handler timeout 800ms, read and
 </li>
 </ul>
 <p>write timeouts 2s, and shutdown grace 5s. (FR-server-2)</p>
@@ -688,7 +688,7 @@ type Response struct {
 </ul>
 <p>non-zero <code>ReceivedAt</code>. (FR-server-26)</p>
 <ul>
-<li>A handler sees a context deadline about 2 seconds after the call with default
+<li>A handler sees a context deadline about 800 milliseconds after the call with default
 </li>
 </ul>
 <p>settings. (FR-server-27)</p>

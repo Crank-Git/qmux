@@ -174,7 +174,7 @@ func loadConfig(path, listen string) (config, error) {
 		SignatureValidity: "1h",
 		TTL:               60,
 		UDPSize:           1232,
-		HandlerTimeout:    "2s",
+		HandlerTimeout:    "800ms",
 		LogLevel:          "info",
 		LogFormat:         "text",
 	}

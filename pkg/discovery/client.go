@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -50,10 +51,17 @@ type Client struct {
 	// keeps verified manifests in memory only. The directory must exist.
 	CacheDir string
 
-	// mu guards cache.
+	// mu guards cache and forgotten.
 	mu    sync.Mutex
 	cache map[string]cached
+	// forgotten holds each zone that Forget dropped and no query has refreshed since.
+	// lookup skips the cache file of such a zone, also when Forget could not remove it.
+	forgotten map[string]bool
 }
+
+// rcodeRefused is the DNS RCODE REFUSED (RFC 1035). pkg/discovery may not import
+// pkg/transport, which defines the RCODE type.
+const rcodeRefused = 5
 
 // Discover returns the validated manifest of zone. It sends one query for the
 // discovery name "_qmux.<zone>" at c.Key.
@@ -65,6 +73,7 @@ type Client struct {
 //     verifies the file again. It ignores a file that fails verification.
 //   - After a query, it keeps the manifest in memory and in the cache file. A manifest
 //     replaces the cached manifest only when its issued_at is newer.
+//   - After Forget for zone, it sends a query.
 //
 // Without TrustAnchors, Discover never reads or writes the cache.
 //
@@ -82,10 +91,7 @@ func (c *Client) Discover(ctx context.Context, zone string) (*Manifest, error) {
 	if v == nil && !c.InsecureSkipVerify {
 		return nil, ErrInsecure
 	}
-	zone = protocol.FoldName(zone)
-	if !strings.HasSuffix(zone, ".") {
-		zone += "."
-	}
+	zone = fullZone(zone)
 	key := c.Key
 	if key == (protocol.ProtocolKey{}) {
 		key = DefaultKey
@@ -117,6 +123,53 @@ func (c *Client) Discover(ctx context.Context, zone string) (*Manifest, error) {
 	return m, nil
 }
 
+// Forget drops the cached manifest of zone from memory and removes its cache file. The
+// next Discover for zone then sends a query. Forget folds zone and adds the root label,
+// as Discover does. A zone with no cached manifest is not an error.
+//
+// QueryProtocol calls Forget itself when an answer shows that the manifest is stale.
+func (c *Client) Forget(zone string) {
+	zone = fullZone(zone)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.cache, zone)
+	if c.forgotten == nil {
+		c.forgotten = make(map[string]bool)
+	}
+	c.forgotten[zone] = true
+	if path := c.cachePath(zone); path != "" {
+		// Forget has no error result. When the remove fails, lookup skips the file of a
+		// forgotten zone, so this client still sends a query.
+		_ = os.Remove(path)
+	}
+}
+
+// fullZone returns zone in lowercase with the root label.
+func fullZone(zone string) string {
+	zone = protocol.FoldName(zone)
+	if !strings.HasSuffix(zone, ".") {
+		zone += "."
+	}
+	return zone
+}
+
+// stale reports whether the error of a query at a negotiated protocol key shows that
+// the server changed its registrations after the discovery:
+//   - The status version-unsupported means that the server dropped the version.
+//   - The RCODE REFUSED means that the server remapped or unregistered the protocol.
+//   - A mismatch means that another protocol now holds the protocol key.
+func stale(err error) bool {
+	var ae *client.AppError
+	if errors.As(err, &ae) {
+		return ae.Status == protocol.StatusVersionUnsupported
+	}
+	var de *client.DNSError
+	if !errors.As(err, &de) {
+		return false
+	}
+	return de.Kind == client.KindMismatch || (de.Kind == client.KindRCode && de.RCode == rcodeRefused)
+}
+
 // decodeManifest returns the validated manifest of an envelope with the message type
 // t and the payload for zone. It returns an error that wraps ErrInvalidManifest when
 // t is not protocol.MessageManifest, or when the payload is not a valid manifest.
@@ -142,6 +195,13 @@ func decodeManifest(t protocol.MessageType, payload []byte, zone string) (*Manif
 //
 // QueryProtocol returns the error of Negotiate, with no query, when the negotiation
 // fails. Otherwise it returns the result and the error of client.Client.Query.
+//
+// QueryProtocol calls Forget for m.Zone when the query gets one of these answers. The
+// next Discover for the zone then sends a query and gets the new manifest.
+//   - A *client.AppError with the status protocol.StatusVersionUnsupported.
+//   - A *client.DNSError with the RCODE REFUSED.
+//   - A *client.DNSError of the kind client.KindMismatch, for example for another
+//     protocol ID.
 func (c *Client) QueryProtocol(ctx context.Context, m *Manifest, id, name string, supported []uint16) (*client.Result, error) {
 	key, v, err := Negotiate(m, id, supported)
 	if err != nil {
@@ -151,6 +211,9 @@ func (c *Client) QueryProtocol(ctx context.Context, m *Manifest, id, name string
 		Name: name, Class: key.Class, Type: key.Type, Version: v, ExpectedProtocolID: id,
 	})
 	if err != nil {
+		if stale(err) {
+			c.Forget(m.Zone)
+		}
 		// A *client.AppError comes with a result, so the result stays.
 		return res, fmt.Errorf("discovery: query %s: %w", id, err)
 	}

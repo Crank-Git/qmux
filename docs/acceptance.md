@@ -127,7 +127,7 @@ Criteria from [`docs/specs/features/02-authoritative-server.md`](specs/features/
 | # | Criterion | Proof |
 |---|---|---|
 | 1 | `NewServer(ServerConfig{})` returns a server whose registry accepts a valid registration. (FR-server-1) | `TestNewServerRegistryAcceptsValidRegistration` in [`pkg/server`](../pkg/server) |
-| 2 | `NewServer(ServerConfig{})` applies TTL 60, UDP size 1232, handler timeout 2s, read and write timeouts 2s, and shutdown grace 5s. (FR-server-2) | `TestNewServerAppliesDefaultsToZeroFields` in [`pkg/server`](../pkg/server) |
+| 2 | `NewServer(ServerConfig{})` applies TTL 60, UDP size 1232, handler timeout 800ms, read and write timeouts 2s, and shutdown grace 5s. (FR-server-2) | `TestNewServerAppliesDefaultsToZeroFields` in [`pkg/server`](../pkg/server) |
 | 3 | `Register` with a `Describer` handler adds a registration with the handler's `Info`. (FR-server-3) | `TestRegisterUsesTheInfoOfADescriberHandler` in [`pkg/server`](../pkg/server) |
 | 4 | `Register` with a plain `HandlerFunc` returns `ErrMissingInfo`. (FR-server-4) | `TestRegisterReturnsErrMissingInfoForAPlainHandlerFunc` in [`pkg/server`](../pkg/server) |
 | 5 | `RegisterProtocol` adds a registration with the given `Info`. (FR-server-5) | `TestRegisterProtocolUsesTheGivenInfo` in [`pkg/server`](../pkg/server) |
@@ -152,7 +152,7 @@ Criteria from [`docs/specs/features/02-authoritative-server.md`](specs/features/
 | 24 | The QNAME `_v2.device42.fleet.example.` gives `Request.Version` 2. A QNAME with no version label gives 0, and from Epic 5 the highest version. (FR-server-24, FR-discovery-21) | `TestServeQuerySetsTheVersionFromTheLeftmostVersionLabel` in [`pkg/server`](../pkg/server) |
 | 25 | With zone `fleet.example.`, `_v2.device42.fleet.example.` gives `Request.Labels` `["device42"]`. (FR-server-25) | `TestServeQuerySetsTheVersionFromTheLeftmostVersionLabel/version_2` in [`pkg/server`](../pkg/server)<br>`TestServeQuerySetsTheLabelsBelowTheZone` in [`pkg/server`](../pkg/server) |
 | 26 | A handler sees the client source address, `udp` or `tcp`, the query ID, and a non-zero `ReceivedAt`. (FR-server-26) | `TestServeGivesTheHandlerTheSourceTransportIDAndReceiveTime` in [`pkg/server`](../pkg/server) |
-| 27 | A handler sees a context deadline about 2 seconds after the call with default settings. (FR-server-27) | `TestServeQueryGivesTheHandlerADeadlineOfTheDefaultHandlerTimeout` in [`pkg/server`](../pkg/server) |
+| 27 | A handler sees a context deadline about 800 milliseconds after the call with default settings. (FR-server-27) | `TestServeQueryGivesTheHandlerADeadlineOfTheDefaultHandlerTimeout` in [`pkg/server`](../pkg/server) |
 | 28 | A schema that counts its calls records one call per answered query. (FR-server-28) | `TestServeQueryCallsTheSchemaOncePerAnsweredQuery` in [`pkg/server`](../pkg/server) |
 | 29 | A handler response gives `NOERROR`, AA set, and an answer count of 1. (FR-server-29) | `TestServeAnswersNoErrorWithAAAndOneOpaqueRR` in [`pkg/server`](../pkg/server) |
 | 30 | The answer RR for `Device42.fleet.example.` class 65281 type 65280 has that exact name, class 65281 and type 65280. (FR-server-30) | `TestServeAnswersNoErrorWithAAAndOneOpaqueRR` in [`pkg/server`](../pkg/server) (checks name, class and type of the answer RR) |
