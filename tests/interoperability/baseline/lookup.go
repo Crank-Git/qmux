@@ -2,12 +2,16 @@ package baseline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 
 	"github.com/plgd-dev/go-coap/v3/message"
 	"github.com/plgd-dev/go-coap/v3/message/codes"
+	"github.com/plgd-dev/go-coap/v3/options"
+	"github.com/plgd-dev/go-coap/v3/pkg/runner/periodic"
 	"github.com/plgd-dev/go-coap/v3/udp"
 
 	"github.com/Crank-Git/qmux/pkg/client"
@@ -44,7 +48,10 @@ func NewClient(t Target) (*Client, error) {
 	return &Client{
 		target:   t,
 		verifier: verifier,
-		dns:      client.NewClient(client.ClientConfig{Resolver: t.DNS, TrustAnchors: verifier}),
+		// One attempt per query, so lookupDNS repeats the query and counts each one.
+		dns: client.NewClient(client.ClientConfig{
+			Resolver: t.DNS, TrustAnchors: verifier, AttemptTimeout: dnsAttemptTimeout, Attempts: 1,
+		}),
 		// A client with no ClientSessionCache never resumes a TLS session.
 		cold:  &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig.Clone(), DisableKeepAlives: true}},
 		reuse: &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig.Clone()}},
@@ -57,12 +64,21 @@ func (c *Client) Close() {
 }
 
 // Lookup does one lookup of the baseline name and returns the envelope bytes after
-// the signature verifies.
+// the signature verifies. It is LookupRequests without the request count.
+func (c *Client) Lookup(ctx context.Context, name string) ([]byte, error) {
+	raw, _, err := c.LookupRequests(ctx, name)
+	return raw, err
+}
+
+// LookupRequests does one lookup of the baseline name and returns the envelope bytes
+// after the signature verifies, and the application requests that the lookup sent
+// (FR-bench-27). The count includes retries and the TCP fallback, and it is valid also
+// when the lookup fails.
 //
 // It returns an error that wraps ErrUnknownBaseline for a name that is not in Names.
 // A failed verification gives an error that wraps the security sentinel, for example
 // security.ErrBadSignature. Every other failure of the baseline is a wrapped error.
-func (c *Client) Lookup(ctx context.Context, name string) ([]byte, error) {
+func (c *Client) LookupRequests(ctx context.Context, name string) ([]byte, int, error) {
 	switch name {
 	case QMuxPrivate:
 		return c.lookupDNS(ctx, PrivateName, PrivateKey, PrivateID)
@@ -77,24 +93,65 @@ func (c *Client) Lookup(ctx context.Context, name string) ([]byte, error) {
 	case HTTPSReuse:
 		return c.lookupHTTPS(ctx, c.reuse)
 	}
-	return nil, fmt.Errorf("%w: %q", ErrUnknownBaseline, name)
+	return nil, 0, fmt.Errorf("%w: %q", ErrUnknownBaseline, name)
 }
 
-// lookupDNS queries the QNAME name at key. pkg/client verifies the envelope, because
-// the client has trust anchors.
-func (c *Client) lookupDNS(ctx context.Context, name string, key protocol.ProtocolKey, id string) ([]byte, error) {
-	res, err := c.dns.Query(ctx, client.Query{Name: name, Class: key.Class, Type: key.Type, ExpectedProtocolID: id})
-	if err != nil {
-		return nil, fmt.Errorf("baseline: dns lookup %s %d/%d: %w", name, key.Class, key.Type, err)
+// lookupDNS queries the QNAME name at key, with at most dnsAttempts queries
+// (FR-bench-19). Each query is one pkg/client attempt over a new socket. As in
+// pkg/client, only the end of the attempt timeout starts a new query. pkg/client
+// verifies the envelope, because the client has trust anchors.
+func (c *Client) lookupDNS(ctx context.Context, name string, key protocol.ProtocolKey, id string) ([]byte, int, error) {
+	q := client.Query{Name: name, Class: key.Class, Type: key.Type, ExpectedProtocolID: id}
+	requests := 0
+	var err error
+	for range dnsAttempts {
+		var res *client.Result
+		res, err = c.dns.Query(ctx, q)
+		requests++
+		if res != nil && res.FellBack {
+			requests++
+		}
+		var de *client.DNSError
+		if err == nil {
+			return res.Raw, requests, nil
+		}
+		if !errors.As(err, &de) || de.Kind != client.KindTimeout || ctx.Err() != nil {
+			break
+		}
 	}
-	return res.Raw, nil
+	return nil, requests, fmt.Errorf("baseline: dns lookup %s %d/%d: %w", name, key.Class, key.Type, err)
 }
 
-// lookupCoAP sends a confirmable GET on Path from a new UDP socket.
-func (c *Client) lookupCoAP(ctx context.Context) ([]byte, error) {
-	conn, err := udp.Dial(c.target.CoAP)
+// lookupCoAP sends a confirmable GET on Path from a new UDP socket, with the
+// transmission settings of FR-bench-20. A relay counts the transmissions, because
+// go-coap reports no count.
+func (c *Client) lookupCoAP(ctx context.Context) ([]byte, int, error) {
+	r, err := newRelay(c.target.CoAP)
 	if err != nil {
-		return nil, fmt.Errorf("baseline: coap dial %s: %w", c.target.CoAP, err)
+		return nil, 0, err
+	}
+	raw, err := c.getCoAP(ctx, r.addr())
+	return raw, r.close(), err
+}
+
+// getCoAP sends the GET to addr and verifies the envelope of the response.
+//
+// go-coap sends a retransmission only at a tick of its periodic runner. The default
+// runner ticks every 4 s (options/config/common.go, v3.8.2), so it delays each
+// retransmission past the ACK timeout. The runner of this lookup ticks every
+// coapTick and stops when the lookup returns.
+func (c *Client) getCoAP(ctx context.Context, addr string) ([]byte, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	conn, err := udp.Dial(addr,
+		options.WithTransmission(1, coapAckTimeout, coapMaxRetransmit, coapRandomFactor),
+		options.WithPeriodicRunner(periodic.New(ctx.Done(), coapTick)),
+		// The default prints each connection error to stdout, and the error of Get
+		// already reports the outcome of the lookup.
+		options.WithErrors(func(error) {}),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("baseline: coap dial %s: %w", addr, err)
 	}
 	defer conn.Close() //nolint:errcheck // The lookup reads nothing more from the socket.
 	resp, err := conn.Get(ctx, Path)
@@ -114,8 +171,17 @@ func (c *Client) lookupCoAP(ctx context.Context) ([]byte, error) {
 	return c.verifyPrivate(raw)
 }
 
-// lookupHTTPS sends GET Path with hc.
-func (c *Client) lookupHTTPS(ctx context.Context, hc *http.Client) ([]byte, error) {
+// lookupHTTPS sends GET Path with hc. The count is the number of request writes,
+// because net/http repeats a request on some failures of a kept connection.
+func (c *Client) lookupHTTPS(ctx context.Context, hc *http.Client) ([]byte, int, error) {
+	requests := 0
+	trace := &httptrace.ClientTrace{WroteRequest: func(httptrace.WroteRequestInfo) { requests++ }}
+	raw, err := c.getHTTPS(httptrace.WithClientTrace(ctx, trace), hc)
+	return raw, requests, err
+}
+
+// getHTTPS sends GET Path with hc and verifies the envelope of the response.
+func (c *Client) getHTTPS(ctx context.Context, hc *http.Client) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+c.target.HTTPS+Path, nil)
 	if err != nil {
 		return nil, fmt.Errorf("baseline: https request: %w", err)
