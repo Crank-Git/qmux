@@ -53,6 +53,7 @@ func (r *relay) addr() string {
 // close stops the relay and returns the number of datagrams that it sent to the
 // server. The close of the sockets ends both forward loops.
 func (r *relay) close() int {
+	// The lookup is complete, so a close error changes no result.
 	_ = r.local.Close()
 	_ = r.upstream.Close()
 	r.wg.Wait()
@@ -90,6 +91,8 @@ func (r *relay) toClient() {
 			continue
 		}
 		if peer := r.peer.Load(); peer != nil {
+			// A failed write loses the datagram, as a lossy link does, and go-coap
+			// then retransmits.
 			_, _ = r.local.WriteToUDP(buf[:n], peer)
 		}
 	}
