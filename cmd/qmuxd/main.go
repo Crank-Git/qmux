@@ -18,9 +18,9 @@ func main() {
 func run(args []string, stdout, stderr io.Writer) int {
 	name := filepath.Base(args[0])
 	if len(args) < 2 {
-		// The exit code is 1 whether or not stderr accepts the write.
+		// The exit code is 64 whether or not stderr accepts the write.
 		_, _ = fmt.Fprintf(stderr, "Usage: %s <serve|version|help>\n", name)
-		return 1
+		return exitUsage
 	}
 	var err error
 	switch args[1] {
@@ -31,9 +31,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "help", "-h", "--help":
 		_, err = fmt.Fprintf(stdout, "Usage: %s <command>\n\nCommands:\n  serve     Serve the protocols of the configuration file\n  version   Print the module version and the Go version\n  help      Show this help\n", name)
 	default:
-		// The exit code is 1 whether or not stderr accepts the write.
+		// The exit code is 64 whether or not stderr accepts the write.
 		_, _ = fmt.Fprintf(stderr, "Unknown command: %s\nUsage: %s <serve|version|help>\n", args[1], name)
-		return 1
+		return exitUsage
 	}
 	if err != nil {
 		// A caller that reads stdout must not see exit 0 with missing output.

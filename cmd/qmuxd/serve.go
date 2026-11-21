@@ -227,12 +227,18 @@ func (d *daemon) serve(ctx context.Context, stderr io.Writer) (code int) {
 	return exitResult
 }
 
-// printUsage writes the usage text of qmuxd serve with the flags of fs to w.
+// printUsage writes the usage text of qmuxd serve with the flags of fs to w. A flag
+// with a non-empty default shows the default, so that a reader knows which file qmuxd
+// reads without --config.
 func printUsage(w io.Writer, synopsis string, fs *flag.FlagSet) error {
 	var b strings.Builder
 	b.WriteString("Usage: " + synopsis + "\n\nFlags:\n")
 	fs.VisitAll(func(fl *flag.Flag) {
-		fmt.Fprintf(&b, "  --%-9s %s\n", fl.Name, fl.Usage)
+		fmt.Fprintf(&b, "  --%-9s %s", fl.Name, fl.Usage)
+		if fl.DefValue != "" {
+			fmt.Fprintf(&b, " (default %s)", fl.DefValue)
+		}
+		b.WriteString("\n")
 	})
 	b.WriteString("\nExit codes: 0 shut down after SIGINT or SIGTERM, 1 a listener does not bind, " +
 		"2 the configuration file or the signing key does not load, 64 usage error.\n")

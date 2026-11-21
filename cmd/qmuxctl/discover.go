@@ -25,6 +25,7 @@ type discoverFlags struct {
 	class, typ         uint16
 	setClass, setTyp   bool
 	in, insecure, json bool
+	tcp                bool
 }
 
 // manifestOutput is the manifest as qmuxctl discover prints it with --json.
@@ -85,7 +86,7 @@ func runDiscover(ctx context.Context, name string, args []string, stdout, stderr
 		key.Type = f.typ
 	}
 	dc := discovery.Client{
-		Client: client.NewClient(client.ClientConfig{Resolver: f.server, TrustAnchors: verifier}),
+		Client: client.NewClient(client.ClientConfig{Resolver: f.server, Network: networkOf(f.tcp), TrustAnchors: verifier}),
 		Key:    key, InsecureSkipVerify: f.insecure,
 	}
 	m, err := dc.Discover(ctx, f.name)
@@ -156,6 +157,7 @@ func parseDiscoverFlags(usage string, args []string) (discoverFlags, *flag.FlagS
 	fs.BoolVar(&f.in, "in", false, "use the IN discovery key 1/65534; not allowed with --class")
 	fs.BoolVar(&f.insecure, "insecure", false, "accept a manifest with no verification when no --trust-anchors is set")
 	fs.BoolVar(&f.json, "json", false, "print the manifest as one JSON object")
+	fs.BoolVar(&f.tcp, "tcp", false, "send the query over TCP")
 	fs.StringVar(&f.trustAnchors, "trust-anchors", "", "trust anchor file; the manifest must verify against it")
 
 	if err := fs.Parse(args); err != nil {

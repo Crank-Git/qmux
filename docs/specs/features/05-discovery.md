@@ -119,7 +119,8 @@ each one. Signatures arrive in Epic 6. Until then, discovery runs only with an e
 ### qmuxctl discover
 
 - **FR-discovery-33** — `qmuxctl discover` takes the flags `--server`, `--name`, `--class`,
-  `--type`, `--in`, `--insecure` and `--json`.
+  `--type`, `--in`, `--insecure` and `--json`. From the review #193, it also takes `--tcp`,
+  with the same meaning as in `qmuxctl query`.
 - **FR-discovery-34** — `--name` is the zone. `qmuxctl discover` queries `_qmux.<name>`.
 - **FR-discovery-35** — `--class` and `--type` override the discovery key. `--in` sets the
   discovery key to `(1, 65534)`. `--in` together with `--class` is a usage error.
