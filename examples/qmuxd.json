@@ -1,5 +1,5 @@
 {
-  "listen": "127.0.0.1:5353",
+  "listen": "127.0.0.1:5300",
   "zones": ["fleet.example."],
   "signing_key": "keys/qmuxd.key",
   "signature_validity": "1h",
