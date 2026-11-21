@@ -25,6 +25,7 @@ import (
 	"github.com/Crank-Git/qmux/pkg/security"
 	"github.com/Crank-Git/qmux/pkg/server"
 	"github.com/Crank-Git/qmux/pkg/transport"
+	"github.com/Crank-Git/qmux/tests/interoperability/baseline/fixture"
 )
 
 // Config holds the settings of Start.
@@ -89,7 +90,7 @@ func Start(ctx context.Context, cfg Config) (*Running, error) {
 		return nil, err
 	}
 	signedAt := time.Now()
-	signer := &security.Signer{Key: signingKey(), Validity: signingValidity, Now: func() time.Time { return signedAt }}
+	signer := &security.Signer{Key: fixture.SigningKey(), Validity: signingValidity, Now: func() time.Time { return signedAt }}
 
 	dns, err := newDNSServer(signer, payload, logger)
 	if err != nil {
